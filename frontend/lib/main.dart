@@ -15,15 +15,21 @@ class ZeroTrustApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GetMaterialApp(
-      title: 'Zero-Trust AI SDLC Enterprise Portal',
-      debugShowCheckedModeBanner: false,
-      theme: EnterpriseTheme.darkTheme,
-      initialRoute: '/portal',
-      getPages: [
-        GetPage(name: '/portal', page: () => const EnterprisePortalScreen()),
-        GetPage(name: '/dashboard', page: () => const EnterprisePortalScreen()),
-      ],
-    );
+    final controller = Get.find<EnterpriseSDLCController>();
+
+    return Obx(() {
+      return GetMaterialApp(
+        title: 'Zero-Trust AI SDLC Enterprise Portal',
+        debugShowCheckedModeBanner: false,
+        theme: EnterpriseTheme.lightTheme,
+        darkTheme: EnterpriseTheme.darkTheme,
+        themeMode: controller.isDarkMode.value ? ThemeMode.dark : ThemeMode.light,
+        initialRoute: '/portal',
+        getPages: [
+          GetPage(name: '/portal', page: () => const EnterprisePortalScreen()),
+          GetPage(name: '/dashboard', page: () => const EnterprisePortalScreen()),
+        ],
+      );
+    });
   }
 }

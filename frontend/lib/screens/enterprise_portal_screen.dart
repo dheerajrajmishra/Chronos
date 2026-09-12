@@ -27,66 +27,75 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
   Widget build(BuildContext context) {
     final controller = Get.find<EnterpriseSDLCController>();
 
-    return Scaffold(
-      backgroundColor: EnterpriseTheme.background,
-      body: Row(
-        children: [
-          // Collapsible Left Navigation Sidebar
-          const EnterpriseSidebar(),
+    return Obx(() {
+      final isDark = controller.isDarkMode.value;
+      final backgroundColor = EnterpriseTheme.getBackground(isDark);
 
-          // Main Center Viewport
-          Expanded(
-            child: Column(
-              children: [
-                // Top Global Header
-                EnterpriseHeader(
-                  isTerminalOpen: _isTerminalOpen,
-                  onToggleTerminal: () {
-                    setState(() => _isTerminalOpen = !_isTerminalOpen);
-                  },
-                ),
+      return Scaffold(
+        backgroundColor: backgroundColor,
+        body: Row(
+          children: [
+            // Collapsible Left Navigation Sidebar
+            const EnterpriseSidebar(),
 
-                // Active Stage Body Viewport
-                Expanded(
-                  child: Obx(() {
-                    switch (controller.currentStage.value) {
-                      case SDLCStageType.projectHub:
-                        return const ProjectHubScreen();
-                      case SDLCStageType.specStudio:
-                        return const Stage1SpecStudio();
-                      case SDLCStageType.vaultInspector:
-                        return const Stage2VaultInspector();
-                      case SDLCStageType.agentOrchestration:
-                        return const Stage3AgentOrchestration();
-                      case SDLCStageType.approvalGate:
-                        return const Stage4ApprovalGate();
-                      case SDLCStageType.codeGenSbom:
-                        return const Stage5CodeGenSbom();
-                      case SDLCStageType.auditTelemetry:
-                        return const Stage6AuditTelemetry();
-                    }
-                  }),
-                ),
+            // Main Center Viewport
+            Expanded(
+              child: Column(
+                children: [
+                  // Top Global Header
+                  EnterpriseHeader(
+                    isTerminalOpen: _isTerminalOpen,
+                    onToggleTerminal: () {
+                      setState(() => _isTerminalOpen = !_isTerminalOpen);
+                    },
+                  ),
 
-                // Live Streaming Activity Terminal Drawer
-                if (_isTerminalOpen) _terminalDrawer(controller),
-              ],
+                  // Active Stage Body Viewport
+                  Expanded(
+                    child: Obx(() {
+                      switch (controller.currentStage.value) {
+                        case SDLCStageType.projectHub:
+                          return const ProjectHubScreen();
+                        case SDLCStageType.specStudio:
+                          return const Stage1SpecStudio();
+                        case SDLCStageType.vaultInspector:
+                          return const Stage2VaultInspector();
+                        case SDLCStageType.agentOrchestration:
+                          return const Stage3AgentOrchestration();
+                        case SDLCStageType.approvalGate:
+                          return const Stage4ApprovalGate();
+                        case SDLCStageType.codeGenSbom:
+                          return const Stage5CodeGenSbom();
+                        case SDLCStageType.auditTelemetry:
+                          return const Stage6AuditTelemetry();
+                      }
+                    }),
+                  ),
+
+                  // Live Streaming Activity Terminal Drawer
+                  if (_isTerminalOpen) _terminalDrawer(controller, isDark),
+                ],
+              ),
             ),
-          ),
-        ],
-      ),
-    );
+          ],
+        ),
+      );
+    });
   }
 
-  Widget _terminalDrawer(EnterpriseSDLCController controller) {
+  Widget _terminalDrawer(EnterpriseSDLCController controller, bool isDark) {
     return Obx(() {
       final logs = controller.liveTerminalLogs;
+      final borderColor = EnterpriseTheme.getCardBorder(isDark);
+      final headerBg = isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B);
+      final bodyBg = isDark ? const Color(0xFF06090F) : const Color(0xFF0B1120);
+      final cyanAccent = EnterpriseTheme.cyan;
 
       return Container(
         height: 220,
-        decoration: const BoxDecoration(
-          color: Color(0xFF06090F),
-          border: Border(top: BorderSide(color: EnterpriseTheme.cardBorder, width: 1.5)),
+        decoration: BoxDecoration(
+          color: bodyBg,
+          border: Border(top: BorderSide(color: borderColor, width: 1.5)),
         ),
         child: Column(
           children: [
@@ -94,18 +103,18 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
             Container(
               height: 36,
               padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: const BoxDecoration(
-                color: Color(0xFF0F172A),
-                border: Border(bottom: BorderSide(color: EnterpriseTheme.cardBorder, width: 1)),
+              decoration: BoxDecoration(
+                color: headerBg,
+                border: Border(bottom: BorderSide(color: borderColor, width: 1)),
               ),
               child: Row(
                 children: [
-                  const Icon(Icons.terminal, size: 14, color: EnterpriseTheme.cyan),
+                  Icon(Icons.terminal, size: 14, color: cyanAccent),
                   const SizedBox(width: 8),
-                  const Text(
+                  Text(
                     'ZERO-TRUST ORCHESTRATION TERMINAL & TELEMETRY STREAM',
                     style: TextStyle(
-                      color: EnterpriseTheme.cyan,
+                      color: cyanAccent,
                       fontSize: 10,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 0.8,
@@ -113,12 +122,12 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                   ),
                   const Spacer(),
                   IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 14, color: EnterpriseTheme.textMuted),
+                    icon: const Icon(Icons.delete_outline, size: 14, color: EnterpriseTheme.darkTextMuted),
                     onPressed: () => controller.liveTerminalLogs.clear(),
                     tooltip: 'Clear Logs',
                   ),
                   IconButton(
-                    icon: const Icon(Icons.close, size: 14, color: EnterpriseTheme.textMuted),
+                    icon: const Icon(Icons.close, size: 14, color: EnterpriseTheme.darkTextMuted),
                     onPressed: () => setState(() => _isTerminalOpen = false),
                     tooltip: 'Close Terminal',
                   ),
@@ -141,7 +150,7 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                     logColor = EnterpriseTheme.purple;
                   } else if (log.contains('[TEMPORAL]') || log.contains('[AGENT_')) {
                     logColor = EnterpriseTheme.emerald;
-                  } else if (log.contains('[STT]') || log.contains('[AUTH]')) {
+                  } else if (log.contains('[STT]') || log.contains('[AUTH]') || log.contains('[THEME]')) {
                     logColor = EnterpriseTheme.amber;
                   } else if (log.contains('ERROR') || log.contains('BLOCKED')) {
                     logColor = EnterpriseTheme.rose;

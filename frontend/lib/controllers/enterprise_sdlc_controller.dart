@@ -11,6 +11,23 @@ class EnterpriseSDLCController extends GetxController {
   final RxString environment = 'Zero-Trust Secure Enclave (PCI/SOC2)'.obs;
   final RxBool isSidebarCollapsed = false.obs;
 
+  // Theme Mode State (true = Dark Mode, false = Light Mode)
+  final RxBool isDarkMode = true.obs;
+
+  void toggleTheme() {
+    isDarkMode.value = !isDarkMode.value;
+    Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
+    logTerminal("Theme switched to: ${isDarkMode.value ? 'DARK MODE (High-Tech HUD)' : 'LIGHT MODE (Enterprise Clean)'}", level: "THEME");
+    Get.snackbar(
+      'Theme Mode Changed',
+      isDarkMode.value ? 'Switched to Dark Cyberpunk HUD' : 'Switched to Enterprise Light Mode',
+      backgroundColor: isDarkMode.value ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0),
+      colorText: isDarkMode.value ? Colors.white : const Color(0xFF0F172A),
+      margin: const EdgeInsets.all(12),
+      duration: const Duration(seconds: 2),
+    );
+  }
+
   // Project Workspaces State
   final RxList<ProjectWorkspace> projectList = <ProjectWorkspace>[].obs;
   final Rxn<ProjectWorkspace> activeProject = Rxn<ProjectWorkspace>();
