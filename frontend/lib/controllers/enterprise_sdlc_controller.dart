@@ -1,7 +1,9 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:http/http.dart' as http;
 import '../models/workflow_model.dart';
 
 class EnterpriseSDLCController extends GetxController {
@@ -10,6 +12,11 @@ class EnterpriseSDLCController extends GetxController {
   final RxString userRole = 'Principal Security Architect'.obs;
   final RxString environment = 'Zero-Trust Secure Enclave (PCI/SOC2)'.obs;
   final RxBool isSidebarCollapsed = false.obs;
+
+  // AI Synthesis Engine State
+  final RxString customApiKey = ''.obs;
+  final RxBool useCloudLlm = false.obs;
+  final RxString llmEngineStatus = 'Zero-Trust Autonomous Engine'.obs;
 
   // Theme Mode State (true = Dark Mode, false = Light Mode)
   final RxBool isDarkMode = true.obs;
@@ -370,11 +377,18 @@ class EnterpriseSDLCController extends GetxController {
     setStage(SDLCStageType.agentOrchestration);
     newWf.status = "SYNTHESIZING_AGENTS";
     logTerminal("Invoking Temporal Activities on task queue 'sdlc-queue'...", level: "TEMPORAL");
-    logTerminal("Agent [Business Analyst] generated BRD with target schema constraints.", level: "AGENT_BA");
-    logTerminal("Agent [Solutions Architect] generated C4 models for repo: ${codeAccess.repoUrl}.", level: "AGENT_ARCH");
-    logTerminal("Agent [CyberSec Ops] verified STRIDE controls for ${dbAccess.dbType} on ${dbAccess.host}.", level: "AGENT_SEC");
+    logTerminal("Agent [Business Analyst] synthesizing BRD for: ${rawRequirement.split(' ').take(6).join(' ')}...", level: "AGENT_BA");
+    logTerminal("Agent [Solutions Architect] generating C4 models for repo: ${codeAccess.repoUrl}.", level: "AGENT_ARCH");
+    logTerminal("Agent [CyberSec Ops] verifying STRIDE controls for ${dbAccess.dbType} on ${dbAccess.host}.", level: "AGENT_SEC");
 
-    newWf.deliverables = _generateSampleDeliverables(rawRequirement, masked, architecture);
+    newWf.deliverables = await _synthesizeDeliverables(
+      rawRequirement: rawRequirement,
+      maskedRequirement: masked,
+      architecture: architecture,
+      compliance: compliance,
+      cloudTarget: cloudTarget,
+      llmModel: llmModel,
+    );
     newWf.currentStage = SDLCStageType.approvalGate;
     newWf.status = "WAITING_APPROVAL";
 
@@ -560,89 +574,332 @@ class EnterpriseSDLCController extends GetxController {
     return result;
   }
 
-  List<AgentDeliverable> _generateSampleDeliverables(String raw, String masked, String pattern) {
-    return [
-      AgentDeliverable(
-        agentName: "Business Analyst Agent",
-        agentRole: "Requirement Synthesis & User Story Extraction",
-        iconName: "assignment",
-        summary: "Detailed 8-part BRD with acceptance criteria, non-functional requirements, and user journeys.",
-        markdownContent: """
-# Business Requirements Document (BRD)
-**Workflow Reference:** `BRD-ZERO-TRUST-2026-v2`  
-**Classification:** RESTRICTED // ZERO-TRUST COMPLIANT  
+  Future<List<AgentDeliverable>> _synthesizeDeliverables({
+    required String rawRequirement,
+    required String maskedRequirement,
+    required String architecture,
+    required String compliance,
+    required String cloudTarget,
+    required String llmModel,
+  }) async {
+    // 1. Try backend server synthesis endpoint
+    try {
+      final response = await http.post(
+        Uri.parse('http://localhost:4000/api/agents/synthesize'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'requirement': rawRequirement,
+          'maskedRequirement': maskedRequirement,
+          'architecture': architecture,
+          'compliance': compliance,
+          'cloudTarget': cloudTarget,
+          'llmModel': llmModel,
+          'apiKey': customApiKey.value.trim().isNotEmpty ? customApiKey.value.trim() : null,
+        }),
+      ).timeout(const Duration(seconds: 8));
 
-## 1. Executive Summary
-This document specifies the enterprise functional requirements for the requested subsystem:
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> dels = data['deliverables'] ?? [];
+        if (dels.isNotEmpty) {
+          final isCloud = data['usedCloudLlm'] == true;
+          logTerminal(
+            isCloud
+                ? "Dispatched to Cloud LLM ($llmModel). Synthesis completed with live reasoning."
+                : "Zero-Trust Autonomous Synthesizer generated domain-specific deliverables.",
+            level: isCloud ? "CLOUD_LLM" : "AGENT_BA",
+          );
+          return dels.map((d) => AgentDeliverable(
+            agentName: d['agentName'] ?? 'Agent',
+            agentRole: d['agentRole'] ?? '',
+            iconName: d['iconName'] ?? 'assignment',
+            summary: d['summary'] ?? '',
+            markdownContent: d['markdownContent'] ?? '',
+            tags: List<String>.from(d['tags'] ?? []),
+          )).toList();
+        }
+      }
+    } catch (e) {
+      logTerminal("Backend synthesis bridge notice: using client-side Zero-Trust synthesis engine ($e).", level: "LOCAL_ENGINE");
+    }
+
+    // 2. Resilient In-Browser Zero-Trust Synthesizer
+    return _generateDynamicDeliverables(
+      raw: rawRequirement,
+      masked: maskedRequirement,
+      architecture: architecture,
+      compliance: compliance,
+      cloudTarget: cloudTarget,
+    );
+  }
+
+  List<AgentDeliverable> _generateDynamicDeliverables({
+    required String raw,
+    required String masked,
+    required String architecture,
+    String compliance = "SOC2 Type II & Zero-Trust NIST 800-207",
+    String cloudTarget = "Microsoft Azure (Zero-Trust VPC)",
+  }) {
+    final lower = raw.toLowerCase();
+
+    // Domain & Actor Extraction
+    String domain = "Enterprise Cloud Subsystem";
+    List<String> actors = ["Platform Engineer", "API Consumer", "Security Officer", "Auditor"];
+    List<String> keywords = ["confidential computing", "mTLS 1.3", "least-privilege access"];
+
+    if (lower.contains('patient') || lower.contains('hospital') || lower.contains('health') || lower.contains('ehr') || lower.contains('fhir') || lower.contains('hipaa')) {
+      domain = "Digital Healthcare & Clinical Informatics";
+      actors = ["Attending Physician", "Clinical Data Officer", "HIPAA Compliance Auditor", "EMR Integration Service"];
+      keywords = ["ePHI confidentiality", "HL7 FHIR REST API", "immutable clinical audit", "patient consent verification"];
+    } else if (lower.contains('payment') || lower.contains('stripe') || lower.contains('bank') || lower.contains('fintech') || lower.contains('transaction') || lower.contains('ledger') || lower.contains('kyc')) {
+      domain = "Fintech & High-Assurance Financial Services";
+      actors = ["Risk Officer", "Payment Settlement Engine", "PCI-DSS Auditor", "Merchant API Client"];
+      keywords = ["zero-loss ledger", "idempotent transactions", "tokenized PAN/CVV", "anti-fraud AML verification"];
+    } else if (lower.contains('iot') || lower.contains('vehicle') || lower.contains('telemetry') || lower.contains('fleet') || lower.contains('mqtt') || lower.contains('sensor')) {
+      domain = "Edge IoT & High-Throughput Telemetry Logistics";
+      actors = ["Edge Device Gateway", "Fleet Operations Manager", "Site Reliability Engineer", "Anomaly Detection Worker"];
+      keywords = ["time-series compression", "sub-50ms ingestion", "mTLS hardware security", "out-of-order packet reassembly"];
+    } else if (lower.contains('auth') || lower.contains('identity') || lower.contains('sso') || lower.contains('oauth') || lower.contains('saml') || lower.contains('jwt') || lower.contains('iam')) {
+      domain = "Enterprise Identity & Zero-Trust Access Management";
+      actors = ["Identity Provider (IdP)", "Directory Administrator", "Security Operations Center (SOC)", "Federated Client"];
+      keywords = ["JIT credential issuance", "short-lived token lifetimes", "least-privilege RBAC/ABAC", "FIDO2 WebAuthn"];
+    } else if (lower.contains('commerce') || lower.contains('order') || lower.contains('cart') || lower.contains('inventory') || lower.contains('catalog')) {
+      domain = "Omnichannel Enterprise E-Commerce & Supply Chain";
+      actors = ["Inventory Controller", "Order Processing Pipeline", "Fulfillment Partner Service", "Customer Experience Portal"];
+      keywords = ["distributed ACID reservations", "eventual consistency sync", "real-time stock reconciliation", "PCI checkout"];
+    }
+
+    // Technology extraction
+    String detectedDb = "PostgreSQL 16 (Encrypted at rest via AES-256)";
+    final dbMatches = ["TimescaleDB", "PostgreSQL", "MongoDB", "Redis", "MySQL", "DynamoDB", "Cassandra", "Oracle"]
+        .where((db) => lower.contains(db.toLowerCase()))
+        .toList();
+    if (dbMatches.isNotEmpty) {
+      detectedDb = dbMatches.join(', ');
+    }
+
+    String detectedApi = "mTLS REST / OpenAPI 3.1 & gRPC Streams";
+    final apiMatches = ["FHIR", "REST", "GraphQL", "gRPC", "WebSocket", "MQTT", "Kafka", "Webhook", "Stripe"]
+        .where((api) => lower.contains(api.toLowerCase()))
+        .toList();
+    if (apiMatches.isNotEmpty) {
+      detectedApi = apiMatches.join(', ');
+    }
+
+    // Summary snippet
+    final cleanSnippet = raw.replaceAll(RegExp(r'[\n\r]+'), ' ').trim();
+    final summaryTitle = cleanSnippet.length > 80 ? '${cleanSnippet.substring(0, 80)}...' : cleanSnippet;
+    final wfId = "BRD-${Random().nextInt(900000) + 100000}";
+
+    final brdMarkdown = """
+# Business Requirements Document (BRD)
+**Workflow Reference:** `$wfId`  
+**System Classification:** ${domain.toUpperCase()} // RESTRICTED ZERO-TRUST  
+**Compliance Standard:** $compliance  
+**Target Infrastructure:** $cloudTarget  
+**Architecture Pattern:** $architecture  
+
+---
+
+## 1. Executive Summary & Problem Statement
+This Business Requirements Document defines the functional, architectural, and governance contract for:
 > **Sanitized Requirement Context:**
 > $masked
 
-## 2. Target Objectives & Key Results (OKRs)
-- **Zero-Data Leakage:** Enforce 100% cryptographic tokenization on all incoming credentials and PII prior to multi-model LLM invocation.
-- **Latency Budget:** P99 end-to-end response time under 180ms across all authenticated endpoints.
-- **Compliance Certification:** Full compliance with SOC2 Type II, HIPAA Security Rule, and PCI-DSS 4.0.
+### 1.1 Business Problem
+The enterprise requires a resilient, zero-trust implementation for:  
+**"$summaryTitle"**  
+Existing operational workflows must transition to strict zero-data-leakage pipelines where all credentials, connection strings, and identifiable tokens are scrubbed prior to any reasoning or downstream storage.
 
-## 3. Epics & User Stories
-### Epic 1: Secure Credential & PII Vaulting
-- **US-1.1:** As an API consumer, all inbound requests containing secrets must be stripped and substituted with cryptographically secure tokens before reaching upstream reasoning models.
-- **US-1.2:** As a Security Auditor, all unmasking operations must leave an immutable, non-repudiable audit trace with actor ID and SHA-256 payload digest.
-""",
-        tags: ["BRD", "User Stories", "Acceptance Criteria", "OKRs"],
+### 1.2 Target Scope
+Deploy an isolated subsystem within **$cloudTarget**, interfacing with **$detectedDb**, and communicating securely over **$detectedApi** under **$compliance** controls.
+
+---
+
+## 2. In-Scope vs. Out-of-Scope Capabilities
+
+| Boundary Category | In-Scope Deliverables | Out-of-Scope Constraints |
+| :--- | :--- | :--- |
+| **Ingestion Security** | Real-time Presidio tokenization, Redis Vault storage, and SHA-256 HMAC payload signatures. | Direct exposure of raw unredacted credentials to reasoning models. |
+| **Core Workflow** | Autonomous multi-agent synthesis, contract generation for $detectedApi, and ACID persistence in $detectedDb. | Unauthenticated API endpoints bypassing mTLS boundaries. |
+| **Data Governance** | Just-In-Time (JIT) ephemeral database leasing (< 30 min TTL) and immutable audit log chaining. | Hardcoded static database passwords in deployment artifacts. |
+| **Regulatory Gate** | Human-in-the-Loop governance sign-off prior to code generation and container dispatch. | Automated production deploy bypass without designated officer approval. |
+
+---
+
+## 3. Target Objectives & Key Results (OKRs)
+
+- **OKR-1 (Zero-Trust Security):** Maintain **0% credential/PII leakage** to external reasoning models by verifying 100% token substitution at the Presidio DLP Gateway.
+- **OKR-2 (Performance SLA):** Achieve an end-to-end ingestion and processing latency of **P95 < 220ms** across all authenticated $detectedApi endpoints.
+- **OKR-3 (Audit Non-Repudiation):** Record 100% of pipeline events in an append-only audit ledger with SHA-256 digests.
+- **OKR-4 (Compliance Baseline):** Meet all technical controls for **$compliance** with zero critical/high CVEs in the generated SBOM.
+
+---
+
+## 4. Epics & Detailed User Stories
+
+### Epic 1: Zero-Trust Gateway & Payload Sanitization
+- **US-1.1 (Payload Interception):** As an **${actors[0]}**, all incoming requests for *"$summaryTitle"* must be stripped of secrets before reaching any internal execution logic.
+- **US-1.2 (Surrogate Token Substitution):** As a **Security Officer**, surrogate tokens must be deterministically mapped in Redis Vault so that downstream agents reason on realistic structures without seeing plaintext secrets.
+
+### Epic 2: Core Domain Logic & Data Persistence
+- **US-2.1 (Domain Workflow Execution):** As a **${actors[1]}**, the subsystem must execute core transactions against **$detectedDb** with strict transaction isolation.
+- **US-2.2 (Protocol Communication):** As an **${actors[2]}**, all service communication must occur over **$detectedApi** with TLS 1.3 encryption and automated retry policies.
+
+### Epic 3: Governance & Regulatory Compliance
+- **US-3.1 (Pre-Flight Gate):** As a **${actors[3]}**, changes cannot progress to code generation without interactive dual-signature human sign-off.
+- **US-3.2 (Audit Trail):** As a **Security Auditor**, every tokenization, unmasking, and deployment signal must produce an immutable audit event.
+
+---
+
+## 5. Acceptance Criteria (Gherkin Scenarios)
+
+```gherkin
+Scenario: Successful Zero-Trust Ingestion and Execution
+  Given a validated client request matching "$summaryTitle"
+  And the request contains sensitive tokens or credentials
+  When the payload is received by the Zero-Trust DLP Gateway
+  Then all credentials must be substituted with surrogate tokens
+  And an entry must be persisted in the Redis Token Vault
+  And the workflow state must transition to "SYNTHESIS_COMPLETE"
+
+Scenario: Ephemeral Database Transaction
+  Given an approved workflow execution for "$wfId"
+  When the activity worker interacts with "$detectedDb"
+  Then it must acquire an ephemeral JIT credential with TTL <= 30 minutes
+  And all queries must execute over TLS 1.3 encrypted sockets
+```
+
+---
+
+## 6. Non-Functional Requirements (NFRs)
+
+1. **Availability:** 99.99% service uptime backed by Temporal durable state execution.
+2. **Confidentiality:** Mutual TLS (mTLS) with rotating X.509 certificates.
+3. **Data Protection:** ${keywords.join(', ')}.
+4. **Disaster Recovery:** RPO = 0 seconds; RTO < 60 seconds.
+""";
+
+    final archMarkdown = """
+# System Architecture Specification
+**Architecture Pattern:** $architecture  
+**Target Infrastructure:** $cloudTarget  
+**System Classification:** $domain Architecture Blueprint  
+
+---
+
+## 1. C4 Container Architecture Diagram
+```mermaid
+graph TD
+    Client["Client / Web Gateway"] -->|mTLS 1.3| ZTGateway["Zero-Trust DLP Gateway (Presidio)"]
+    ZTGateway -->|Store Tokens| RedisVault[("Redis Token Vault (In-Memory)")]
+    ZTGateway -->|Sanitized Workflow| Temporal["Temporal Durable Orchestrator"]
+    Temporal -->|Task Queue: sdlc-queue| WorkerPool["Activity Workers Pool"]
+    WorkerPool -->|Masked Payload| ReasoningEngine["Reasoning / CodeGen Engine"]
+    WorkerPool -->|JIT Unmasked Conn| TargetDB[("$detectedDb")]
+    WorkerPool -->|Audit Signals| AuditLog[("Immutable Audit Ledger")]
+```
+
+---
+
+## 2. API Contract Specification ($detectedApi)
+```yaml
+openapi: 3.1.0
+info:
+  title: Zero-Trust Subsystem API
+  version: 1.0.0
+  description: Auto-synthesized contract for $summaryTitle
+paths:
+  /api/v1/subsystem/execute:
+    post:
+      summary: Execute sanitized business transaction
+      security:
+        - OAuth2Bearer: []
+        - MutualTLS: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                workflowId: { type: string }
+                payloadDigest: { type: string }
+      responses:
+        '200':
+          description: Successful execution under zero-trust controls
+```
+
+---
+
+## 3. Data Storage & Schema Design ($detectedDb)
+```sql
+-- Enterprise ACID schema definition for $domain
+CREATE TABLE IF NOT EXISTS subsystem_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    workflow_id VARCHAR(64) NOT NULL,
+    domain VARCHAR(128) NOT NULL,
+    payload_hash CHAR(64) NOT NULL,
+    execution_status VARCHAR(32) DEFAULT 'PENDING',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_subsystem_workflow ON subsystem_records(workflow_id);
+```
+""";
+
+    final secMarkdown = """
+# STRIDE Threat Model & Security Posture
+**Risk Rating:** LOW (Residual Risk Mitigated)  
+**Security Boundary:** $cloudTarget Zero-Trust Enclave  
+**Compliance Standard:** $compliance  
+
+---
+
+## 1. STRIDE Threat Analysis
+
+| Threat Category | Potential Attack Vector | Zero-Trust Mitigation Control | Status |
+| :--- | :--- | :--- | :--- |
+| **Spoofing** | Rogue caller attempting to execute against $detectedApi | Strict mTLS with hardware-backed X.509 client certs | **MITIGATED** |
+| **Tampering** | In-transit payload corruption or parameter injection | SHA-256 HMAC payload verification and signed envelopes | **MITIGATED** |
+| **Repudiation** | Actor denies initiating or approving workflow execution | Immutable audit ledger with dual-signature approval trail | **MITIGATED** |
+| **Information Disclosure** | Plaintext credential leak from input to reasoning engine | Presidio DLP Gateway + Redis Vault tokenization | **ELIMINATED** |
+| **Denial of Service** | Volumetric abuse on ingestion gateway | Distributed Redis token-bucket rate limiting (10,000 req/min) | **MITIGATED** |
+| **Elevation of Privilege** | Compromised worker accessing $detectedDb directly | Just-In-Time (JIT) ephemeral credentials (TTL <= 30m) | **MITIGATED** |
+
+---
+
+## 2. OWASP Top 10 & Zero-Trust Defense Matrix
+- **A01: Broken Access Control**: Enforced through RBAC with least-privilege principles.
+- **A02: Cryptographic Failures**: All data encrypted in transit (TLS 1.3) and at rest (AES-256-GCM).
+- **A03: Injection Attacks**: Strict parameterized queries and prepared statements on **$detectedDb**.
+""";
+
+    return [
+      AgentDeliverable(
+        agentName: "Business Analyst Agent",
+        agentRole: "Requirements Engineering & User Story Extraction",
+        iconName: "assignment",
+        summary: "Dynamic 8-part BRD synthesized for: $summaryTitle",
+        markdownContent: brdMarkdown,
+        tags: ["BRD", "User Stories", domain, compliance],
       ),
       AgentDeliverable(
         agentName: "Solutions Architect Agent",
         agentRole: "C4 Architecture, Data Schemas & API Specifications",
         iconName: "architecture",
-        summary: "C4 container architecture, OpenAPI 3.1 specification, and PostgreSQL ACID schema definitions.",
-        markdownContent: """
-# System Architecture Specification
-**Pattern:** $pattern  
-**Target Infrastructure:** Zero-Trust VPC Enclave  
-
-## 1. C4 Container Architecture
-```mermaid
-graph LR
-    Client["Client / Portal Web"] --> Gateway["Zero-Trust Gateway (FastAPI)"]
-    Gateway --> Vault[("Redis Token Vault")]
-    Gateway --> Temporal["Temporal Orchestrator"]
-    Temporal --> Worker["Worker Activities (Node/Go)"]
-    Worker --> LLM["Azure OpenAI GPT-4o (Masked)"]
-    Worker --> DB[("PostgreSQL DB (Unmasked)")]
-```
-
-## 2. API Contract Specification (OpenAPI 3.1)
-```yaml
-openapi: 3.1.0
-info:
-  title: Zero-Trust SDLC Gateway API
-  version: 2.4.0
-paths:
-  /v1/vault/mask:
-    post:
-      summary: Tokenize payload into Redis Vault
-```
-""",
-        tags: ["C4 Model", "OpenAPI 3.1", "Schema", "PostgreSQL"],
+        summary: "C4 Container Model & $detectedDb schema specification for $architecture",
+        markdownContent: archMarkdown,
+        tags: ["C4 Architecture", detectedApi, detectedDb, architecture],
       ),
       AgentDeliverable(
         agentName: "CyberSec Ops Agent",
         agentRole: "STRIDE Threat Modeling & OWASP Mitigation Matrix",
         iconName: "security",
-        summary: "STRIDE matrix, automated attack surface analysis, and Zero-Trust defense-in-depth controls.",
-        markdownContent: """
-# STRIDE Threat Model & Security Posture
-**Risk Rating:** LOW (Residual Risk Managed)  
-**Security Boundary:** Air-Gapped Zero-Trust Enclave  
-
-## 1. STRIDE Analysis
-| Threat Category | Potential Vector | Zero-Trust Mitigation Control | Status |
-| :--- | :--- | :--- | :--- |
-| **Spoofing** | Rogue caller impersonating Temporal Worker | mTLS with automated rotating X.509 certs | **MITIGATED** |
-| **Tampering** | In-transit payload manipulation | SHA-256 HMAC digest verification | **MITIGATED** |
-| **Repudiation** | Denying approval action at gate | Dual-signature immutable audit log | **MITIGATED** |
-| **Info Disclosure** | Raw API keys sent to LLM provider | Presidio regex + NER tokenization vault | **ELIMINATED** |
-""",
-        tags: ["STRIDE", "OWASP", "mTLS", "Defense-in-Depth"],
+        summary: "STRIDE matrix & zero-trust threat model addressing $detectedDb & $compliance",
+        markdownContent: secMarkdown,
+        tags: ["STRIDE", "OWASP", compliance, "Zero-Trust"],
       ),
     ];
   }
@@ -684,7 +941,13 @@ paths:
       currentStage: SDLCStageType.approvalGate,
       status: "WAITING_APPROVAL",
       tokens: tokens,
-      deliverables: _generateSampleDeliverables(raw, masked, "Event-Driven Microservices"),
+      deliverables: _generateDynamicDeliverables(
+        raw: raw,
+        masked: masked,
+        architecture: "Event-Driven Microservices",
+        compliance: prj.complianceBaseline,
+        cloudTarget: "Microsoft Azure (Zero-Trust VPC)",
+      ),
       sbomItems: _generateSbom(),
       auditHistory: [
         AuditEvent(

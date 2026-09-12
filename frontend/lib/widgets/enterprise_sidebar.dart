@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
 import '../models/workflow_model.dart';
 import '../theme/enterprise_theme.dart';
@@ -26,260 +27,92 @@ class EnterpriseSidebar extends StatelessWidget {
       final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
 
       return AnimatedContainer(
-        duration: const Duration(milliseconds: 250),
-        width: isCollapsed ? 74 : 260,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+        width: isCollapsed ? 68 : 256,
         decoration: BoxDecoration(
           color: surfaceColor,
           border: Border(right: BorderSide(color: borderColor, width: 1)),
-          boxShadow: isDark
-              ? null
-              : [
-                  BoxShadow(
-                    color: const Color(0xFF64748B).withValues(alpha: 0.06),
-                    blurRadius: 6,
-                    offset: const Offset(2, 0),
-                  )
-                ],
         ),
         child: Column(
           children: [
-            // Brand Logo & Header
-            Container(
-              height: 70,
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: borderColor, width: 1)),
-              ),
-              child: Row(
-                children: [
-                  Container(
-                    width: 38,
-                    height: 38,
-                    decoration: BoxDecoration(
-                      gradient: EnterpriseTheme.primaryGradient,
-                      borderRadius: BorderRadius.circular(10),
-                      boxShadow: [
-                        BoxShadow(
-                          color: primaryAccent.withValues(alpha: 0.3),
-                          blurRadius: 10,
-                          spreadRadius: 1,
-                        )
-                      ],
-                    ),
-                    child: const Icon(Icons.shield_outlined, color: Colors.black, size: 22),
-                  ),
-                  if (!isCollapsed) ...[
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'ZERO-TRUST',
-                            style: TextStyle(
-                              color: primaryAccent,
-                              fontWeight: FontWeight.w900,
-                              fontSize: 14,
-                              letterSpacing: 1.2,
-                            ),
-                          ),
-                          Text(
-                            'AI SDLC PLATFORM',
-                            style: TextStyle(
-                              color: textSecColor.withValues(alpha: 0.8),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 10,
-                              letterSpacing: 0.8,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-                  IconButton(
-                    icon: Icon(
-                      isCollapsed ? Icons.chevron_right : Icons.chevron_left,
-                      color: textSecColor,
-                      size: 20,
-                    ),
-                    onPressed: () => controller.isSidebarCollapsed.toggle(),
-                  ),
-                ],
-              ),
-            ),
+            // ─── Brand Header ──────────────────────────────────
+            _buildBrandHeader(controller, isCollapsed, isDark, primaryAccent, textSecColor, borderColor),
 
-            // Active Project Workspace Switcher Banner
+            // ─── Active Project Switcher ───────────────────────
             if (!isCollapsed && activePrj != null)
-              Container(
-                margin: const EdgeInsets.all(10),
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: inputBg,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: primaryAccent.withValues(alpha: 0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.folder_open, size: 14, color: primaryAccent),
-                        const SizedBox(width: 6),
-                        Text(
-                          'ACTIVE PROJECT',
-                          style: TextStyle(
-                            color: textMutedColor,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const Spacer(),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                          decoration: BoxDecoration(
-                            color: primaryAccent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(3),
-                          ),
-                          child: Text(
-                            activePrj.projectKey,
-                            style: TextStyle(color: primaryAccent, fontSize: 9, fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    PopupMenuButton<ProjectWorkspace>(
-                      initialValue: activePrj,
-                      onSelected: controller.selectProject,
-                      color: EnterpriseTheme.getCardBgElevated(isDark),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              activePrj.name,
-                              style: TextStyle(
-                                color: textColor,
-                                fontSize: 11,
-                                fontWeight: FontWeight.bold,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          Icon(Icons.unfold_more, size: 14, color: textSecColor),
-                        ],
-                      ),
-                      itemBuilder: (context) => projects.map((p) {
-                        return PopupMenuItem(
-                          value: p,
-                          child: Row(
-                            children: [
-                              Text("[${p.projectKey}] ", style: TextStyle(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.bold)),
-                              Expanded(child: Text(p.name, style: TextStyle(color: textColor, fontSize: 12), overflow: TextOverflow.ellipsis)),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
+              _buildProjectSwitcher(controller, activePrj, projects, isDark, inputBg, primaryAccent, textColor, textSecColor, textMutedColor),
 
-            // Navigation Items
+            // ─── Navigation Items ──────────────────────────────
             Expanded(
               child: ListView(
-                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 10),
+                padding: EdgeInsets.symmetric(vertical: 8, horizontal: isCollapsed ? 8 : 12),
                 children: [
-                  if (!isCollapsed)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 6, top: 4),
-                      child: Text(
-                        'PROJECT WORKSPACES',
-                        style: TextStyle(
-                          color: textMutedColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-
-                  _navItem(
+                  if (!isCollapsed) _sectionLabel('Workspaces', textMutedColor),
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.projectHub,
-                    title: 'Projects & Access Hub',
-                    icon: Icons.dashboard_customize_outlined,
-                    badge: 'WORKSPACE',
+                    title: 'Projects & Access',
+                    icon: Icons.grid_view_rounded,
+                    badge: 'HUB',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-
-                  if (!isCollapsed)
-                    Padding(
-                      padding: const EdgeInsets.only(left: 8, bottom: 6, top: 12),
-                      child: Text(
-                        'SDLC PIPELINE STAGES',
-                        style: TextStyle(
-                          color: textMutedColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.0,
-                        ),
-                      ),
-                    ),
-
-                  _navItem(
+                  if (!isCollapsed) ...[
+                    const SizedBox(height: 8),
+                    _sectionLabel('Pipeline Stages', textMutedColor),
+                  ],
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.specStudio,
-                    title: '1. Ingestion & Spec Studio',
-                    icon: Icons.mic_none_outlined,
-                    badge: 'VOICE/STT',
+                    title: 'Ingestion & Spec Studio',
+                    icon: Icons.auto_awesome_outlined,
+                    badge: '1',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-                  _navItem(
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.vaultInspector,
-                    title: '2. Zero-Trust Token Vault',
+                    title: 'Token Vault Inspector',
                     icon: Icons.vpn_key_outlined,
-                    badge: 'PRESIDIO',
+                    badge: '2',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-                  _navItem(
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.agentOrchestration,
-                    title: '3. Multi-Agent Synthesis',
+                    title: 'Agent Orchestration',
                     icon: Icons.hub_outlined,
-                    badge: 'TEMPORAL',
+                    badge: '3',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-                  _navItem(
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.approvalGate,
-                    title: '4. Governance & Approvals',
-                    icon: Icons.how_to_reg_outlined,
-                    badge: 'GATE',
+                    title: 'Governance Gate',
+                    icon: Icons.verified_outlined,
+                    badge: '4',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-                  _navItem(
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.codeGenSbom,
-                    title: '5. Code Gen & SBOM Matrix',
+                    title: 'Code Gen & SBOM',
                     icon: Icons.terminal_outlined,
-                    badge: 'SBOM',
+                    badge: '5',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
-                  _navItem(
+                  _NavItem(
                     controller: controller,
                     stage: SDLCStageType.auditTelemetry,
-                    title: '6. Immutable Audit & Telemetry',
-                    icon: Icons.analytics_outlined,
-                    badge: 'LIVE',
+                    title: 'Audit & Telemetry',
+                    icon: Icons.insights_outlined,
+                    badge: '6',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
@@ -287,184 +120,486 @@ class EnterpriseSidebar extends StatelessWidget {
               ),
             ),
 
-            // User Role Selector & Security Context
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                border: Border(top: BorderSide(color: borderColor, width: 1)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (!isCollapsed) ...[
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: const BoxDecoration(
-                            color: EnterpriseTheme.emerald,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: 6),
-                        Text(
-                          'SECURITY CONTEXT',
-                          style: TextStyle(
-                            color: textMutedColor,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 0.8,
-                          ),
-                        ),
-                        const Spacer(),
-                        InkWell(
-                          onTap: controller.toggleTheme,
-                          borderRadius: BorderRadius.circular(4),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2.0),
-                            child: Icon(
-                              isDark ? Icons.light_mode : Icons.dark_mode,
-                              size: 14,
-                              color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 6),
-                    PopupMenuButton<String>(
-                      initialValue: controller.userRole.value,
-                      onSelected: controller.setUserRole,
-                      color: EnterpriseTheme.getCardBgElevated(isDark),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: inputBg,
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: borderColor),
-                        ),
-                        child: Row(
-                          children: [
-                            Icon(Icons.verified_user_outlined, size: 16, color: primaryAccent),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                controller.userRole.value,
-                                style: TextStyle(
-                                  color: textColor,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            Icon(Icons.arrow_drop_down, size: 16, color: textSecColor),
-                          ],
-                        ),
-                      ),
-                      itemBuilder: (context) => [
-                        PopupMenuItem(
-                          value: 'Principal Security Architect',
-                          child: Text('Principal Security Architect', style: TextStyle(color: textColor)),
-                        ),
-                        PopupMenuItem(
-                          value: 'AppSec Compliance Officer',
-                          child: Text('AppSec Compliance Officer', style: TextStyle(color: textColor)),
-                        ),
-                        PopupMenuItem(
-                          value: 'Enterprise Lead Architect',
-                          child: Text('Enterprise Lead Architect', style: TextStyle(color: textColor)),
-                        ),
-                        PopupMenuItem(
-                          value: 'Product Governance Owner',
-                          child: Text('Product Governance Owner', style: TextStyle(color: textColor)),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    IconButton(
-                      icon: Icon(Icons.admin_panel_settings_outlined, color: primaryAccent),
-                      onPressed: () => controller.isSidebarCollapsed.value = false,
-                    ),
-                  ]
-                ],
-              ),
-            ),
+            // ─── User / Security Footer ───────────────────────
+            _buildFooter(controller, isCollapsed, isDark, borderColor, primaryAccent, textColor, textSecColor, textMutedColor, inputBg),
           ],
         ),
       );
     });
   }
 
-  Widget _navItem({
-    required EnterpriseSDLCController controller,
-    required SDLCStageType stage,
-    required String title,
+  // ─── Brand Header ──────────────────────────────────────────────────
+  Widget _buildBrandHeader(
+    EnterpriseSDLCController controller,
+    bool isCollapsed,
+    bool isDark,
+    Color primaryAccent,
+    Color textSecColor,
+    Color borderColor,
+  ) {
+    return Container(
+      height: 60,
+      padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 16),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+      ),
+      child: Row(
+        children: [
+          // Logo mark
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              gradient: EnterpriseTheme.brandGradient,
+              borderRadius: BorderRadius.circular(9),
+            ),
+            child: const Center(
+              child: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+            ),
+          ),
+          if (!isCollapsed) ...[
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  ShaderMask(
+                    shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
+                    child: Text(
+                      'Chronos',
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                        fontSize: 17,
+                        letterSpacing: -0.3,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    'Zero-Trust SDLC',
+                    style: GoogleFonts.inter(
+                      color: textSecColor.withValues(alpha: 0.7),
+                      fontWeight: FontWeight.w500,
+                      fontSize: 10,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+          const Spacer(),
+          _hoverIcon(
+            icon: isCollapsed ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
+            color: textSecColor,
+            onTap: () => controller.isSidebarCollapsed.toggle(),
+            isDark: isDark,
+            size: 18,
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ─── Project Switcher ──────────────────────────────────────────────
+  Widget _buildProjectSwitcher(
+    EnterpriseSDLCController controller,
+    ProjectWorkspace activePrj,
+    List<ProjectWorkspace> projects,
+    bool isDark,
+    Color inputBg,
+    Color primaryAccent,
+    Color textColor,
+    Color textSecColor,
+    Color textMutedColor,
+  ) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
+      child: PopupMenuButton<ProjectWorkspace>(
+        initialValue: activePrj,
+        onSelected: controller.selectProject,
+        color: EnterpriseTheme.getCardBgElevated(isDark),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10),
+          side: BorderSide(color: EnterpriseTheme.getCardBorder(isDark)),
+        ),
+        offset: const Offset(0, 42),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+          decoration: BoxDecoration(
+            color: inputBg,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: EnterpriseTheme.getCardBorder(isDark)),
+          ),
+          child: Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  color: primaryAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Icon(Icons.folder_outlined, size: 14, color: primaryAccent),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      activePrj.projectKey,
+                      style: GoogleFonts.inter(
+                        color: primaryAccent,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    Text(
+                      activePrj.name,
+                      style: GoogleFonts.inter(
+                        color: textColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+              Icon(Icons.unfold_more_rounded, size: 14, color: textMutedColor),
+            ],
+          ),
+        ),
+        itemBuilder: (context) => projects.map((p) {
+          final isActive = p.id == activePrj.id;
+          return PopupMenuItem(
+            value: p,
+            child: Row(
+              children: [
+                Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: isActive ? EnterpriseTheme.emerald : Colors.transparent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  "[${p.projectKey}] ",
+                  style: GoogleFonts.inter(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.w700),
+                ),
+                Expanded(
+                  child: Text(
+                    p.name,
+                    style: GoogleFonts.inter(color: textColor, fontSize: 12),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+
+  // ─── Section Label ─────────────────────────────────────────────────
+  Widget _sectionLabel(String text, Color color) {
+    return Padding(
+      padding: const EdgeInsets.only(left: 10, bottom: 4, top: 6),
+      child: Text(
+        text.toUpperCase(),
+        style: GoogleFonts.inter(
+          color: color.withValues(alpha: 0.6),
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          letterSpacing: 0.8,
+        ),
+      ),
+    );
+  }
+
+  // ─── Footer ────────────────────────────────────────────────────────
+  Widget _buildFooter(
+    EnterpriseSDLCController controller,
+    bool isCollapsed,
+    bool isDark,
+    Color borderColor,
+    Color primaryAccent,
+    Color textColor,
+    Color textSecColor,
+    Color textMutedColor,
+    Color inputBg,
+  ) {
+    return Container(
+      padding: EdgeInsets.all(isCollapsed ? 8 : 12),
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: borderColor, width: 1)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (!isCollapsed) ...[
+            // User info row
+            Row(
+              children: [
+                // Avatar
+                Container(
+                  width: 30,
+                  height: 30,
+                  decoration: BoxDecoration(
+                    gradient: EnterpriseTheme.primaryGradient,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Center(
+                    child: Text(
+                      controller.userRole.value.substring(0, 1),
+                      style: GoogleFonts.inter(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: PopupMenuButton<String>(
+                    initialValue: controller.userRole.value,
+                    onSelected: controller.setUserRole,
+                    color: EnterpriseTheme.getCardBgElevated(isDark),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      side: BorderSide(color: borderColor),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          controller.userRole.value.split(' ').take(2).join(' '),
+                          style: GoogleFonts.inter(
+                            color: textColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        Row(
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: const BoxDecoration(
+                                color: EnterpriseTheme.emerald,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              'Online',
+                              style: GoogleFonts.inter(
+                                color: EnterpriseTheme.emerald,
+                                fontSize: 10,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    itemBuilder: (context) => [
+                      _roleMenuItem('Principal Security Architect', textColor),
+                      _roleMenuItem('AppSec Compliance Officer', textColor),
+                      _roleMenuItem('Enterprise Lead Architect', textColor),
+                      _roleMenuItem('Product Governance Owner', textColor),
+                    ],
+                  ),
+                ),
+                // Theme toggle
+                _hoverIcon(
+                  icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                  color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
+                  onTap: controller.toggleTheme,
+                  isDark: isDark,
+                  size: 16,
+                ),
+              ],
+            ),
+          ] else ...[
+            Center(
+              child: _hoverIcon(
+                icon: Icons.person_outline_rounded,
+                color: primaryAccent,
+                onTap: () => controller.isSidebarCollapsed.value = false,
+                isDark: isDark,
+                size: 20,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  PopupMenuItem<String> _roleMenuItem(String role, Color textColor) {
+    return PopupMenuItem(
+      value: role,
+      child: Text(
+        role,
+        style: GoogleFonts.inter(color: textColor, fontSize: 12),
+      ),
+    );
+  }
+
+  Widget _hoverIcon({
     required IconData icon,
-    required String badge,
-    required bool isCollapsed,
+    required Color color,
+    required VoidCallback onTap,
     required bool isDark,
+    double size = 18,
   }) {
-    final isSelected = controller.currentStage.value == stage;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        hoverColor: EnterpriseTheme.getSubtleBg(isDark),
+        child: Padding(
+          padding: const EdgeInsets.all(6),
+          child: Icon(icon, size: size, color: color),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Stateful Nav Item with hover ────────────────────────────────────
+class _NavItem extends StatefulWidget {
+  final EnterpriseSDLCController controller;
+  final SDLCStageType stage;
+  final String title;
+  final IconData icon;
+  final String badge;
+  final bool isCollapsed;
+  final bool isDark;
+
+  const _NavItem({
+    required this.controller,
+    required this.stage,
+    required this.title,
+    required this.icon,
+    required this.badge,
+    required this.isCollapsed,
+    required this.isDark,
+  });
+
+  @override
+  State<_NavItem> createState() => _NavItemState();
+}
+
+class _NavItemState extends State<_NavItem> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final isSelected = widget.controller.currentStage.value == widget.stage;
+    final isDark = widget.isDark;
     final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
     final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
     final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
     final textColor = EnterpriseTheme.getTextPrimary(isDark);
-    final inputBg = EnterpriseTheme.getInputBg(isDark);
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 3),
-      child: InkWell(
-        onTap: () => controller.setStage(stage),
-        borderRadius: BorderRadius.circular(8),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-          decoration: BoxDecoration(
-            color: isSelected ? primaryAccent.withValues(alpha: isDark ? 0.12 : 0.1) : Colors.transparent,
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-              color: isSelected ? primaryAccent.withValues(alpha: 0.6) : Colors.transparent,
-              width: 1,
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 1),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: GestureDetector(
+          onTap: () => widget.controller.setStage(widget.stage),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 150),
+            curve: Curves.easeOut,
+            padding: EdgeInsets.symmetric(
+              horizontal: widget.isCollapsed ? 0 : 10,
+              vertical: 8,
             ),
-          ),
-          child: Row(
-            children: [
-              Icon(
-                icon,
-                color: isSelected ? primaryAccent : textSecColor,
-                size: 20,
-              ),
-              if (!isCollapsed) ...[
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Text(
-                    title,
-                    style: TextStyle(
-                      color: isSelected ? textColor : textSecColor,
-                      fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(
-                    color: isSelected ? primaryAccent.withValues(alpha: 0.2) : inputBg,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    badge,
-                    style: TextStyle(
-                      color: isSelected ? primaryAccent : textMutedColor,
-                      fontSize: 9,
-                      fontWeight: FontWeight.bold,
+            decoration: BoxDecoration(
+              color: isSelected
+                  ? primaryAccent.withValues(alpha: isDark ? 0.1 : 0.08)
+                  : (_isHovered
+                      ? EnterpriseTheme.getSubtleBg(isDark)
+                      : Colors.transparent),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Row(
+              mainAxisAlignment: widget.isCollapsed
+                  ? MainAxisAlignment.center
+                  : MainAxisAlignment.start,
+              children: [
+                // Left accent bar for active item
+                if (!widget.isCollapsed)
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    width: 3,
+                    height: isSelected ? 18 : 0,
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? primaryAccent : Colors.transparent,
+                      borderRadius: BorderRadius.circular(2),
                     ),
                   ),
+                // Icon
+                Tooltip(
+                  message: widget.isCollapsed ? widget.title : '',
+                  child: Icon(
+                    widget.icon,
+                    color: isSelected
+                        ? primaryAccent
+                        : (_isHovered ? textColor : textSecColor),
+                    size: 18,
+                  ),
                 ),
+                if (!widget.isCollapsed) ...[
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      widget.title,
+                      style: GoogleFonts.inter(
+                        color: isSelected
+                            ? textColor
+                            : (_isHovered ? textColor : textSecColor),
+                        fontSize: 12,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  // Stage number badge
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 150),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: isSelected
+                          ? primaryAccent.withValues(alpha: 0.15)
+                          : (_isHovered
+                              ? EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5)
+                              : Colors.transparent),
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                    child: Text(
+                      widget.badge,
+                      style: GoogleFonts.inter(
+                        color: isSelected ? primaryAccent : textMutedColor,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

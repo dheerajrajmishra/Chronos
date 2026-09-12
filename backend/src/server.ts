@@ -3,6 +3,7 @@ import cors from 'cors';
 import { Connection, Client } from '@temporalio/client';
 import { RequirementsToDesignWorkflow, approvalSignal } from './workflows';
 import axios from 'axios';
+import { synthesizeDeliverables } from './synthesizer';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -113,6 +114,44 @@ app.post('/api/gateway/mask', async (req: Request, res: Response) => {
         .replace(/sk_live_[a-zA-Z0-9_-]+/g, '<API_KEY_SECURE>')
         .replace(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g, '<IP_ADDRESS_SECURE>'),
     });
+  }
+});
+
+// LLM Engine Status
+app.get('/api/llm/status', (req: Request, res: Response) => {
+  const hasAzure = !!process.env.AZURE_OPENAI_KEY && process.env.AZURE_OPENAI_KEY !== 'dummy_key';
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  res.json({
+    status: hasAzure || hasOpenAI ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
+    hasCloudKey: hasAzure || hasOpenAI,
+    provider: hasAzure ? 'Azure OpenAI (gpt-4o)' : hasOpenAI ? 'OpenAI (gpt-4o)' : 'Zero-Trust Semantic Engine',
+    model: 'gpt-4o (Zero-Trust Enclave)',
+  });
+});
+
+// Dynamic Multi-Agent Deliverable Synthesis
+app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
+  try {
+    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey } = req.body;
+
+    if (!requirement || requirement.trim().length === 0) {
+      return res.status(400).json({ error: 'Requirement text is required' });
+    }
+
+    const result = await synthesizeDeliverables({
+      requirement,
+      maskedRequirement,
+      architecture,
+      compliance,
+      cloudTarget,
+      llmModel,
+      apiKey,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[Synthesis Error]', err);
+    res.status(500).json({ error: 'Failed to synthesize deliverables', details: err.message });
   }
 });
 

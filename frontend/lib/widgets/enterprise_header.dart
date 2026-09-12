@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
 import '../models/workflow_model.dart';
 import '../theme/enterprise_theme.dart';
 
-class EnterpriseHeader extends StatelessWidget {
+class EnterpriseHeader extends StatefulWidget {
   final VoidCallback onToggleTerminal;
   final bool isTerminalOpen;
 
@@ -13,6 +14,13 @@ class EnterpriseHeader extends StatelessWidget {
     required this.onToggleTerminal,
     required this.isTerminalOpen,
   }) : super(key: key);
+
+  @override
+  State<EnterpriseHeader> createState() => _EnterpriseHeaderState();
+}
+
+class _EnterpriseHeaderState extends State<EnterpriseHeader> {
+  bool _showHealth = false;
 
   @override
   Widget build(BuildContext context) {
@@ -27,218 +35,164 @@ class EnterpriseHeader extends StatelessWidget {
       final surfaceColor = EnterpriseTheme.getSurface(isDark);
       final borderColor = EnterpriseTheme.getCardBorder(isDark);
       final textColor = EnterpriseTheme.getTextPrimary(isDark);
+      final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
       final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
 
       return Container(
-        height: 64,
-        padding: const EdgeInsets.symmetric(horizontal: 16),
+        height: 52,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
         decoration: BoxDecoration(
           color: surfaceColor,
           border: Border(bottom: BorderSide(color: borderColor, width: 1)),
-          boxShadow: isDark
-              ? null
-              : [
-                  BoxShadow(
-                    color: const Color(0xFF64748B).withValues(alpha: 0.08),
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  )
-                ],
         ),
-        child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(
-            children: [
-              // Active Project Identifier
-              if (prj != null) ...[
-                InkWell(
-                  onTap: () => controller.setStage(SDLCStageType.projectHub),
-                  borderRadius: BorderRadius.circular(6),
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                    decoration: BoxDecoration(
-                      color: EnterpriseTheme.getInputBg(isDark),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(color: borderColor),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.folder, color: primaryAccent, size: 14),
-                        const SizedBox(width: 6),
-                        Text(
-                          prj.projectKey,
-                          style: TextStyle(
-                            color: primaryAccent,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 11,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-              ],
-
-              // Active Workflow Identifier & Status
-              if (wf != null) ...[
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: primaryAccent.withValues(alpha: 0.12),
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: primaryAccent.withValues(alpha: 0.4)),
-                  ),
-                  child: Row(
-                    children: [
-                      Icon(Icons.blur_on, color: primaryAccent, size: 14),
-                      const SizedBox(width: 6),
-                      Text(
-                        wf.id,
-                        style: TextStyle(
-                          color: primaryAccent,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 11,
-                          letterSpacing: 0.8,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 8),
-                _statusBadge(wf.status, isDark),
-              ] else ...[
-                Text(
-                  'ZERO-TRUST AI SDLC PORTAL',
-                  style: TextStyle(
-                    color: textColor,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 13,
-                    letterSpacing: 0.5,
-                  ),
-                ),
-              ],
-
-              const SizedBox(width: 16),
-
-              // Live Telemetry Indicators
-              _telemetryPill(
-                isDark: isDark,
-                label: 'TEMPORAL',
-                value: telemetry['temporalStatus'] ?? 'ONLINE',
-                color: EnterpriseTheme.emerald,
-                icon: Icons.sync_alt,
-              ),
-              const SizedBox(width: 8),
-              _telemetryPill(
-                isDark: isDark,
-                label: 'VAULT REDIS',
-                value: "${telemetry['redisTokensCount']} TOKENS",
-                color: primaryAccent,
-                icon: Icons.vpn_key_outlined,
-              ),
-              const SizedBox(width: 8),
-              _telemetryPill(
-                isDark: isDark,
-                label: 'DLP LATENCY',
-                value: "${telemetry['gatewayLatencyMs']}ms",
-                color: EnterpriseTheme.emeraldGlow,
-                icon: Icons.speed,
-              ),
-              const SizedBox(width: 8),
-              _telemetryPill(
-                isDark: isDark,
-                label: 'ZERO-TRUST SCORE',
-                value: telemetry['zeroTrustScore'] ?? '99.4%',
-                color: primaryAccent,
-                icon: Icons.verified,
-              ),
-
-              const SizedBox(width: 16),
-
-              // Theme Mode Toggle Button
-              Container(
-                decoration: BoxDecoration(
-                  color: EnterpriseTheme.getInputBg(isDark),
-                  borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: borderColor),
-                ),
-                child: IconButton(
-                  icon: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 250),
-                    transitionBuilder: (child, anim) => RotationTransition(turns: anim, child: child),
-                    child: Icon(
-                      isDark ? Icons.light_mode : Icons.dark_mode,
-                      key: ValueKey<bool>(isDark),
-                      size: 16,
-                      color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
-                    ),
-                  ),
-                  tooltip: isDark ? 'Switch to Light Theme' : 'Switch to Dark Theme',
-                  onPressed: controller.toggleTheme,
-                  padding: const EdgeInsets.all(8),
-                  constraints: const BoxConstraints(minWidth: 34, minHeight: 34),
-                ),
-              ),
-
-              const SizedBox(width: 8),
-
-              // Live Terminal Console Toggle
-              ElevatedButton.icon(
-                onPressed: onToggleTerminal,
-                icon: Icon(
-                  Icons.terminal,
-                  size: 14,
-                  color: isTerminalOpen ? primaryAccent : (isDark ? Colors.white : const Color(0xFF1E293B)),
-                ),
-                label: Text(
-                  isTerminalOpen ? 'Hide Logs' : 'Live Logs',
-                  style: TextStyle(
-                    fontSize: 11,
-                    color: isTerminalOpen ? primaryAccent : (isDark ? Colors.white : const Color(0xFF1E293B)),
-                  ),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isTerminalOpen
-                      ? primaryAccent.withValues(alpha: 0.15)
-                      : EnterpriseTheme.getInputBg(isDark),
-                  side: BorderSide(
-                    color: isTerminalOpen ? primaryAccent : borderColor,
-                  ),
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                  elevation: 0,
-                ),
-              ),
-
+        child: Row(
+          children: [
+            // ─── Breadcrumb Navigation ─────────────────────
+            _breadcrumbItem(
+              'Chronos',
+              primaryAccent,
+              textMutedColor,
+              onTap: () => controller.setStage(SDLCStageType.projectHub),
+            ),
+            _breadcrumbSeparator(textMutedColor),
+            if (prj != null) ...[
+              _breadcrumbItem(prj.projectKey, textColor, textMutedColor),
+              _breadcrumbSeparator(textMutedColor),
+            ],
+            if (wf != null) ...[
+              _breadcrumbItem(wf.id, primaryAccent, textMutedColor),
               const SizedBox(width: 10),
-
-              // New Workflow Button
-              ElevatedButton.icon(
-                onPressed: () {
-                  controller.setStage(SDLCStageType.specStudio);
-                },
-                icon: const Icon(Icons.add_circle_outline, size: 14, color: Colors.black),
-                label: const Text(
-                  'New Pipeline',
-                  style: TextStyle(fontSize: 11, color: Colors.black, fontWeight: FontWeight.bold),
-                ),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(6)),
-                  elevation: 0,
+              _statusChip(wf.status, isDark),
+            ] else ...[
+              Text(
+                _stageDisplayName(controller.currentStage.value),
+                style: GoogleFonts.inter(
+                  color: textColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 13,
                 ),
               ),
             ],
-          ),
+
+            const Spacer(),
+
+            // ─── System Health Indicator ─────────────────────
+            MouseRegion(
+              onEnter: (_) => setState(() => _showHealth = true),
+              onExit: (_) => setState(() => _showHealth = false),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                padding: EdgeInsets.symmetric(
+                  horizontal: _showHealth ? 12 : 8,
+                  vertical: 4,
+                ),
+                decoration: BoxDecoration(
+                  color: EnterpriseTheme.getSubtleBg(isDark),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: borderColor),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Container(
+                      width: 7,
+                      height: 7,
+                      decoration: const BoxDecoration(
+                        color: EnterpriseTheme.emerald,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Text(
+                      'Systems Online',
+                      style: GoogleFonts.inter(
+                        color: EnterpriseTheme.emerald,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    if (_showHealth) ...[
+                      const SizedBox(width: 10),
+                      _healthStat('Vault', '${telemetry['redisTokensCount']}', EnterpriseTheme.purple, textMutedColor),
+                      const SizedBox(width: 8),
+                      _healthStat('Latency', '${telemetry['gatewayLatencyMs']}ms', primaryAccent, textMutedColor),
+                      const SizedBox(width: 8),
+                      _healthStat('Trust', telemetry['zeroTrustScore'] ?? '99.4%', EnterpriseTheme.emerald, textMutedColor),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+
+            const SizedBox(width: 10),
+
+            // ─── Theme Toggle ────────────────────────────────
+            _headerIconButton(
+              icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+              color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
+              tooltip: isDark ? 'Light mode' : 'Dark mode',
+              onTap: controller.toggleTheme,
+              isDark: isDark,
+            ),
+
+            const SizedBox(width: 4),
+
+            // ─── Terminal Toggle ─────────────────────────────
+            _headerIconButton(
+              icon: Icons.terminal_rounded,
+              color: widget.isTerminalOpen ? primaryAccent : textSecColor,
+              tooltip: widget.isTerminalOpen ? 'Hide terminal' : 'Show terminal',
+              onTap: widget.onToggleTerminal,
+              isDark: isDark,
+              isActive: widget.isTerminalOpen,
+              activeAccent: primaryAccent,
+            ),
+
+            const SizedBox(width: 8),
+
+            // ─── New Pipeline CTA ────────────────────────────
+            _ActionButton(
+              label: 'New Pipeline',
+              icon: Icons.add_rounded,
+              onTap: () => controller.setStage(SDLCStageType.specStudio),
+              isDark: isDark,
+            ),
+          ],
         ),
       );
     });
   }
 
-  Widget _statusBadge(String status, bool isDark) {
-    Color color = EnterpriseTheme.cyan;
+  // ─── Breadcrumb Item ──────────────────────────────────────────
+  Widget _breadcrumbItem(String label, Color color, Color mutedColor, {VoidCallback? onTap}) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(4),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 2),
+        child: Text(
+          label,
+          style: GoogleFonts.inter(
+            color: color,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _breadcrumbSeparator(Color color) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 6),
+      child: Icon(Icons.chevron_right_rounded, size: 14, color: color.withValues(alpha: 0.5)),
+    );
+  }
+
+  // ─── Status Chip ──────────────────────────────────────────────
+  Widget _statusChip(String status, bool isDark) {
+    Color color = EnterpriseTheme.getPrimaryAccent(isDark);
     if (status.contains('WAITING') || status.contains('APPROVAL')) {
       color = EnterpriseTheme.amber;
     } else if (status.contains('APPROVED') || status.contains('COMPLETED')) {
@@ -250,53 +204,148 @@ class EnterpriseHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.15 : 0.1),
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: color.withValues(alpha: 0.4)),
+        color: color.withValues(alpha: isDark ? 0.1 : 0.08),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: color.withValues(alpha: 0.25)),
       ),
       child: Text(
         status.replaceAll('_', ' '),
-        style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold),
+        style: GoogleFonts.inter(color: color, fontSize: 10, fontWeight: FontWeight.w600),
       ),
     );
   }
 
-  Widget _telemetryPill({
-    required bool isDark,
-    required String label,
-    required String value,
-    required Color color,
+  // ─── Health Stat ──────────────────────────────────────────────
+  Widget _healthStat(String label, String value, Color color, Color mutedColor) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          '$label ',
+          style: GoogleFonts.inter(color: mutedColor, fontSize: 9, fontWeight: FontWeight.w500),
+        ),
+        Text(
+          value,
+          style: GoogleFonts.inter(color: color, fontSize: 9, fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
+
+  // ─── Header Icon Button ───────────────────────────────────────
+  Widget _headerIconButton({
     required IconData icon,
+    required Color color,
+    required String tooltip,
+    required VoidCallback onTap,
+    required bool isDark,
+    bool isActive = false,
+    Color? activeAccent,
   }) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: EnterpriseTheme.getInputBg(isDark),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: EnterpriseTheme.getCardBorder(isDark)),
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(7),
+          hoverColor: EnterpriseTheme.getSubtleBg(isDark),
+          child: Container(
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(7),
+              color: isActive
+                  ? (activeAccent ?? color).withValues(alpha: 0.1)
+                  : Colors.transparent,
+            ),
+            child: Icon(icon, size: 16, color: color),
+          ),
+        ),
       ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: 12, color: color),
-          const SizedBox(width: 5),
-          Text(
-            "$label: ",
-            style: TextStyle(
-              color: EnterpriseTheme.getTextMuted(isDark),
-              fontSize: 10,
-              fontWeight: FontWeight.w500,
-            ),
+    );
+  }
+
+  // ─── Stage Display Name ───────────────────────────────────────
+  String _stageDisplayName(SDLCStageType stage) {
+    switch (stage) {
+      case SDLCStageType.projectHub:
+        return 'Projects & Access Hub';
+      case SDLCStageType.specStudio:
+        return 'Ingestion & Spec Studio';
+      case SDLCStageType.vaultInspector:
+        return 'Token Vault Inspector';
+      case SDLCStageType.agentOrchestration:
+        return 'Agent Orchestration';
+      case SDLCStageType.approvalGate:
+        return 'Governance Gate';
+      case SDLCStageType.codeGenSbom:
+        return 'Code Gen & SBOM';
+      case SDLCStageType.auditTelemetry:
+        return 'Audit & Telemetry';
+    }
+  }
+}
+
+// ─── Action Button ──────────────────────────────────────────────────
+class _ActionButton extends StatefulWidget {
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
+  final bool isDark;
+
+  const _ActionButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+    required this.isDark,
+  });
+
+  @override
+  State<_ActionButton> createState() => _ActionButtonState();
+}
+
+class _ActionButtonState extends State<_ActionButton> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      child: GestureDetector(
+        onTap: widget.onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 150),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            gradient: EnterpriseTheme.brandGradient,
+            borderRadius: BorderRadius.circular(7),
+            boxShadow: _isHovered
+                ? [
+                    BoxShadow(
+                      color: EnterpriseTheme.brandBlue.withValues(alpha: 0.3),
+                      blurRadius: 12,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
           ),
-          Text(
-            value,
-            style: TextStyle(
-              color: color,
-              fontSize: 10,
-              fontWeight: FontWeight.bold,
-            ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(widget.icon, size: 14, color: Colors.white),
+              const SizedBox(width: 6),
+              Text(
+                widget.label,
+                style: GoogleFonts.inter(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
 import '../models/workflow_model.dart';
 import '../theme/enterprise_theme.dart';
@@ -72,8 +73,14 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                     }),
                   ),
 
-                  // Live Streaming Activity Terminal Drawer
-                  if (_isTerminalOpen) _terminalDrawer(controller, isDark),
+                  // Live Terminal Drawer
+                  AnimatedSize(
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOutCubic,
+                    child: _isTerminalOpen
+                        ? _terminalDrawer(controller, isDark)
+                        : const SizedBox.shrink(),
+                  ),
                 ],
               ),
             ),
@@ -87,21 +94,20 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
     return Obx(() {
       final logs = controller.liveTerminalLogs;
       final borderColor = EnterpriseTheme.getCardBorder(isDark);
-      final headerBg = isDark ? const Color(0xFF0F172A) : const Color(0xFF1E293B);
-      final bodyBg = isDark ? const Color(0xFF06090F) : const Color(0xFF0B1120);
-      final cyanAccent = EnterpriseTheme.cyan;
+      final headerBg = isDark ? const Color(0xFF0F1117) : const Color(0xFF18181B);
+      final bodyBg = isDark ? const Color(0xFF09090B) : const Color(0xFF0C0D12);
 
       return Container(
-        height: 220,
+        height: 200,
         decoration: BoxDecoration(
           color: bodyBg,
-          border: Border(top: BorderSide(color: borderColor, width: 1.5)),
+          border: Border(top: BorderSide(color: borderColor, width: 1)),
         ),
         child: Column(
           children: [
             // Terminal Header
             Container(
-              height: 36,
+              height: 34,
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 color: headerBg,
@@ -109,28 +115,31 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
               ),
               child: Row(
                 children: [
-                  Icon(Icons.terminal, size: 14, color: cyanAccent),
-                  const SizedBox(width: 8),
+                  // Dot indicators
+                  Row(
+                    children: [
+                      _termDot(EnterpriseTheme.emerald),
+                      const SizedBox(width: 5),
+                      _termDot(EnterpriseTheme.amber),
+                      const SizedBox(width: 5),
+                      _termDot(EnterpriseTheme.rose),
+                    ],
+                  ),
+                  const SizedBox(width: 12),
                   Text(
-                    'ZERO-TRUST ORCHESTRATION TERMINAL & TELEMETRY STREAM',
-                    style: TextStyle(
-                      color: cyanAccent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 0.8,
+                    'Orchestration Terminal',
+                    style: GoogleFonts.inter(
+                      color: EnterpriseTheme.darkTextMuted,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   const Spacer(),
-                  IconButton(
-                    icon: const Icon(Icons.delete_outline, size: 14, color: EnterpriseTheme.darkTextMuted),
-                    onPressed: () => controller.liveTerminalLogs.clear(),
-                    tooltip: 'Clear Logs',
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.close, size: 14, color: EnterpriseTheme.darkTextMuted),
-                    onPressed: () => setState(() => _isTerminalOpen = false),
-                    tooltip: 'Close Terminal',
-                  ),
+                  _termAction(Icons.delete_outline_rounded, 'Clear',
+                      () => controller.liveTerminalLogs.clear()),
+                  const SizedBox(width: 4),
+                  _termAction(Icons.close_rounded, 'Close',
+                      () => setState(() => _isTerminalOpen = false)),
                 ],
               ),
             ),
@@ -138,14 +147,14 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
             // Logs Content Area
             Expanded(
               child: ListView.builder(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 itemCount: logs.length,
                 itemBuilder: (context, index) {
                   final log = logs[index];
-                  Color logColor = const Color(0xFF94A3B8);
+                  Color logColor = const Color(0xFF71717A);
 
                   if (log.contains('[WORKFLOW]') || log.contains('[SIGNAL]')) {
-                    logColor = EnterpriseTheme.cyan;
+                    logColor = EnterpriseTheme.brandBlue;
                   } else if (log.contains('[VAULT]') || log.contains('[VAULT_AUDIT]')) {
                     logColor = EnterpriseTheme.purple;
                   } else if (log.contains('[TEMPORAL]') || log.contains('[AGENT_')) {
@@ -154,15 +163,16 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                     logColor = EnterpriseTheme.amber;
                   } else if (log.contains('ERROR') || log.contains('BLOCKED')) {
                     logColor = EnterpriseTheme.rose;
+                  } else if (log.contains('[NAV]') || log.contains('[PROJECT]')) {
+                    logColor = const Color(0xFFA1A1AA);
                   }
 
                   return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 2.0),
+                    padding: const EdgeInsets.symmetric(vertical: 1.5),
                     child: Text(
                       log,
-                      style: TextStyle(
+                      style: GoogleFonts.jetBrainsMono(
                         color: logColor,
-                        fontFamily: 'Consolas',
                         fontSize: 11,
                         height: 1.4,
                       ),
@@ -175,5 +185,33 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
         ),
       );
     });
+  }
+
+  Widget _termDot(Color color) {
+    return Container(
+      width: 10,
+      height: 10,
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.7),
+        shape: BoxShape.circle,
+      ),
+    );
+  }
+
+  Widget _termAction(IconData icon, String tooltip, VoidCallback onTap) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(4),
+          child: Padding(
+            padding: const EdgeInsets.all(4),
+            child: Icon(icon, size: 14, color: EnterpriseTheme.darkTextMuted),
+          ),
+        ),
+      ),
+    );
   }
 }
