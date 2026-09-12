@@ -5,17 +5,26 @@ import '../../models/workflow_model.dart';
 import '../../theme/enterprise_theme.dart';
 
 class Stage2VaultInspector extends StatelessWidget {
-  const Stage2VaultInspector({Key? key}) : super(key: key);
+  const Stage2VaultInspector({super.key});
 
   @override
   Widget build(BuildContext context) {
     final controller = Get.find<EnterpriseSDLCController>();
 
     return Obx(() {
+      final isDark = controller.isDarkMode.value;
       final wf = controller.activeWorkflow.value;
+      final textColor = EnterpriseTheme.getTextPrimary(isDark);
+      final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+      final borderColor = EnterpriseTheme.getCardBorder(isDark);
+      final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
+      final inputBg = EnterpriseTheme.getInputBg(isDark);
+      final cardBgElevated = EnterpriseTheme.getCardBgElevated(isDark);
+
       if (wf == null) {
-        return const Center(
-          child: Text('No active workflow. Initiate one in Stage 1.', style: TextStyle(color: EnterpriseTheme.textMuted)),
+        return Center(
+          child: Text('No active workflow. Initiate one in Stage 1.', style: TextStyle(color: textMutedColor)),
         );
       }
 
@@ -41,19 +50,19 @@ class Stage2VaultInspector extends StatelessWidget {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Stage 2: Zero-Trust Gateway & Cryptographic Vault',
                         style: TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                          color: textColor,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Presidio NER tokenization with Redis in-memory vault. All sensitive entities are sanitized before LLM dispatch.',
-                        style: TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecColor, fontSize: 13),
                       ),
                     ],
                   ),
@@ -63,7 +72,7 @@ class Stage2VaultInspector extends StatelessWidget {
                   icon: const Icon(Icons.arrow_forward, size: 16, color: Colors.black),
                   label: const Text('Proceed to Stage 3', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: EnterpriseTheme.cyan,
+                    backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -78,16 +87,18 @@ class Stage2VaultInspector extends StatelessWidget {
               children: [
                 Expanded(
                   child: _metricCard(
+                    isDark: isDark,
                     title: 'SANITIZED ENTITIES',
                     value: '${tokens.length} Extracted',
                     subtitle: '100% Policy Enforced',
-                    color: EnterpriseTheme.cyan,
+                    color: primaryAccent,
                     icon: Icons.shield_outlined,
                   ),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
                   child: _metricCard(
+                    isDark: isDark,
                     title: 'VAULT STORAGE HASH',
                     value: 'vault:${wf.id}',
                     subtitle: 'Redis In-Memory Engine',
@@ -98,6 +109,7 @@ class Stage2VaultInspector extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _metricCard(
+                    isDark: isDark,
                     title: 'AVG CONFIDENCE',
                     value: '98.6%',
                     subtitle: 'Presidio Named Entity NLP',
@@ -108,6 +120,7 @@ class Stage2VaultInspector extends StatelessWidget {
                 const SizedBox(width: 16),
                 Expanded(
                   child: _metricCard(
+                    isDark: isDark,
                     title: 'DATA LEAKAGE RISK',
                     value: '0.00%',
                     subtitle: 'Air-Gapped Zero-Trust',
@@ -123,18 +136,18 @@ class Stage2VaultInspector extends StatelessWidget {
             // Side-by-Side Visual Diff
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: EnterpriseTheme.cardDecoration(),
+              decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Row(
+                  Row(
                     children: [
-                      Icon(Icons.compare_arrows, color: EnterpriseTheme.cyan, size: 20),
-                      SizedBox(width: 8),
+                      Icon(Icons.compare_arrows, color: primaryAccent, size: 20),
+                      const SizedBox(width: 8),
                       Text(
                         'Payload Sanitization Visual Diff',
                         style: TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                          color: textColor,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -148,9 +161,9 @@ class Stage2VaultInspector extends StatelessWidget {
                     final originalBox = Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1E1010),
+                        color: isDark ? const Color(0xFF1E1010) : const Color(0xFFFEF2F2),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: EnterpriseTheme.rose.withOpacity(0.4)),
+                        border: Border.all(color: EnterpriseTheme.rose.withValues(alpha: isDark ? 0.4 : 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,7 +173,7 @@ class Stage2VaultInspector extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: EnterpriseTheme.rose.withOpacity(0.2),
+                                  color: EnterpriseTheme.rose.withValues(alpha: isDark ? 0.2 : 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -173,8 +186,8 @@ class Stage2VaultInspector extends StatelessWidget {
                           const SizedBox(height: 10),
                           SelectableText(
                             wf.rawRequirement,
-                            style: const TextStyle(
-                              color: Color(0xFFFCA5A5),
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFFFCA5A5) : const Color(0xFFDC2626),
                               fontFamily: 'Consolas',
                               fontSize: 12,
                               height: 1.5,
@@ -187,9 +200,9 @@ class Stage2VaultInspector extends StatelessWidget {
                     final sanitizedBox = Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF061A14),
+                        color: isDark ? const Color(0xFF061A14) : const Color(0xFFECFDF5),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: EnterpriseTheme.emerald.withOpacity(0.4)),
+                        border: Border.all(color: EnterpriseTheme.emerald.withValues(alpha: isDark ? 0.4 : 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -199,7 +212,7 @@ class Stage2VaultInspector extends StatelessWidget {
                               Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                 decoration: BoxDecoration(
-                                  color: EnterpriseTheme.emerald.withOpacity(0.2),
+                                  color: EnterpriseTheme.emerald.withValues(alpha: isDark ? 0.2 : 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: const Text(
@@ -212,8 +225,8 @@ class Stage2VaultInspector extends StatelessWidget {
                           const SizedBox(height: 10),
                           SelectableText(
                             wf.maskedRequirement,
-                            style: const TextStyle(
-                              color: Color(0xFF86EFAC),
+                            style: TextStyle(
+                              color: isDark ? const Color(0xFF86EFAC) : const Color(0xFF059669),
                               fontFamily: 'Consolas',
                               fontSize: 12,
                               height: 1.5,
@@ -251,18 +264,18 @@ class Stage2VaultInspector extends StatelessWidget {
             // Cryptographic Vault Hash Table
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: EnterpriseTheme.cardDecoration(),
+              decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.table_rows_outlined, color: EnterpriseTheme.cyan, size: 20),
+                      Icon(Icons.table_rows_outlined, color: primaryAccent, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Redis In-Memory Vault Key-Value Mapping',
                         style: TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                          color: textColor,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -270,7 +283,7 @@ class Stage2VaultInspector extends StatelessWidget {
                       const Spacer(),
                       Text(
                         'Role Context: ${controller.userRole.value}',
-                        style: const TextStyle(color: EnterpriseTheme.textMuted, fontSize: 11),
+                        style: TextStyle(color: textMutedColor, fontSize: 11),
                       ),
                     ],
                   ),
@@ -278,7 +291,7 @@ class Stage2VaultInspector extends StatelessWidget {
 
                   // Table
                   Table(
-                    border: TableBorder.all(color: EnterpriseTheme.cardBorder, width: 1),
+                    border: TableBorder.all(color: borderColor, width: 1),
                     columnWidths: const {
                       0: FlexColumnWidth(1.2),
                       1: FlexColumnWidth(2.0),
@@ -290,39 +303,39 @@ class Stage2VaultInspector extends StatelessWidget {
                     children: [
                       // Header Row
                       TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFF0F172A)),
+                        decoration: BoxDecoration(color: inputBg),
                         children: [
-                          _tableHeader('Entity Type'),
-                          _tableHeader('Deterministic Vault Token'),
-                          _tableHeader('Original Secret (RBAC Protected)'),
-                          _tableHeader('Confidence'),
-                          _tableHeader('Entropy'),
-                          _tableHeader('Access Action'),
+                          _tableHeader('Entity Type', isDark),
+                          _tableHeader('Deterministic Vault Token', isDark),
+                          _tableHeader('Original Secret (RBAC Protected)', isDark),
+                          _tableHeader('Confidence', isDark),
+                          _tableHeader('Entropy', isDark),
+                          _tableHeader('Access Action', isDark),
                         ],
                       ),
                       // Data Rows
                       ...tokens.map((t) {
                         return TableRow(
-                          decoration: const BoxDecoration(color: Color(0xFF161F30)),
+                          decoration: BoxDecoration(color: cardBgElevated),
                           children: [
                             _tableCell(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: EnterpriseTheme.purple.withOpacity(0.2),
+                                  color: EnterpriseTheme.purple.withValues(alpha: isDark ? 0.2 : 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
                                   t.entityType,
-                                  style: const TextStyle(color: EnterpriseTheme.purple, fontSize: 10, fontWeight: FontWeight.bold),
+                                  style: TextStyle(color: isDark ? EnterpriseTheme.purple : EnterpriseTheme.purpleDark, fontSize: 10, fontWeight: FontWeight.bold),
                                 ),
                               ),
                             ),
                             _tableCell(
                               child: Text(
                                 t.maskedToken,
-                                style: const TextStyle(
-                                  color: EnterpriseTheme.cyan,
+                                style: TextStyle(
+                                  color: primaryAccent,
                                   fontFamily: 'Consolas',
                                   fontSize: 11,
                                   fontWeight: FontWeight.bold,
@@ -333,7 +346,7 @@ class Stage2VaultInspector extends StatelessWidget {
                               child: Text(
                                 t.isRevealed ? t.originalValue : '••••••••••••••••••••••',
                                 style: TextStyle(
-                                  color: t.isRevealed ? EnterpriseTheme.rose : EnterpriseTheme.textMuted,
+                                  color: t.isRevealed ? EnterpriseTheme.rose : textMutedColor,
                                   fontFamily: 'Consolas',
                                   fontSize: 11,
                                 ),
@@ -348,7 +361,7 @@ class Stage2VaultInspector extends StatelessWidget {
                             _tableCell(
                               child: Text(
                                 '${t.entropy.toStringAsFixed(2)} bits',
-                                style: const TextStyle(color: EnterpriseTheme.amber, fontSize: 11),
+                                style: TextStyle(color: isDark ? EnterpriseTheme.amber : EnterpriseTheme.amberDark, fontSize: 11),
                               ),
                             ),
                             _tableCell(
@@ -357,9 +370,9 @@ class Stage2VaultInspector extends StatelessWidget {
                                 child: Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                                   decoration: BoxDecoration(
-                                    color: const Color(0xFF1E293B),
+                                    color: inputBg,
                                     borderRadius: BorderRadius.circular(4),
-                                    border: Border.all(color: EnterpriseTheme.cardBorder),
+                                    border: Border.all(color: borderColor),
                                   ),
                                   child: Row(
                                     mainAxisSize: MainAxisSize.min,
@@ -367,12 +380,12 @@ class Stage2VaultInspector extends StatelessWidget {
                                       Icon(
                                         t.isRevealed ? Icons.visibility_off : Icons.visibility,
                                         size: 12,
-                                        color: EnterpriseTheme.textSecondary,
+                                        color: textSecColor,
                                       ),
                                       const SizedBox(width: 4),
                                       Text(
                                         t.isRevealed ? 'Hide' : 'Reveal',
-                                        style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 10),
+                                        style: TextStyle(color: textColor, fontSize: 10),
                                       ),
                                     ],
                                   ),
@@ -381,7 +394,7 @@ class Stage2VaultInspector extends StatelessWidget {
                             ),
                           ],
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ],
@@ -394,21 +407,25 @@ class Stage2VaultInspector extends StatelessWidget {
   }
 
   Widget _metricCard({
+    required bool isDark,
     required String title,
     required String value,
     required String subtitle,
     required Color color,
     required IconData icon,
   }) {
+    final textColor = EnterpriseTheme.getTextPrimary(isDark);
+    final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: EnterpriseTheme.cardDecoration(),
+      decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: isDark ? 0.12 : 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
             child: Icon(icon, color: color, size: 20),
@@ -420,12 +437,12 @@ class Stage2VaultInspector extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: const TextStyle(color: EnterpriseTheme.textMuted, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: textMutedColor, fontSize: 10, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   value,
-                  style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
                 Text(
@@ -441,12 +458,12 @@ class Stage2VaultInspector extends StatelessWidget {
     );
   }
 
-  Widget _tableHeader(String text) {
+  Widget _tableHeader(String text, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       child: Text(
         text,
-        style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+        style: TextStyle(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

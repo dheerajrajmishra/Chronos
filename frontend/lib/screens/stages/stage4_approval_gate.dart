@@ -6,7 +6,7 @@ import '../../models/workflow_model.dart';
 import '../../theme/enterprise_theme.dart';
 
 class Stage4ApprovalGate extends StatefulWidget {
-  const Stage4ApprovalGate({Key? key}) : super(key: key);
+  const Stage4ApprovalGate({super.key});
 
   @override
   State<Stage4ApprovalGate> createState() => _Stage4ApprovalGateState();
@@ -26,10 +26,18 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
     final controller = Get.find<EnterpriseSDLCController>();
 
     return Obx(() {
+      final isDark = controller.isDarkMode.value;
       final wf = controller.activeWorkflow.value;
+      final textColor = EnterpriseTheme.getTextPrimary(isDark);
+      final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+      final borderColor = EnterpriseTheme.getCardBorder(isDark);
+      final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
+      final inputBg = EnterpriseTheme.getInputBg(isDark);
+
       if (wf == null) {
-        return const Center(
-          child: Text('No active workflow to review.', style: TextStyle(color: EnterpriseTheme.textMuted)),
+        return Center(
+          child: Text('No active workflow to review.', style: TextStyle(color: textMutedColor)),
         );
       }
 
@@ -64,8 +72,8 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                         isPending
                             ? 'Stage 4: Enterprise Governance & Human-in-the-Loop Approval Gate'
                             : 'Stage 4: Governance Gate Sign-Off (COMPLETED)',
-                        style: const TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                        style: TextStyle(
+                          color: textColor,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
@@ -73,7 +81,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                       const SizedBox(height: 4),
                       Text(
                         'Temporal Workflow execution is halted waiting for human signal `approvalSignal`. Role verification enforced.',
-                        style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecColor, fontSize: 13),
                       ),
                     ],
                   ),
@@ -84,7 +92,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                     icon: const Icon(Icons.arrow_forward, size: 16, color: Colors.black),
                     label: const Text('Proceed to Stage 5', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: EnterpriseTheme.cyan,
+                      backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
@@ -99,6 +107,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
               children: [
                 Expanded(
                   child: _roleCard(
+                    isDark: isDark,
                     roleName: 'Principal Security Architect',
                     authority: 'Mandatory Sign-off',
                     status: wf.isApproved ? 'APPROVED' : 'PENDING ACTION',
@@ -109,6 +118,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: _roleCard(
+                    isDark: isDark,
                     roleName: 'Enterprise Solutions Architect',
                     authority: 'C4 & Schema Validated',
                     status: wf.isApproved ? 'APPROVED' : 'PENDING ACTION',
@@ -119,6 +129,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                 const SizedBox(width: 14),
                 Expanded(
                   child: _roleCard(
+                    isDark: isDark,
                     roleName: 'AppSec Compliance Auditor',
                     authority: 'SOC2 / HIPAA Verified',
                     status: wf.isApproved ? 'APPROVED' : 'PENDING ACTION',
@@ -134,18 +145,18 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
             // Main Document Reviewer
             Container(
               padding: const EdgeInsets.all(24),
-              decoration: EnterpriseTheme.cardDecoration(),
+              decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.description_outlined, color: EnterpriseTheme.cyan, size: 20),
+                      Icon(Icons.description_outlined, color: primaryAccent, size: 20),
                       const SizedBox(width: 8),
                       Text(
                         'Generated Business & Architecture Specification (BRD)',
-                        style: const TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                        style: TextStyle(
+                          color: textColor,
                           fontSize: 14,
                           fontWeight: FontWeight.bold,
                         ),
@@ -154,26 +165,30 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF0F172A),
+                          color: inputBg,
                           borderRadius: BorderRadius.circular(4),
-                          border: Border.all(color: EnterpriseTheme.cardBorder),
+                          border: Border.all(color: borderColor),
                         ),
                         child: Text(
                           'Target: ${wf.complianceStandard}',
-                          style: const TextStyle(color: EnterpriseTheme.cyan, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: TextStyle(color: primaryAccent, fontSize: 10, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ],
                   ),
-                  const Divider(color: EnterpriseTheme.cardBorder, height: 24),
+                  Divider(color: borderColor, height: 24),
                   if (wf.deliverables.isNotEmpty)
                     MarkdownBody(
                       data: wf.deliverables.first.markdownContent,
                       styleSheet: MarkdownStyleSheet(
-                        p: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 13, height: 1.6),
-                        h1: const TextStyle(color: EnterpriseTheme.cyan, fontSize: 18, fontWeight: FontWeight.bold),
-                        h2: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 15, fontWeight: FontWeight.bold),
-                        code: const TextStyle(color: Color(0xFF38BDF8), backgroundColor: Color(0xFF0F172A), fontFamily: 'Consolas'),
+                        p: TextStyle(color: textColor, fontSize: 13, height: 1.6),
+                        h1: TextStyle(color: primaryAccent, fontSize: 18, fontWeight: FontWeight.bold),
+                        h2: TextStyle(color: textColor, fontSize: 15, fontWeight: FontWeight.bold),
+                        code: TextStyle(
+                          color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
+                          backgroundColor: inputBg,
+                          fontFamily: 'Consolas',
+                        ),
                       ),
                     ),
                 ],
@@ -186,7 +201,8 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
             Container(
               padding: const EdgeInsets.all(24),
               decoration: EnterpriseTheme.cardDecoration(
-                borderColor: isPending ? EnterpriseTheme.cyan : EnterpriseTheme.emerald,
+                isDark: isDark,
+                borderColor: isPending ? primaryAccent : EnterpriseTheme.emerald,
                 glow: isPending,
               ),
               child: Column(
@@ -196,14 +212,14 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                     children: [
                       Icon(
                         isPending ? Icons.gavel_outlined : Icons.check_circle_outline,
-                        color: isPending ? EnterpriseTheme.cyan : EnterpriseTheme.emerald,
+                        color: isPending ? primaryAccent : EnterpriseTheme.emerald,
                         size: 22,
                       ),
                       const SizedBox(width: 10),
                       Text(
                         isPending ? 'Human Approval Decision & Signal Dispatch' : 'Approval Granted & Workflow Dispatched',
-                        style: const TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                        style: TextStyle(
+                          color: textColor,
                           fontSize: 16,
                           fontWeight: FontWeight.bold,
                         ),
@@ -213,17 +229,22 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                   const SizedBox(height: 14),
 
                   if (isPending) ...[
-                    const Text(
+                    Text(
                       'Provide security justification and review notes before dispatching signal to Temporal engine:',
-                      style: TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 12),
+                      style: TextStyle(color: textSecColor, fontSize: 12),
                     ),
                     const SizedBox(height: 10),
                     TextField(
                       controller: _commentController,
                       maxLines: 3,
-                      style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 13),
-                      decoration: const InputDecoration(
+                      style: TextStyle(color: textColor, fontSize: 13),
+                      decoration: InputDecoration(
                         hintText: 'e.g., Reviewed Zero-Trust vault mappings and verified no raw PII in BRD. Approved for automated code generation.',
+                        hintStyle: TextStyle(color: textMutedColor, fontSize: 12),
+                        filled: true,
+                        fillColor: inputBg,
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
+                        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
                       ),
                     ),
                     const SizedBox(height: 16),
@@ -249,10 +270,10 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                               style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: EnterpriseTheme.cyan,
+                              backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                              elevation: 4,
+                              elevation: 2,
                             ),
                           ),
                         ),
@@ -262,9 +283,9 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                     Container(
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: EnterpriseTheme.emerald.withOpacity(0.1),
+                        color: EnterpriseTheme.emerald.withValues(alpha: isDark ? 0.1 : 0.08),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: EnterpriseTheme.emerald.withOpacity(0.3)),
+                        border: Border.all(color: EnterpriseTheme.emerald.withValues(alpha: 0.3)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -282,7 +303,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
                           const SizedBox(height: 6),
                           Text(
                             'Justification: "${wf.approvalComment ?? 'Approved with Zero-Trust compliance signoff.'}"',
-                            style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 12),
+                            style: TextStyle(color: textColor, fontSize: 12),
                           ),
                         ],
                       ),
@@ -298,15 +319,19 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
   }
 
   Widget _roleCard({
+    required bool isDark,
     required String roleName,
     required String authority,
     required String status,
     required Color color,
     required IconData icon,
   }) {
+    final textColor = EnterpriseTheme.getTextPrimary(isDark);
+    final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: EnterpriseTheme.cardDecoration(),
+      decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -317,7 +342,7 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
               Expanded(
                 child: Text(
                   roleName,
-                  style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 12, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: textColor, fontSize: 12, fontWeight: FontWeight.bold),
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
@@ -326,13 +351,13 @@ class _Stage4ApprovalGateState extends State<Stage4ApprovalGate> {
           const SizedBox(height: 8),
           Text(
             authority,
-            style: const TextStyle(color: EnterpriseTheme.textMuted, fontSize: 10),
+            style: TextStyle(color: textMutedColor, fontSize: 10),
           ),
           const SizedBox(height: 8),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
             decoration: BoxDecoration(
-              color: color.withOpacity(0.15),
+              color: color.withValues(alpha: isDark ? 0.15 : 0.12),
               borderRadius: BorderRadius.circular(4),
             ),
             child: Text(

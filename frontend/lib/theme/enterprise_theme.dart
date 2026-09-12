@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class EnterpriseTheme {
-  // Brand Dark Colors
+  // Brand Dark Colors (Ultra-sleek High-Tech Cyberpunk HUD)
   static const Color darkBackground = Color(0xFF0A0E17);
   static const Color darkSurface = Color(0xFF111827);
   static const Color darkCardBg = Color(0xFF161F30);
@@ -9,15 +9,17 @@ class EnterpriseTheme {
   static const Color darkCardBorder = Color(0xFF2D3748);
   static const Color darkCardBorderHighlight = Color(0xFF3B82F6);
   static const Color darkInputBg = Color(0xFF0F172A);
+  static const Color darkSubtleBg = Color(0xFF1E293B);
 
-  // Brand Light Colors
-  static const Color lightBackground = Color(0xFFF1F5F9);
+  // Brand Light Colors (Clean, Modern Enterprise Slate & Crisp White)
+  static const Color lightBackground = Color(0xFFF8FAFC);
   static const Color lightSurface = Color(0xFFFFFFFF);
   static const Color lightCardBg = Color(0xFFFFFFFF);
-  static const Color lightCardBgElevated = Color(0xFFF8FAFC);
+  static const Color lightCardBgElevated = Color(0xFFF1F5F9);
   static const Color lightCardBorder = Color(0xFFE2E8F0);
   static const Color lightCardBorderHighlight = Color(0xFF0284C7);
   static const Color lightInputBg = Color(0xFFF8FAFC);
+  static const Color lightSubtleBg = Color(0xFFF1F5F9);
 
   // Fallback / Default Dark Constants (for backwards compatibility)
   static const Color background = darkBackground;
@@ -65,6 +67,7 @@ class EnterpriseTheme {
   static Color getCardBgElevated(bool isDark) => isDark ? darkCardBgElevated : lightCardBgElevated;
   static Color getCardBorder(bool isDark) => isDark ? darkCardBorder : lightCardBorder;
   static Color getInputBg(bool isDark) => isDark ? darkInputBg : lightInputBg;
+  static Color getSubtleBg(bool isDark) => isDark ? darkSubtleBg : lightSubtleBg;
   static Color getTextPrimary(bool isDark) => isDark ? darkTextPrimary : lightTextPrimary;
   static Color getTextSecondary(bool isDark) => isDark ? darkTextSecondary : lightTextSecondary;
   static Color getTextMuted(bool isDark) => isDark ? darkTextMuted : lightTextMuted;
@@ -138,7 +141,7 @@ class EnterpriseTheme {
           : (glow
               ? [
                   BoxShadow(
-                    color: (borderColor ?? accent).withValues(alpha: 0.25),
+                    color: (borderColor ?? accent).withValues(alpha: 0.2),
                     blurRadius: 12,
                     spreadRadius: 1,
                   )
@@ -150,6 +153,30 @@ class EnterpriseTheme {
                     offset: const Offset(0, 3),
                   )
                 ]),
+    );
+  }
+
+  static BoxDecoration panelDecoration({
+    bool isDark = true,
+    Color? borderColor,
+    double radius = 10,
+  }) {
+    return BoxDecoration(
+      color: getInputBg(isDark),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: borderColor ?? getCardBorder(isDark)),
+    );
+  }
+
+  static BoxDecoration badgeDecoration({
+    bool isDark = true,
+    required Color color,
+    double radius = 4,
+  }) {
+    return BoxDecoration(
+      color: color.withValues(alpha: isDark ? 0.15 : 0.12),
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: color.withValues(alpha: isDark ? 0.4 : 0.35)),
     );
   }
 

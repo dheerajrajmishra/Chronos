@@ -5,7 +5,7 @@ import '../../models/workflow_model.dart';
 import '../../theme/enterprise_theme.dart';
 
 class Stage1SpecStudio extends StatefulWidget {
-  const Stage1SpecStudio({Key? key}) : super(key: key);
+  const Stage1SpecStudio({super.key});
 
   @override
   State<Stage1SpecStudio> createState() => _Stage1SpecStudioState();
@@ -37,7 +37,14 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
     final controller = Get.find<EnterpriseSDLCController>();
 
     return Obx(() {
+      final isDark = controller.isDarkMode.value;
       final prj = controller.activeProject.value;
+      final textColor = EnterpriseTheme.getTextPrimary(isDark);
+      final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+      final inputBg = EnterpriseTheme.getInputBg(isDark);
+      final borderColor = EnterpriseTheme.getCardBorder(isDark);
+      final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
 
       return SingleChildScrollView(
         padding: const EdgeInsets.all(24.0),
@@ -59,29 +66,29 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Stage 1: Requirements Ingestion & Spec Studio',
                         style: TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                          color: textColor,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Zero-Trust natural language input with speech-to-text transcription and project-scoped governance parameters.',
-                        style: TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecColor, fontSize: 13),
                       ),
                     ],
                   ),
                 ),
                 OutlinedButton.icon(
                   onPressed: () => controller.setStage(SDLCStageType.projectHub),
-                  icon: const Icon(Icons.swap_horiz, size: 16, color: EnterpriseTheme.cyan),
-                  label: const Text('Switch Project', style: TextStyle(color: EnterpriseTheme.cyan, fontSize: 12)),
+                  icon: Icon(Icons.swap_horiz, size: 16, color: primaryAccent),
+                  label: Text('Switch Project', style: TextStyle(color: primaryAccent, fontSize: 12)),
                   style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: EnterpriseTheme.cyan),
+                    side: BorderSide(color: primaryAccent),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -96,19 +103,19 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF0F172A),
+                  color: inputBg,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: EnterpriseTheme.cyan.withValues(alpha: 0.3)),
+                  border: Border.all(color: primaryAccent.withValues(alpha: 0.3)),
                 ),
                 child: Row(
                   children: [
                     Container(
                       padding: const EdgeInsets.all(8),
                       decoration: BoxDecoration(
-                        color: EnterpriseTheme.cyan.withValues(alpha: 0.15),
+                        color: primaryAccent.withValues(alpha: 0.15),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: const Icon(Icons.shield, color: EnterpriseTheme.cyan, size: 20),
+                      child: Icon(Icons.shield, color: primaryAccent, size: 20),
                     ),
                     const SizedBox(width: 14),
                     Expanded(
@@ -119,8 +126,8 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                             children: [
                               Text(
                                 "TARGET PROJECT: [${prj.projectKey}] ${prj.name}",
-                                style: const TextStyle(
-                                  color: EnterpriseTheme.cyan,
+                                style: TextStyle(
+                                  color: primaryAccent,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 0.5,
@@ -152,7 +159,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                                   const SizedBox(width: 4),
                                   Text(
                                     "Code Repo: ${prj.codeAccess.provider} (${prj.codeAccess.accessScope.split(' ').first})",
-                                    style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11),
+                                    style: TextStyle(color: textSecColor, fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -163,7 +170,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                                   const SizedBox(width: 4),
                                   Text(
                                     "Database: ${prj.dbAccess.dbType.split(' ').first} on ${prj.dbAccess.host} [JIT TTL: ${prj.dbAccess.jitTtlMinutes}m]",
-                                    style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11),
+                                    style: TextStyle(color: textSecColor, fontSize: 11),
                                   ),
                                 ],
                               ),
@@ -184,18 +191,18 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
 
               final leftColumn = Container(
                 padding: const EdgeInsets.all(20),
-                decoration: EnterpriseTheme.cardDecoration(),
+                decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        const Icon(Icons.edit_note, color: EnterpriseTheme.cyan, size: 20),
+                        Icon(Icons.edit_note, color: primaryAccent, size: 20),
                         const SizedBox(width: 8),
-                        const Text(
+                        Text(
                           'Requirement Specification (PRD / Feature Request)',
                           style: TextStyle(
-                            color: EnterpriseTheme.textPrimary,
+                            color: textColor,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -204,40 +211,40 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                         // Preset Scenario Chips
                         PopupMenuButton<String>(
                           tooltip: 'Load Sample Scenarios',
-                          color: EnterpriseTheme.cardBgElevated,
+                          color: EnterpriseTheme.getCardBgElevated(isDark),
                           onSelected: (val) {
                             _reqController.text = val;
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF0F172A),
+                              color: inputBg,
                               borderRadius: BorderRadius.circular(6),
-                              border: Border.all(color: EnterpriseTheme.cardBorder),
+                              border: Border.all(color: borderColor),
                             ),
-                            child: const Row(
+                            child: Row(
                               children: [
-                                Icon(Icons.auto_stories, size: 14, color: EnterpriseTheme.cyan),
-                                SizedBox(width: 6),
-                                Text('Sample Scenarios', style: TextStyle(color: EnterpriseTheme.cyan, fontSize: 11)),
+                                Icon(Icons.auto_stories, size: 14, color: primaryAccent),
+                                const SizedBox(width: 6),
+                                Text('Sample Scenarios', style: TextStyle(color: primaryAccent, fontSize: 11)),
                               ],
                             ),
                           ),
                           itemBuilder: (context) => [
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value:
                                   "Deploy a zero-trust payments gateway with Stripe API key sk_live_51N8e2A93jK198LmN04B2 and connect customer DB postgres://admin:SuperSecret99@10.0.4.12:5432/finance for user john.doe@enterprise.com with IP 192.168.1.104.",
-                              child: Text('Fintech Gateway & DB Connector'),
+                              child: Text('Fintech Gateway & DB Connector', style: TextStyle(color: textColor)),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value:
                                   "Build HIPAA-compliant FHIR Patient Ingestion API integrating AWS S3 bucket s3://health-records-private-prod with access key AKIAIOSFODNN7EXAMPLE and secret key wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY.",
-                              child: Text('Healthcare HIPAA Patient Records API'),
+                              child: Text('Healthcare HIPAA Patient Records API', style: TextStyle(color: textColor)),
                             ),
-                            const PopupMenuItem(
+                            PopupMenuItem(
                               value:
                                   "Develop an automated microservices authentication broker connecting Okta tenant dev-99482.okta.com with client secret sec_99ab21cd88ef and Redis cluster 10.128.0.45:6379.",
-                              child: Text('Enterprise SSO & Auth Broker'),
+                              child: Text('Enterprise SSO & Auth Broker', style: TextStyle(color: textColor)),
                             ),
                           ],
                         ),
@@ -255,10 +262,12 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                         duration: const Duration(milliseconds: 200),
                         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                         decoration: BoxDecoration(
-                          color: isRec ? const Color(0xFF1E1020) : const Color(0xFF0F172A),
+                          color: isRec
+                              ? (isDark ? const Color(0xFF1E1020) : const Color(0xFFFDE8E8))
+                              : inputBg,
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
-                            color: isRec ? EnterpriseTheme.rose : EnterpriseTheme.cardBorder,
+                            color: isRec ? EnterpriseTheme.rose : borderColor,
                             width: isRec ? 1.5 : 1.0,
                           ),
                         ),
@@ -270,7 +279,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                               child: Container(
                                 padding: const EdgeInsets.all(10),
                                 decoration: BoxDecoration(
-                                  color: isRec ? EnterpriseTheme.rose : const Color(0xFF1E293B),
+                                  color: isRec ? EnterpriseTheme.rose : (isDark ? const Color(0xFF1E293B) : const Color(0xFFE2E8F0)),
                                   shape: BoxShape.circle,
                                   boxShadow: isRec
                                       ? [
@@ -299,7 +308,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                                       Text(
                                         isRec ? 'STREAMING AZURE SPEECH-TO-TEXT...' : 'Zero-Trust Audio Ingestion',
                                         style: TextStyle(
-                                          color: isRec ? EnterpriseTheme.rose : EnterpriseTheme.textPrimary,
+                                          color: isRec ? EnterpriseTheme.rose : textColor,
                                           fontSize: 12,
                                           fontWeight: FontWeight.bold,
                                         ),
@@ -321,14 +330,14 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                                   if (isRec)
                                     LinearProgressIndicator(
                                       value: level,
-                                      backgroundColor: const Color(0xFF2D1B28),
+                                      backgroundColor: isDark ? const Color(0xFF2D1B28) : const Color(0xFFFECDD3),
                                       color: EnterpriseTheme.rose,
                                       minHeight: 4,
                                     )
                                   else
-                                    const Text(
+                                    Text(
                                       'Click microphone to dictate requirement via encrypted voice stream.',
-                                      style: TextStyle(color: EnterpriseTheme.textMuted, fontSize: 11),
+                                      style: TextStyle(color: textMutedColor, fontSize: 11),
                                     ),
                                 ],
                               ),
@@ -344,19 +353,24 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     TextField(
                       controller: _reqController,
                       maxLines: 8,
-                      style: const TextStyle(
-                        color: EnterpriseTheme.textPrimary,
+                      style: TextStyle(
+                        color: textColor,
                         fontSize: 13,
                         height: 1.5,
                         fontFamily: 'Consolas',
                       ),
                       decoration: InputDecoration(
                         hintText: 'Enter feature requirements, database connections, API keys, or architectures...',
+                        hintStyle: TextStyle(color: textMutedColor, fontSize: 12),
                         filled: true,
-                        fillColor: const Color(0xFF0F172A),
+                        fillColor: inputBg,
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(8),
-                          borderSide: const BorderSide(color: EnterpriseTheme.cardBorder),
+                          borderSide: BorderSide(color: borderColor),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(8),
+                          borderSide: BorderSide(color: borderColor),
                         ),
                       ),
                     ),
@@ -367,19 +381,19 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     Container(
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
-                        color: EnterpriseTheme.cyan.withValues(alpha: 0.08),
+                        color: primaryAccent.withValues(alpha: isDark ? 0.08 : 0.06),
                         borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: EnterpriseTheme.cyan.withValues(alpha: 0.2)),
+                        border: Border.all(color: primaryAccent.withValues(alpha: 0.2)),
                       ),
-                      child: const Row(
+                      child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.shield_outlined, color: EnterpriseTheme.cyan, size: 18),
-                          SizedBox(width: 10),
+                          Icon(Icons.shield_outlined, color: primaryAccent, size: 18),
+                          const SizedBox(width: 10),
                           Expanded(
                             child: Text(
                               'Zero-Trust Enforcement: Any API keys, IP addresses, database passwords, or PII entered will be intercepted and replaced with deterministic cryptographic tokens at Stage 2 before leaving the security enclave.',
-                              style: TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11),
+                              style: TextStyle(color: textSecColor, fontSize: 11),
                             ),
                           ),
                         ],
@@ -391,18 +405,18 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
 
               final rightColumn = Container(
                 padding: const EdgeInsets.all(20),
-                decoration: EnterpriseTheme.cardDecoration(),
+                decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Row(
+                    Row(
                       children: [
-                        Icon(Icons.tune, color: EnterpriseTheme.cyan, size: 20),
-                        SizedBox(width: 8),
+                        Icon(Icons.tune, color: primaryAccent, size: 20),
+                        const SizedBox(width: 8),
                         Text(
                           'Pipeline Governance Configuration',
                           style: TextStyle(
-                            color: EnterpriseTheme.textPrimary,
+                            color: textColor,
                             fontSize: 14,
                             fontWeight: FontWeight.bold,
                           ),
@@ -412,6 +426,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     const SizedBox(height: 16),
 
                     _dropdownOption(
+                      isDark: isDark,
                       label: 'Compliance Framework Target',
                       icon: Icons.verified_user_outlined,
                       value: _selectedCompliance,
@@ -428,6 +443,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     const SizedBox(height: 14),
 
                     _dropdownOption(
+                      isDark: isDark,
                       label: 'Architecture Pattern Blueprint',
                       icon: Icons.account_tree_outlined,
                       value: _selectedArchitecture,
@@ -444,6 +460,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     const SizedBox(height: 14),
 
                     _dropdownOption(
+                      isDark: isDark,
                       label: 'Target Cloud Enclave',
                       icon: Icons.cloud_outlined,
                       value: _selectedCloud,
@@ -459,6 +476,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     const SizedBox(height: 14),
 
                     _dropdownOption(
+                      isDark: isDark,
                       label: 'AI Reasoning Model Engine',
                       icon: Icons.smart_toy_outlined,
                       value: _selectedLlm,
@@ -474,6 +492,7 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                     const SizedBox(height: 14),
 
                     _dropdownOption(
+                      isDark: isDark,
                       label: 'Data Sensitivity & Tokenization Policy',
                       icon: Icons.lock_outline,
                       value: _sensitivityMode,
@@ -507,9 +526,9 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
                                   );
                                 },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: EnterpriseTheme.cyan,
+                            backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                            elevation: 4,
+                            elevation: 2,
                           ),
                           child: isBusy
                               ? const Row(
@@ -576,44 +595,52 @@ class _Stage1SpecStudioState extends State<Stage1SpecStudio> {
   }
 
   Widget _dropdownOption({
+    required bool isDark,
     required String label,
     required IconData icon,
     required String value,
     required List<String> items,
     required ValueChanged<String?> onChanged,
   }) {
+    final textColor = EnterpriseTheme.getTextPrimary(isDark);
+    final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+    final inputBg = EnterpriseTheme.getInputBg(isDark);
+    final cardBgElevated = EnterpriseTheme.getCardBgElevated(isDark);
+    final borderColor = EnterpriseTheme.getCardBorder(isDark);
+    final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
           label,
-          style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.w600),
+          style: TextStyle(color: textSecColor, fontSize: 11, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 6),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
-            color: const Color(0xFF0F172A),
+            color: inputBg,
             borderRadius: BorderRadius.circular(8),
-            border: Border.all(color: EnterpriseTheme.cardBorder),
+            border: Border.all(color: borderColor),
           ),
           child: DropdownButtonHideUnderline(
             child: DropdownButton<String>(
-              value: value,
+              value: items.contains(value) ? value : items.first,
               isExpanded: true,
-              dropdownColor: EnterpriseTheme.cardBgElevated,
-              icon: const Icon(Icons.arrow_drop_down, color: EnterpriseTheme.textSecondary),
+              dropdownColor: cardBgElevated,
+              icon: Icon(Icons.arrow_drop_down, color: textSecColor),
               items: items.map((item) {
                 return DropdownMenuItem<String>(
                   value: item,
                   child: Row(
                     children: [
-                      Icon(icon, size: 16, color: EnterpriseTheme.cyan),
+                      Icon(icon, size: 16, color: primaryAccent),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           item,
-                          style: const TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 12),
+                          style: TextStyle(color: textColor, fontSize: 12),
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),

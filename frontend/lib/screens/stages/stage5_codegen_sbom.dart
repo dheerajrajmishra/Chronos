@@ -5,7 +5,7 @@ import '../../models/workflow_model.dart';
 import '../../theme/enterprise_theme.dart';
 
 class Stage5CodeGenSbom extends StatefulWidget {
-  const Stage5CodeGenSbom({Key? key}) : super(key: key);
+  const Stage5CodeGenSbom({super.key});
 
   @override
   State<Stage5CodeGenSbom> createState() => _Stage5CodeGenSbomState();
@@ -87,10 +87,19 @@ spec:
     final controller = Get.find<EnterpriseSDLCController>();
 
     return Obx(() {
+      final isDark = controller.isDarkMode.value;
       final wf = controller.activeWorkflow.value;
+      final textColor = EnterpriseTheme.getTextPrimary(isDark);
+      final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
+      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
+      final borderColor = EnterpriseTheme.getCardBorder(isDark);
+      final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
+      final inputBg = EnterpriseTheme.getInputBg(isDark);
+      final cardBgElevated = EnterpriseTheme.getCardBgElevated(isDark);
+
       if (wf == null) {
-        return const Center(
-          child: Text('No active workflow.', style: TextStyle(color: EnterpriseTheme.textMuted)),
+        return Center(
+          child: Text('No active workflow.', style: TextStyle(color: textMutedColor)),
         );
       }
 
@@ -116,19 +125,19 @@ spec:
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
-                    children: const [
+                    children: [
                       Text(
                         'Stage 5: Automated Code Generation & SBOM Security Matrix',
                         style: TextStyle(
-                          color: EnterpriseTheme.textPrimary,
+                          color: textColor,
                           fontSize: 20,
                           fontWeight: FontWeight.bold,
                         ),
                       ),
-                      SizedBox(height: 4),
+                      const SizedBox(height: 4),
                       Text(
                         'Post-approval automated code scaffolding, Software Bill of Materials (CycloneDX / SPDX), and vulnerability assessment.',
-                        style: TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 13),
+                        style: TextStyle(color: textSecColor, fontSize: 13),
                       ),
                     ],
                   ),
@@ -138,7 +147,7 @@ spec:
                   icon: const Icon(Icons.arrow_forward, size: 16, color: Colors.black),
                   label: const Text('View Audit Telemetry', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: EnterpriseTheme.cyan,
+                    backgroundColor: isDark ? EnterpriseTheme.cyan : const Color(0xFF00C9DB),
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
@@ -151,17 +160,17 @@ spec:
             // Code Scaffolding Snippets Preview
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: EnterpriseTheme.cardDecoration(),
+              decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.code, color: EnterpriseTheme.cyan, size: 20),
+                      Icon(Icons.code, color: primaryAccent, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Generated Zero-Trust Microservice Scaffolding',
-                        style: TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
                       // Code tab buttons
@@ -174,16 +183,16 @@ spec:
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                               decoration: BoxDecoration(
-                                color: isSelected ? EnterpriseTheme.cyan.withOpacity(0.15) : const Color(0xFF0F172A),
+                                color: isSelected ? primaryAccent.withValues(alpha: isDark ? 0.15 : 0.12) : inputBg,
                                 borderRadius: BorderRadius.circular(4),
                                 border: Border.all(
-                                  color: isSelected ? EnterpriseTheme.cyan : EnterpriseTheme.cardBorder,
+                                  color: isSelected ? primaryAccent : borderColor,
                                 ),
                               ),
                               child: Text(
                                 _snippets[idx]['title']!,
                                 style: TextStyle(
-                                  color: isSelected ? EnterpriseTheme.cyan : EnterpriseTheme.textSecondary,
+                                  color: isSelected ? primaryAccent : textSecColor,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -198,11 +207,11 @@ spec:
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
-                    decoration: EnterpriseTheme.terminalDecoration(),
+                    decoration: EnterpriseTheme.terminalDecoration(isDark: isDark),
                     child: SelectableText(
                       _snippets[_selectedCodeSnippetIndex]['code']!,
-                      style: const TextStyle(
-                        color: Color(0xFF38BDF8),
+                      style: TextStyle(
+                        color: isDark ? const Color(0xFF38BDF8) : const Color(0xFF0284C7),
                         fontFamily: 'Consolas',
                         fontSize: 12,
                         height: 1.5,
@@ -218,23 +227,23 @@ spec:
             // SBOM Vulnerability Assessment Table
             Container(
               padding: const EdgeInsets.all(20),
-              decoration: EnterpriseTheme.cardDecoration(),
+              decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
                     children: [
-                      const Icon(Icons.security, color: EnterpriseTheme.cyan, size: 20),
+                      const Icon(Icons.security, color: EnterpriseTheme.emerald, size: 20),
                       const SizedBox(width: 8),
-                      const Text(
+                      Text(
                         'Software Bill of Materials (SBOM) & Static Security Scan',
-                        style: TextStyle(color: EnterpriseTheme.textPrimary, fontSize: 14, fontWeight: FontWeight.bold),
+                        style: TextStyle(color: textColor, fontSize: 14, fontWeight: FontWeight.bold),
                       ),
                       const Spacer(),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: EnterpriseTheme.emerald.withOpacity(0.15),
+                          color: EnterpriseTheme.emerald.withValues(alpha: isDark ? 0.15 : 0.12),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: const Text('CycloneDX 1.5 Compliant', style: TextStyle(color: EnterpriseTheme.emerald, fontSize: 10, fontWeight: FontWeight.bold)),
@@ -243,7 +252,7 @@ spec:
                   ),
                   const SizedBox(height: 16),
                   Table(
-                    border: TableBorder.all(color: EnterpriseTheme.cardBorder, width: 1),
+                    border: TableBorder.all(color: borderColor, width: 1),
                     columnWidths: const {
                       0: FlexColumnWidth(2.0),
                       1: FlexColumnWidth(1.0),
@@ -253,38 +262,38 @@ spec:
                     },
                     children: [
                       TableRow(
-                        decoration: const BoxDecoration(color: Color(0xFF0F172A)),
+                        decoration: BoxDecoration(color: inputBg),
                         children: [
-                          _tableHeader('Package Identifier'),
-                          _tableHeader('Version'),
-                          _tableHeader('License'),
-                          _tableHeader('Vulnerability'),
-                          _tableHeader('CVE / Remediation'),
+                          _tableHeader('Package Identifier', isDark),
+                          _tableHeader('Version', isDark),
+                          _tableHeader('License', isDark),
+                          _tableHeader('Vulnerability', isDark),
+                          _tableHeader('CVE / Remediation', isDark),
                         ],
                       ),
                       ...sbom.map((item) {
                         final isVulnerable = item.vulnerabilitySeverity != 'None';
 
                         return TableRow(
-                          decoration: const BoxDecoration(color: Color(0xFF161F30)),
+                          decoration: BoxDecoration(color: cardBgElevated),
                           children: [
                             _tableCell(
                               child: Text(
                                 item.packageName,
-                                style: const TextStyle(color: EnterpriseTheme.textPrimary, fontFamily: 'Consolas', fontSize: 11, fontWeight: FontWeight.w600),
+                                style: TextStyle(color: textColor, fontFamily: 'Consolas', fontSize: 11, fontWeight: FontWeight.w600),
                               ),
                             ),
                             _tableCell(
-                              child: Text(item.version, style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11)),
+                              child: Text(item.version, style: TextStyle(color: textSecColor, fontSize: 11)),
                             ),
                             _tableCell(
-                              child: Text(item.license, style: const TextStyle(color: EnterpriseTheme.textMuted, fontSize: 11)),
+                              child: Text(item.license, style: TextStyle(color: textMutedColor, fontSize: 11)),
                             ),
                             _tableCell(
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: isVulnerable ? EnterpriseTheme.amber.withOpacity(0.2) : EnterpriseTheme.emerald.withOpacity(0.2),
+                                  color: isVulnerable ? EnterpriseTheme.amber.withValues(alpha: isDark ? 0.2 : 0.12) : EnterpriseTheme.emerald.withValues(alpha: isDark ? 0.2 : 0.12),
                                   borderRadius: BorderRadius.circular(4),
                                 ),
                                 child: Text(
@@ -301,7 +310,7 @@ spec:
                               child: isVulnerable
                                   ? Text(
                                       "${item.cveId} (Upgrade to ${item.fixVersion})",
-                                      style: const TextStyle(color: EnterpriseTheme.amber, fontSize: 11),
+                                      style: TextStyle(color: isDark ? EnterpriseTheme.amber : EnterpriseTheme.amberDark, fontSize: 11),
                                     )
                                   : const Text(
                                       'PASS - 0 CVEs Detected',
@@ -310,7 +319,7 @@ spec:
                             ),
                           ],
                         );
-                      }).toList(),
+                      }),
                     ],
                   ),
                 ],
@@ -322,12 +331,12 @@ spec:
     });
   }
 
-  Widget _tableHeader(String text) {
+  Widget _tableHeader(String text, bool isDark) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
       child: Text(
         text,
-        style: const TextStyle(color: EnterpriseTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold),
+        style: TextStyle(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }
