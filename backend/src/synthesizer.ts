@@ -4,13 +4,14 @@ import { CodebaseGraph } from './codeGraph/graphEngine';
 export interface SynthesisRequest {
   requirement: string;
   maskedRequirement?: string;
+  targetStage?: number;
   brdPrompt?: string;
   designPrompt?: string;
   techDocPrompt?: string;
   codePrompt?: string;
-  unitTestPrompt?: string;
-  testPrompt?: string;
-  uatPrompt?: string;
+  testCaseCreationPrompt?: string;
+  testAutomationPrompt?: string;
+  testingResultPrompt?: string;
   deployPrompt?: string;
   architecture?: string;
   compliance?: string;
@@ -147,148 +148,71 @@ ${req.memoryMd}
 -----------------------------------
 ` : '';
 
-      // Dynamic BRD Directive from user configuration or fallback standard
-      const brdDirective = (req.brdPrompt && req.brdPrompt.trim().length > 0)
-        ? req.brdPrompt.trim()
-        : `Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
+      
+      let brdMarkdown = "";
+      let ddMarkdown = "";
+      let techDocMarkdown = "";
+      let codeMarkdown = "";
+      let testCasesMarkdown = "";
+      let testAutomationMarkdown = "";
+      let testingResultMarkdown = "";
 
-Include the following sections with exhaustive depth:
-1. Executive Summary & Problem Definition
-2. Target Business Objectives & OKRs
-3. Target Personas / User Roles
-4. In-Scope and Out-of-Scope boundaries
-5. Functional Requirements
-6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
-7. Acceptance Criteria in Gherkin (Given-When-Then) format
-8. Non-Functional Requirements & Security Controls (Functional perspective)`;
+      const generateBRD = async () => {
+        const brdDirective = (req.brdPrompt && req.brdPrompt.trim().length > 0) ? req.brdPrompt.trim() : `Focus strictly on the FUNCTIONAL requirements...`;
+        const brdPrompt = `You are an expert AI Business Analyst. Your task is to write a Business Requirements Document (BRD) for the target application described below.\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${brdDirective}\n--------------------------------------------`;
+        const res = await llm.invoke(brdPrompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-      const brdPrompt = `
-You are an expert AI Business Analyst. Your task is to write a Business Requirements Document (BRD) for the target application described below. 
-Do NOT write the BRD about the SDLC platform itself; write it for the target application!
+      const generateDesign = async () => {
+        const ddDirective = (req.designPrompt && req.designPrompt.trim().length > 0) ? req.designPrompt.trim() : `Focus strictly on the FUNCTIONAL design and system capability level...`;
+        const ddPrompt = `You are an expert Functional Solutions Architect. Your task is to write a comprehensive Functional System Design Document (FDD)...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${ddDirective}\n--------------------------------------------`;
+        const res = await llm.invoke(ddPrompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-Sanitized Requirement: "${maskedText}"
+      const generateTechDoc = async () => {
+        const techDocDirective = (req.techDocPrompt && req.techDocPrompt.trim().length > 0) ? req.techDocPrompt.trim() : `Provide exact, implementation-ready technical specifications...`;
+        const techDocPrompt = `You are a Principal Software Engineer and Technical Lead. Your task is to write a comprehensive Low-Level Technical Document (Tech Specs)...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${techDocDirective}\n--------------------------------------------`;
+        const res = await llm.invoke(techDocPrompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-Compliance Framework: ${compliance}
+      const generateCode = async () => {
+        const codeDirective = (req.codePrompt && req.codePrompt.trim().length > 0) ? req.codePrompt.trim() : `Generate clean, modular, and type-safe implementation code...`;
+        const codePrompt = `You are a Senior Software Engineer. Your task is to generate the Implementation Code...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${codeDirective}\n--------------------------------------------`;
+        const res = await llm.invoke(codePrompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-${memoryPrompt}
+      const generateTestCases = async () => {
+        const directive = (req.testCaseCreationPrompt && req.testCaseCreationPrompt.trim().length > 0) ? req.testCaseCreationPrompt.trim() : `Generate exhaustive test cases (positive, negative, boundary) based on the requirements...`;
+        const prompt = `You are a Lead QA Engineer. Your task is to write comprehensive Test Cases for the target application...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${directive}\n--------------------------------------------`;
+        const res = await llm.invoke(prompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-${codeGraphPrompt}
+      const generateTestAutomation = async () => {
+        const directive = (req.testAutomationPrompt && req.testAutomationPrompt.trim().length > 0) ? req.testAutomationPrompt.trim() : `Generate automation scripts using modern frameworks (e.g. Playwright, Cypress, or Jest) for the test cases...`;
+        const prompt = `You are a Software Development Engineer in Test (SDET). Your task is to write Test Automation Scripts for the target application...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${directive}\n--------------------------------------------`;
+        const res = await llm.invoke(prompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
---- STAGE DIRECTIVES & USER INSTRUCTIONS ---
-${brdDirective}
---------------------------------------------
-`;
+      const generateTestingResult = async () => {
+        const directive = (req.testingResultPrompt && req.testingResultPrompt.trim().length > 0) ? req.testingResultPrompt.trim() : `Generate a mock testing result report including pass/fail metrics, coverage, and defects...`;
+        const prompt = `You are a QA Manager. Your task is to write a Testing Result Report for the target application...\n\nSanitized Requirement: "${maskedText}"\nCompliance Framework: ${compliance}\nTarget Infrastructure: ${cloudTarget}\nArchitecture Pattern: ${architecture}\n\n${memoryPrompt}\n${codeGraphPrompt}\n--- STAGE DIRECTIVES & USER INSTRUCTIONS ---\n${directive}\n--------------------------------------------`;
+        const res = await llm.invoke(prompt);
+        return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
+      };
 
-      const response = await llm.invoke(brdPrompt);
-      const brdMarkdown = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
-
-      // Dynamic Functional Design Directive from user configuration or fallback standard
-      const ddDirective = (req.designPrompt && req.designPrompt.trim().length > 0)
-        ? req.designPrompt.trim()
-        : `Focus strictly on the FUNCTIONAL design and system capability level for the target application. Do NOT include low-level code implementation, database DDL scripts, or infrastructure provisioning configs (which belong to the Technical Specification stage).
-
-Include the following sections with comprehensive functional depth:
-1. Executive Functional Overview & Solution Vision
-2. As-Is Process & System Architecture (Current baseline workflow, legacy systems, operational pain points, and capability gaps)
-3. To-Be Functional Design & Target Architecture (Target operational flow, functional capability decomposition, component interactions, and state transitions)
-4. As-Is vs. To-Be Gap Analysis & Transition Impact Matrix
-5. Assumptions & Constraints of the New Design:
-   - Assumptions (Business, operational, stakeholder, and environmental dependencies)
-   - Constraints (Regulatory, compliance, security boundaries, organizational policies, and functional limitations)
-6. Functional Component Decomposition & Operational Responsibilities
-7. End-to-End Business Event & Data Flow Models (Entity relationships, functional life cycles, and trigger events)
-8. User Role Journeys & Persona-Driven Functional Touchpoints`;
-
-      const ddPrompt = `
-You are an expert Functional Solutions Architect. Your task is to write a comprehensive Functional System Design Document (FDD) for the target application described below, based on the requirements.
-Do NOT write the document about the SDLC platform itself; write it for the target application!
-Strictly focus on the functional level: business flows, system capabilities, As-Is baseline, To-Be design, and the assumptions & constraints governing the solution. Avoid low-level technical source code, database DDL scripts, or deployment manifests.
-
-Sanitized Requirement: "${maskedText}"
-
-Compliance Framework: ${compliance}
-Target Infrastructure: ${cloudTarget}
-Architecture Pattern: ${architecture}
-
-${memoryPrompt}
-
-${codeGraphPrompt}
-
---- STAGE DIRECTIVES & USER INSTRUCTIONS ---
-${ddDirective}
---------------------------------------------
-`;
-
-      const ddResponse = await llm.invoke(ddPrompt);
-      const ddMarkdown = typeof ddResponse.content === 'string' ? ddResponse.content : JSON.stringify(ddResponse.content);
-
-      // Dynamic Technical Specification Directive from user configuration or fallback standard
-      const techDocDirective = (req.techDocPrompt && req.techDocPrompt.trim().length > 0)
-        ? req.techDocPrompt.trim()
-        : `Provide exact, implementation-ready technical specifications:
-1. Low-Level Module Architecture & Execution Flow
-2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
-3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
-4. Data Contracts & State Transition Models
-5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
-6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)`;
-
-      const techDocPrompt = `
-You are a Principal Software Engineer and Technical Lead. Your task is to write a comprehensive Low-Level Technical Document (Tech Specs) for the target application described below.
-Do NOT write this document about the SDLC platform itself; write it for the target application!
-
-Sanitized Requirement: "${maskedText}"
-
-Compliance Framework: ${compliance}
-Target Infrastructure: ${cloudTarget}
-Architecture Pattern: ${architecture}
-
-${memoryPrompt}
-
-${codeGraphPrompt}
-
---- STAGE DIRECTIVES & USER INSTRUCTIONS ---
-${techDocDirective}
---------------------------------------------
-`;
-
-      const techDocResponse = await llm.invoke(techDocPrompt);
-      const techDocMarkdown = typeof techDocResponse.content === 'string' ? techDocResponse.content : JSON.stringify(techDocResponse.content);
-
-      // Dynamic Code Generation Directive
-      const codeDirective = (req.codePrompt && req.codePrompt.trim().length > 0)
-        ? req.codePrompt.trim()
-        : `Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.
-
-Include the following:
-1. Project scaffolding with proper directory structure and module boundaries
-2. REST/gRPC endpoint handlers with full request validation and error handling
-3. Database repository layer with parameterized queries (no raw SQL injection vectors)
-4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields
-5. Authentication & authorization middleware (JWT/mTLS token verification)
-6. Environment-aware configuration (dev, staging, production) with secrets vault integration`;
-
-      const codePrompt = `
-You are a Senior Software Engineer. Your task is to generate the Implementation Code for the target application described below.
-Do NOT write this document about the SDLC platform itself; write it for the target application!
-
-Sanitized Requirement: "${maskedText}"
-
-Compliance Framework: ${compliance}
-Target Infrastructure: ${cloudTarget}
-Architecture Pattern: ${architecture}
-
-${memoryPrompt}
-
-${codeGraphPrompt}
-
---- STAGE DIRECTIVES & USER INSTRUCTIONS ---
-${codeDirective}
---------------------------------------------
-`;
-
-      const codeResponse = await llm.invoke(codePrompt);
-      const codeMarkdown = typeof codeResponse.content === 'string' ? codeResponse.content : JSON.stringify(codeResponse.content);
+      if (!req.targetStage || req.targetStage === 1) brdMarkdown = await generateBRD();
+      if (!req.targetStage || req.targetStage === 2) ddMarkdown = await generateDesign();
+      if (!req.targetStage || req.targetStage === 3) techDocMarkdown = await generateTechDoc();
+      if (!req.targetStage || req.targetStage === 4) codeMarkdown = await generateCode();
+      if (!req.targetStage || req.targetStage === 5) testCasesMarkdown = await generateTestCases();
+      if (!req.targetStage || req.targetStage === 6) testAutomationMarkdown = await generateTestAutomation();
+      if (!req.targetStage || req.targetStage === 7) testingResultMarkdown = await generateTestingResult();
 
       return {
         workflowId,
@@ -328,6 +252,30 @@ ${codeDirective}
             tags: ['Live LLM', 'Code Generation', 'Implementation'],
           },
           generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
+          {
+            agentName: 'QA Lead Agent',
+            agentRole: 'Test Case Generation',
+            iconName: 'fact_check',
+            summary: `Generated comprehensive test cases based on requirements.`,
+            markdownContent: testCasesMarkdown,
+            tags: ['Live LLM', 'Test Cases', 'QA'],
+          },
+          {
+            agentName: 'SDET Agent',
+            agentRole: 'Test Automation Scripts',
+            iconName: 'smart_toy',
+            summary: `Generated automated test scripts for the test cases.`,
+            markdownContent: testAutomationMarkdown,
+            tags: ['Live LLM', 'Automation', 'QA'],
+          },
+          {
+            agentName: 'QA Manager Agent',
+            agentRole: 'Testing Results Report',
+            iconName: 'analytics',
+            summary: `Generated mock testing results and metrics report.`,
+            markdownContent: testingResultMarkdown,
+            tags: ['Live LLM', 'Testing Results', 'Metrics'],
+          }
         ],
       };
     } catch (err: any) {

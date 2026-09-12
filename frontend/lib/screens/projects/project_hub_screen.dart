@@ -23,7 +23,7 @@ class ProjectHubScreen extends StatelessWidget {
       return Container(
         color: EnterpriseTheme.getBackground(isDark),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 40.0),
+          padding: const EdgeInsets.symmetric(horizontal: 32.0, vertical: 24.0),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -58,7 +58,7 @@ class ProjectHubScreen extends StatelessWidget {
                 ],
               ),
               
-              const SizedBox(height: 48),
+              const SizedBox(height: 24),
               
               // Projects Section
               Row(
@@ -79,7 +79,7 @@ class ProjectHubScreen extends StatelessWidget {
                   children: projects.map((p) => _ModernProjectCard(project: p, activeProject: activePrj, controller: controller, isDark: isDark)).toList(),
                 ),
 
-              const SizedBox(height: 64),
+              const SizedBox(height: 32),
 
               // Features Section (only if project selected)
               if (activePrj != null) ...[
@@ -393,8 +393,8 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          width: 320,
-          padding: const EdgeInsets.all(24),
+          width: 280,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: isSelected 
                 ? primaryColor.withOpacity(0.05) 
@@ -428,7 +428,7 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
                     )
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Text(widget.project.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
@@ -437,7 +437,7 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 16),
               Row(
                 children: [
                   Icon(Icons.timeline_outlined, size: 14, color: EnterpriseTheme.getTextMuted(widget.isDark)),
@@ -478,8 +478,8 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          width: 320,
-          padding: const EdgeInsets.all(24),
+          width: 280,
+          padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             color: _isHovered ? EnterpriseTheme.getSubtleBg(widget.isDark) : EnterpriseTheme.getSurface(widget.isDark),
             borderRadius: BorderRadius.circular(16),
@@ -507,7 +507,7 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
@@ -528,7 +528,7 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                   ],
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [

@@ -11,6 +11,7 @@ import '../../utils/doc_exporter.dart';
 import '../../theme/enterprise_theme.dart';
 import '../../models/workflow_model.dart';
 import '../../services/api_service.dart';
+import 'package:excel/excel.dart' as excel_pkg;
 
 class Stage5TestCases extends StatefulWidget {
   const Stage5TestCases({super.key});
@@ -21,42 +22,32 @@ class Stage5TestCases extends StatefulWidget {
 
 class _Stage5TestCasesState extends State<Stage5TestCases> {
   final _promptCtrl = TextEditingController();
-  final _designEditCtrl = TextEditingController();
+  final _branchCtrl = TextEditingController(text: 'feature/test-cases');
+  final _editCtrl = TextEditingController();
   bool _showRaw = false;
-  bool _isEditingDesign = false;
+  bool _isEditing = false;
   bool _isContextSourcesExpanded = false;
 
   @override
   void initState() {
     super.initState();
     final feature = Get.find<EnterpriseSDLCController>().activeFeature.value;
-    if (feature != null && feature.designPrompt.isNotEmpty && !feature.designPrompt.contains('Focus strictly on the technical architecture')) {
-      _promptCtrl.text = feature.designPrompt;
+    if (feature != null && feature.testCaseCreationPrompt.isNotEmpty && !feature.testCaseCreationPrompt.contains('Focus strictly on the technical architecture')) {
+      _promptCtrl.text = feature.testCaseCreationPrompt;
     } else {
-      _promptCtrl.text = '''Focus strictly on the FUNCTIONAL design and system capability level for the target application. Do NOT include low-level code implementation, database DDL scripts, or infrastructure provisioning configs (which belong to the Technical Specification stage).
-
-Include the following sections with comprehensive functional depth:
-1. Executive Functional Overview & Solution Vision
-2. As-Is Process & System Architecture (Current baseline workflow, legacy systems, operational pain points, and capability gaps)
-3. To-Be Functional Design & Target Architecture (Target operational flow, functional capability decomposition, component interactions, and state transitions)
-4. As-Is vs. To-Be Gap Analysis & Transition Impact Matrix
-5. Assumptions & Constraints of the New Design:
-   - Assumptions (Business, operational, stakeholder, and environmental dependencies)
-   - Constraints (Regulatory, compliance, security boundaries, organizational policies, and functional limitations)
-6. Functional Component Decomposition & Operational Responsibilities
-7. End-to-End Business Event & Data Flow Models (Entity relationships, functional life cycles, and trigger events)
-8. User Role Journeys & Persona-Driven Functional Touchpoints''';
+      _promptCtrl.text = 'Generate exhaustive test cases (positive, negative, boundary) based on the requirements.\n\nFormat each test script file exactly as:\n### FILE: <filepath>\n```<language>\n<code>\n```';
     }
   }
 
   @override
   void dispose() {
     _promptCtrl.dispose();
-    _designEditCtrl.dispose();
+    _branchCtrl.dispose();
+    _editCtrl.dispose();
     super.dispose();
   }
 
-  void _pickAndUploadDesign(EnterpriseSDLCController controller) {
+  void _pickAndUpload(EnterpriseSDLCController controller) {
     final uploadInput = html.FileUploadInputElement()
       ..accept = '.md,.markdown,.txt,.doc,.docx'
       ..click();
@@ -71,12 +62,12 @@ Include the following sections with comprehensive functional depth:
           final content = reader.result as String?;
           if (content != null && content.isNotEmpty) {
             setState(() {
-              _designEditCtrl.text = content;
-              _isEditingDesign = false;
+              _editCtrl.text = content;
+              _isEditing = false;
             });
             await controller.updateWorkflowStage(2, 'pending', {
               'test_cases_content': content,
-              'design_approved': false,
+              'test_cases_content_approved': false,
             });
             controller.logTerminal('Design document re-uploaded from ${file.name}', level: 'INFO');
             if (mounted) {
@@ -104,14 +95,14 @@ Include the following sections with comprehensive functional depth:
     });
   }
 
-  Future<void> _saveDesignEdits(EnterpriseSDLCController controller) async {
-    final text = _designEditCtrl.text;
+  Future<void> _saveEdits(EnterpriseSDLCController controller) async {
+    final text = _editCtrl.text;
     await controller.updateWorkflowStage(2, 'pending', {
       'test_cases_content': text,
-      'design_approved': false,
+      'test_cases_content_approved': false,
     });
     setState(() {
-      _isEditingDesign = false;
+      _isEditing = false;
     });
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -135,9 +126,9 @@ Include the following sections with comprehensive functional depth:
       if (feature == null) return const Center(child: Text("No Feature Selected"));
       
       final isGenerating = controller.isProcessing.value;
-      final designContent = wf?.stageData['test_cases_content'] as String?;
+      final stageContent = wf?.stageData['test_cases_content'] as String?;
       final brdContent = wf?.stageData['brd_content'] as String?;
-      final isApproved = wf?.stageData['design_approved'] == true ||
+      final isApproved = wf?.stageData['test_cases_content_approved'] == true ||
           (wf?.currentStage == 2 && wf?.status == 'approved');
       
       return Padding(
@@ -146,7 +137,7 @@ Include the following sections with comprehensive functional depth:
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ─── Header ──────────────────────────────────────────
-            _buildHeader(isDark, designContent != null, isApproved),
+            _buildHeader(isDark, stageContent != null, isApproved),
             const SizedBox(height: 24),
 
             // ─── Main Content ────────────────────────────────────
@@ -157,12 +148,12 @@ Include the following sections with comprehensive functional depth:
                   // ═══ LEFT PANEL: Inputs & Context ═══
                   SizedBox(
                     width: 340,
-                    child: _buildLeftPanel(isDark, controller, feature, isGenerating, designContent, brdContent),
+                    child: _buildLeftPanel(isDark, controller, feature, isGenerating, stageContent, brdContent),
                   ),
                   const SizedBox(width: 24),
                   // ═══ RIGHT PANEL: Design Document Output ═══
                   Expanded(
-                    child: _buildDocumentPanel(isDark, designContent, isGenerating, feature, controller, isApproved),
+                    child: _buildDocumentPanel(isDark, stageContent, isGenerating, feature, controller, isApproved),
                   ),
                 ],
               ),
@@ -170,7 +161,7 @@ Include the following sections with comprehensive functional depth:
 
             // ─── Bottom Action Bar ───────────────────────────────
             const SizedBox(height: 20),
-            _buildBottomBar(isDark, controller, feature, isGenerating, designContent, isApproved),
+            _buildBottomBar(isDark, controller, feature, isGenerating, stageContent, isApproved),
           ],
         ),
       );
@@ -190,16 +181,16 @@ Include the following sections with comprehensive functional depth:
             borderRadius: BorderRadius.circular(14),
             boxShadow: [BoxShadow(color: const Color(0xFF6366F1).withOpacity(0.3), blurRadius: 16, offset: const Offset(0, 4))],
           ),
-          child: const Icon(Icons.architecture_rounded, color: Colors.white, size: 26),
+          child: const Icon(Icons.fact_check_rounded, color: Colors.white, size: 26),
         ),
         const SizedBox(width: 18),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Functional Design Document', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: EnterpriseTheme.getTextPrimary(isDark))),
+              Text('Test Cases', style: GoogleFonts.outfit(fontSize: 24, fontWeight: FontWeight.bold, color: EnterpriseTheme.getTextPrimary(isDark))),
               const SizedBox(height: 3),
-              Text('Functional architecture blueprints, As-Is / To-Be workflows, and design constraints',
+              Text('Comprehensive functional and non-functional test cases',
                 style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 12.5)),
             ],
           ),
@@ -235,7 +226,7 @@ Include the following sections with comprehensive functional depth:
               Text(
                 isApproved
                     ? 'Approved'
-                    : (hasContent ? 'Design Ready (Pending Review)' : 'Pending Generation'),
+                    : (hasContent ? 'Test Cases Ready (Pending Review)' : 'Pending Generation'),
                 style: GoogleFonts.inter(
                   color: isApproved
                       ? EnterpriseTheme.emerald
@@ -254,7 +245,7 @@ Include the following sections with comprehensive functional depth:
   // ════════════════════════════════════════════════════════════════════════
   // LEFT PANEL
   // ════════════════════════════════════════════════════════════════════════
-  Widget _buildLeftPanel(bool isDark, EnterpriseSDLCController controller, feature, bool isGenerating, String? designContent, String? brdContent) {
+  Widget _buildLeftPanel(bool isDark, EnterpriseSDLCController controller, feature, bool isGenerating, String? stageContent, String? brdContent) {
     return Container(
       decoration: BoxDecoration(
         color: EnterpriseTheme.getSurface(isDark),
@@ -298,7 +289,7 @@ Include the following sections with comprehensive functional depth:
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('BRD Document', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
+                        Text('Code Document', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
                         Text(
                           brdContent != null ? '${brdContent.split('\n').length} lines • ${(brdContent.length / 1024).toStringAsFixed(1)} KB' : 'Not generated yet',
                           style: GoogleFonts.inter(fontSize: 10.5, color: EnterpriseTheme.getTextMuted(isDark)),
@@ -307,6 +298,21 @@ Include the following sections with comprehensive functional depth:
                     ),
                   ),
                 ],
+              ),
+            ),
+            const SizedBox(height: 24),
+
+            // ── Target Branch ──
+            Text('Target Git Branch', style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 13)),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _branchCtrl,
+              style: GoogleFonts.jetBrainsMono(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 13),
+              decoration: InputDecoration(
+                filled: true,
+                fillColor: EnterpriseTheme.getInputBg(isDark),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(isDark))),
+                prefixIcon: const Icon(Icons.fork_right_rounded, size: 18),
               ),
             ),
             const SizedBox(height: 24),
@@ -335,9 +341,9 @@ Include the following sections with comprehensive functional depth:
             SizedBox(
               width: double.infinity,
               child: _buildGradientButton(
-                onPressed: isGenerating ? () {} : () => _generateDesign(controller, feature),
+                onPressed: isGenerating ? () {} : () => _generate(controller, feature),
                 icon: isGenerating ? Icons.hourglass_empty : Icons.auto_awesome_rounded,
-                label: isGenerating ? 'Generating...' : (designContent == null ? 'Generate Design' : 'Regenerate Design'),
+                label: isGenerating ? 'Generating...' : (stageContent == null ? 'Generate Test Cases' : 'Regenerate Test Cases'),
                 isDark: isDark,
                 gradient: isGenerating
                     ? LinearGradient(colors: [EnterpriseTheme.getCardBgElevated(isDark), EnterpriseTheme.getCardBgElevated(isDark)])
@@ -393,7 +399,7 @@ Include the following sections with comprehensive functional depth:
               const SizedBox(height: 8),
               _buildContextChip(Icons.memory_rounded, 'memory.md', feature.memoryMd.isNotEmpty ? '${(feature.memoryMd.length / 1024).toStringAsFixed(1)} KB' : 'Not generated', feature.memoryMd.isNotEmpty, isDark),
               const SizedBox(height: 8),
-              _buildContextChip(Icons.architecture_rounded, 'Architecture', 'Event-Driven Microservices', true, isDark),
+              _buildContextChip(Icons.fact_check_rounded, 'Architecture', 'Event-Driven Microservices', true, isDark),
               const SizedBox(height: 8),
               _buildContextChip(Icons.shield_outlined, 'Compliance', 'SOC2 Type II', true, isDark),
             ],
@@ -429,7 +435,7 @@ Include the following sections with comprehensive functional depth:
   // ════════════════════════════════════════════════════════════════════════
   Widget _buildDocumentPanel(
     bool isDark,
-    String? designContent,
+    String? stageContent,
     bool isGenerating,
     feature,
     EnterpriseSDLCController controller,
@@ -441,7 +447,7 @@ Include the following sections with comprehensive functional depth:
         border: Border.all(
           color: isApproved
               ? EnterpriseTheme.emerald.withOpacity(0.4)
-              : (designContent != null ? EnterpriseTheme.indigo.withOpacity(0.3) : EnterpriseTheme.getCardBorder(isDark)),
+              : (stageContent != null ? EnterpriseTheme.indigo.withOpacity(0.3) : EnterpriseTheme.getCardBorder(isDark)),
         ),
         borderRadius: BorderRadius.circular(16),
         boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.15 : 0.04), blurRadius: 24, offset: const Offset(0, 8))],
@@ -459,9 +465,9 @@ Include the following sections with comprehensive functional depth:
             ),
             child: Row(
               children: [
-                Icon(Icons.architecture_rounded, size: 16, color: EnterpriseTheme.indigo),
+                Icon(Icons.fact_check_rounded, size: 16, color: EnterpriseTheme.indigo),
                 const SizedBox(width: 8),
-                Text('Design Output', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: EnterpriseTheme.getTextPrimary(isDark))),
+                Text('Test Cases Output', style: GoogleFonts.outfit(fontSize: 14, fontWeight: FontWeight.w700, color: EnterpriseTheme.getTextPrimary(isDark))),
                 if (isApproved) ...[
                   const SizedBox(width: 8),
                   Container(
@@ -481,56 +487,56 @@ Include the following sections with comprehensive functional depth:
                     ),
                   ),
                 ],
-                if (designContent != null) ...[
+                if (stageContent != null) ...[
                   const SizedBox(width: 8),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                     decoration: BoxDecoration(color: EnterpriseTheme.indigo.withOpacity(0.12), borderRadius: BorderRadius.circular(4)),
-                    child: Text('${(designContent.length / 1024).toStringAsFixed(1)} KB', style: GoogleFonts.firaCode(fontSize: 10, color: EnterpriseTheme.indigo, fontWeight: FontWeight.w600)),
+                    child: Text('${(stageContent.length / 1024).toStringAsFixed(1)} KB', style: GoogleFonts.firaCode(fontSize: 10, color: EnterpriseTheme.indigo, fontWeight: FontWeight.w600)),
                   ),
                 ],
                 const Spacer(),
                 // Upload / Replace Design Document Action
                 _buildToolbarAction(
                   Icons.file_upload_outlined,
-                  designContent != null ? 'Re-upload / Replace Design Document (.md, .txt, .docx)' : 'Upload Design Document (.md, .txt, .docx)',
+                  stageContent != null ? 'Re-upload / Replace Design Document (.md, .txt, .docx)' : 'Upload Design Document (.md, .txt, .docx)',
                   isDark,
-                  () => _pickAndUploadDesign(controller),
+                  () => _pickAndUpload(controller),
                 ),
-                if (designContent != null) ...[
+                if (stageContent != null) ...[
                   const SizedBox(width: 6),
                   // Toggle edit mode
                   _buildToolbarAction(
-                    _isEditingDesign ? Icons.visibility_outlined : Icons.edit_note_rounded,
-                    _isEditingDesign ? 'View Rendered Preview' : 'Edit Design Directly',
+                    _isEditing ? Icons.visibility_outlined : Icons.edit_note_rounded,
+                    _isEditing ? 'View Rendered Preview' : 'Edit Design Directly',
                     isDark,
                     () {
                       setState(() {
-                        if (!_isEditingDesign) {
-                          _designEditCtrl.text = designContent;
+                        if (!_isEditing) {
+                          _editCtrl.text = stageContent;
                         }
-                        _isEditingDesign = !_isEditingDesign;
+                        _isEditing = !_isEditing;
                       });
                     },
                   ),
-                  if (_isEditingDesign) ...[
+                  if (_isEditing) ...[
                     const SizedBox(width: 6),
                     _buildToolbarAction(
                       Icons.save_outlined,
                       'Save Edits',
                       isDark,
-                      () => _saveDesignEdits(controller),
+                      () => _saveEdits(controller),
                     ),
                   ],
-                  if (!_isEditingDesign) ...[
+                  if (!_isEditing) ...[
                     const SizedBox(width: 6),
                     _buildToolbarAction(Icons.content_copy_rounded, 'Copy', isDark, () {
-                      Clipboard.setData(ClipboardData(text: designContent));
+                      Clipboard.setData(ClipboardData(text: stageContent));
                       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Copied to clipboard!'), backgroundColor: Color(0xFF059669)));
                     }),
                     const SizedBox(width: 6),
                     _buildToolbarAction(Icons.file_download_outlined, 'Download .docx', isDark, () {
-                      DocExporter.downloadAsWord(designContent, 'Design_Document_${feature.name.replaceAll(' ', '_')}');
+                      DocExporter.downloadAsWord(stageContent, 'Design_Document_${feature.name.replaceAll(' ', '_')}');
                     }),
                     const SizedBox(width: 6),
                     Container(
@@ -556,7 +562,7 @@ Include the following sections with comprehensive functional depth:
 
           // Content
           Expanded(
-            child: _isEditingDesign
+            child: _isEditing
                 ? Container(
                     color: EnterpriseTheme.getInputBg(isDark),
                     padding: const EdgeInsets.all(16),
@@ -582,7 +588,7 @@ Include the following sections with comprehensive functional depth:
                                 ),
                               ),
                               TextButton.icon(
-                                onPressed: () => _saveDesignEdits(controller),
+                                onPressed: () => _saveEdits(controller),
                                 icon: const Icon(Icons.save_outlined, size: 14),
                                 label: const Text('Save Edits'),
                                 style: TextButton.styleFrom(
@@ -595,7 +601,7 @@ Include the following sections with comprehensive functional depth:
                               IconButton(
                                 icon: const Icon(Icons.close_rounded, size: 16),
                                 tooltip: 'Cancel editing',
-                                onPressed: () => setState(() => _isEditingDesign = false),
+                                onPressed: () => setState(() => _isEditing = false),
                                 color: EnterpriseTheme.getTextSecondary(isDark),
                                 padding: EdgeInsets.zero,
                                 constraints: const BoxConstraints(),
@@ -605,7 +611,7 @@ Include the following sections with comprehensive functional depth:
                         ),
                         Expanded(
                           child: TextField(
-                            controller: _designEditCtrl,
+                            controller: _editCtrl,
                             maxLines: null,
                             expands: true,
                             textAlignVertical: TextAlignVertical.top,
@@ -615,7 +621,7 @@ Include the following sections with comprehensive functional depth:
                               height: 1.6,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Enter or paste Functional Design Document markdown content here...',
+                              hintText: 'Enter or paste Test Cases markdown content here...',
                               hintStyle: GoogleFonts.firaCode(color: EnterpriseTheme.getTextMuted(isDark).withOpacity(0.5), fontSize: 12),
                               filled: false,
                               contentPadding: const EdgeInsets.all(12),
@@ -626,15 +632,15 @@ Include the following sections with comprehensive functional depth:
                       ],
                     ),
                   )
-                : (designContent == null
+                : (stageContent == null
                     ? _buildEmptyState(isDark, isGenerating, controller)
                     : Padding(
                         padding: const EdgeInsets.all(24),
                         child: SingleChildScrollView(
                           child: _showRaw
-                              ? SelectableText(designContent, style: GoogleFonts.firaCode(color: EnterpriseTheme.getTextPrimary(isDark), height: 1.7, fontSize: 12.5))
+                              ? SelectableText(stageContent, style: GoogleFonts.firaCode(color: EnterpriseTheme.getTextPrimary(isDark), height: 1.7, fontSize: 12.5))
                               : MarkdownBody(
-                                  data: designContent,
+                                  data: stageContent,
                                   selectable: true,
                                   extensionSet: md.ExtensionSet.gitHubFlavored,
                                   styleSheet: _markdownStyle(isDark),
@@ -692,14 +698,14 @@ Include the following sections with comprehensive functional depth:
           SizedBox(
             width: 380,
             child: Text(
-              'Click "Generate Design" to synthesize a comprehensive Functional Design Document, or upload an existing design document to review, edit, and approve.',
+              'Click "Generate Test Cases" to synthesize a comprehensive Test Cases, or upload an existing design document to review, edit, and approve.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 13, height: 1.6),
             ),
           ),
           const SizedBox(height: 20),
           OutlinedButton.icon(
-            onPressed: () => _pickAndUploadDesign(controller),
+            onPressed: () => _pickAndUpload(controller),
             icon: const Icon(Icons.upload_file_rounded, size: 16),
             label: Text('Upload Existing Design Document', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
@@ -722,7 +728,7 @@ Include the following sections with comprehensive functional depth:
     EnterpriseSDLCController controller,
     feature,
     bool isGenerating,
-    String? designContent,
+    String? stageContent,
     bool isApproved,
   ) {
     return Container(
@@ -746,15 +752,15 @@ Include the following sections with comprehensive functional depth:
           Icon(Icons.info_outline, size: 14, color: EnterpriseTheme.getTextMuted(isDark)),
           const SizedBox(width: 8),
           Text(
-            designContent != null
+            stageContent != null
                 ? (isApproved
-                    ? 'Design approved and locked • ${designContent.split('\n').length} lines'
-                    : 'Design generated • ${designContent.split('\n').length} lines (Pending Approval)')
+                    ? 'Test Cases approved and locked • ${stageContent.split('\n').length} lines'
+                    : 'Test Cases generated • ${stageContent.split('\n').length} lines (Pending Approval)')
                 : 'Generate or upload your design document first',
             style: GoogleFonts.inter(fontSize: 12, color: EnterpriseTheme.getTextMuted(isDark)),
           ),
           const Spacer(),
-          if (designContent != null) ...[
+          if (stageContent != null) ...[
             if (isApproved) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -784,8 +790,8 @@ Include the following sections with comprehensive functional depth:
               OutlinedButton.icon(
                 onPressed: () {
                   setState(() {
-                    _designEditCtrl.text = designContent;
-                    _isEditingDesign = true;
+                    _editCtrl.text = stageContent;
+                    _isEditing = true;
                   });
                 },
                 icon: const Icon(Icons.edit_outlined, size: 15),
@@ -801,17 +807,35 @@ Include the following sections with comprehensive functional depth:
                 ),
               ),
               const SizedBox(width: 12),
+              // Export to Excel Button
+              OutlinedButton.icon(
+                onPressed: () {
+                  _exportTestCasesToExcel(stageContent);
+                },
+                icon: const Icon(Icons.download_rounded, size: 15),
+                label: Text(
+                  'Export to Excel',
+                  style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
+                ),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: const Color(0xFF10B981),
+                  side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                ),
+              ),
+              const SizedBox(width: 12),
             ] else ...[
-              if (_isEditingDesign) ...[
+              if (_isEditing) ...[
                 _buildGradientButton(
                   onPressed: () async {
-                    final content = _designEditCtrl.text;
+                    final content = _editCtrl.text;
                     await controller.updateWorkflowStage(2, 'approved', {
                       'test_cases_content': content,
-                      'design_approved': true,
+                      'test_cases_content_approved': true,
                     });
                     setState(() {
-                      _isEditingDesign = false;
+                      _isEditing = false;
                     });
                     controller.logTerminal('Design edited and approved.', level: 'SUCCESS');
                     if (mounted) {
@@ -835,15 +859,17 @@ Include the following sections with comprehensive functional depth:
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
                 ),
                 const SizedBox(width: 12),
+                _buildCommitButton(isDark, controller, feature, stageContent),
+                const SizedBox(width: 12),
               ] else ...[
                 // Approve button
                 _buildGradientButton(
                   onPressed: () async {
                     await controller.updateWorkflowStage(2, 'approved', {
-                      'test_cases_content': designContent,
-                      'design_approved': true,
+                      'test_cases_content': stageContent,
+                      'test_cases_content_approved': true,
                     });
-                    controller.logTerminal('Design approved and confirmed.', level: 'SUCCESS');
+                    controller.logTerminal('Test Cases approved and confirmed.', level: 'SUCCESS');
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -865,6 +891,8 @@ Include the following sections with comprehensive functional depth:
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
                 ),
                 const SizedBox(width: 12),
+                _buildCommitButton(isDark, controller, feature, stageContent),
+                const SizedBox(width: 12),
               ],
             ],
           ],
@@ -872,7 +900,7 @@ Include the following sections with comprehensive functional depth:
           _buildGradientButton(
             onPressed: () => controller.setStage(SDLCStageType.stage6TestAutomation),
             icon: Icons.arrow_forward_rounded,
-            label: 'Next: Technical Document',
+            label: 'Next: Test Automation',
             isDark: isDark,
             gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
           ),
@@ -884,7 +912,50 @@ Include the following sections with comprehensive functional depth:
   // ════════════════════════════════════════════════════════════════════════
   // ACTIONS
   // ════════════════════════════════════════════════════════════════════════
-  Future<void> _generateDesign(EnterpriseSDLCController controller, feature) async {
+
+  Widget _buildCommitButton(bool isDark, EnterpriseSDLCController controller, feature, String? stageContent) {
+    return ElevatedButton.icon(
+      style: ElevatedButton.styleFrom(
+        backgroundColor: const Color(0xFF0EA5E9),
+        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+      onPressed: () async {
+        try {
+          final payload = {
+            'projectId': feature.projectId.toString(),
+            'repoUrl': feature.codeAccess['repoUrl'],
+            'baseBranch': 'main',
+            'targetBranch': _branchCtrl.text,
+            'markdownContent': stageContent,
+          };
+          final res = await ApiService.applyCodeToBranch(payload);
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('✅ Test cases committed to branch: ${res['branch']}'),
+                backgroundColor: const Color(0xFF059669),
+              ),
+            );
+          }
+        } catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('❌ Error committing: $e'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        }
+      },
+      icon: const Icon(Icons.merge_type_rounded, size: 16),
+      label: Text('Commit to Branch', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+    );
+  }
+  // ════════════════════════════════════════════════════════════════════════
+  Future<void> _generate(EnterpriseSDLCController controller, feature) async {
     controller.isProcessing.value = true;
     try {
       final payload = {
@@ -894,27 +965,70 @@ Include the following sections with comprehensive functional depth:
         'repoBranch': feature.codeAccess['branch'],
         'architecture': 'Event-Driven Microservices',
         'compliance': 'SOC2 Type II',
-        'designPrompt': _promptCtrl.text,
+        'targetStage': 5,
+        'testCaseCreationPrompt': _promptCtrl.text,
         'memoryMd': feature.memoryMd,
       };
       final res = await ApiService.generateDeliverables(payload);
       
-      String ddContent = "Failed to generate design.";
-      if (res['deliverables'] != null && res['deliverables'].length > 1) {
-        ddContent = res['deliverables'][1]['markdownContent'];
+      String ddContent = "Failed to generate test cases.";
+      if (res['deliverables'] != null && res['deliverables'].length > 5) {
+        ddContent = res['deliverables'][5]['markdownContent'];
       } else if (res['deliverables'] != null && res['deliverables'].length > 0) {
         ddContent = res['deliverables'][0]['markdownContent'];
       }
 
       await controller.updateWorkflowStage(2, 'designing', {
         'test_cases_content': ddContent,
-        'design_approved': false,
+        'test_cases_content_approved': false,
       });
     } catch (e) {
       controller.logTerminal("Design synthesis failed: $e", level: "ERROR");
       await controller.updateWorkflowStage(2, 'error', {'test_cases_content': 'Error generating Design: $e'});
     } finally {
       controller.isProcessing.value = false;
+    }
+  }
+
+  void _exportTestCasesToExcel(String markdownContent) {
+    var excel = excel_pkg.Excel.createExcel();
+    excel_pkg.Sheet sheetObject = excel['TestCases'];
+    excel.setDefaultSheet('TestCases');
+
+    // Add Headers
+    sheetObject.appendRow([
+      excel_pkg.TextCellValue('Test Case ID'),
+      excel_pkg.TextCellValue('Scenario'),
+      excel_pkg.TextCellValue('Steps / Description'),
+      excel_pkg.TextCellValue('Expected Result')
+    ]);
+
+    // Very simple parser for markdown lines to rows
+    final lines = markdownContent.split('\n');
+    List<excel_pkg.TextCellValue> currentRow = [];
+    String currentScenario = '';
+
+    for (var line in lines) {
+      if (line.startsWith('###') || line.startsWith('Scenario:')) {
+        currentScenario = line.replaceAll('###', '').trim();
+      } else if (line.startsWith('-') || line.startsWith('*')) {
+        sheetObject.appendRow([
+          excel_pkg.TextCellValue('TC-${sheetObject.maxRows}'),
+          excel_pkg.TextCellValue(currentScenario),
+          excel_pkg.TextCellValue(line.replaceAll(RegExp(r'^[-*]\s*'), '').trim()),
+          excel_pkg.TextCellValue('As expected per design')
+        ]);
+      }
+    }
+
+    var fileBytes = excel.save();
+    if (fileBytes != null) {
+      final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      final url = html.Url.createObjectUrlFromBlob(blob);
+      final anchor = html.AnchorElement(href: url)
+        ..setAttribute('download', 'TestCases.xlsx')
+        ..click();
+      html.Url.revokeObjectUrl(url);
     }
   }
 

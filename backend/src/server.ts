@@ -10,6 +10,7 @@ import { Connection, Client } from '@temporalio/client';
 import { RequirementsToDesignWorkflow, approvalSignal } from './workflows';
 import axios from 'axios';
 import { synthesizeDeliverables, generateLlmProjectMemory } from './synthesizer';
+import { parseMarkdownFiles } from './utils/markdownParser';
 import { scanRepositoryGraph, getCachedRepositoryGraph } from './codeGraph/graphEngine';
 import { initDB, query, FACTORY_DEFAULT_PROMPTS } from './db';
 
@@ -217,10 +218,91 @@ app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) 
   }
 });
 
+// Apply Code to Git Branch
+app.post('/api/repository/apply-code', async (req: Request, res: Response) => {
+  try {
+    const { projectId = 'default', repoUrl, baseBranch = 'main', targetBranch, markdownContent } = req.body;
+    
+    if (!markdownContent || !targetBranch) {
+      return res.status(400).json({ error: 'markdownContent and targetBranch are required.' });
+    }
+
+    let targetPath = path.resolve(__dirname, '..', '..');
+    
+    // Clone repo
+    if (repoUrl && repoUrl.startsWith('http')) {
+      targetPath = path.join(os.tmpdir(), `sdlc-repo-apply-${Date.now()}`);
+      console.log(`Cloning ${repoUrl} to ${targetPath} to apply code...`);
+      try {
+        if (baseBranch && baseBranch.trim().length > 0) {
+          execSync(`git clone -b ${baseBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        } else {
+          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        }
+      } catch (e) {
+        console.error("Failed to clone.", e);
+        return res.status(500).json({ error: 'Failed to clone repository.' });
+      }
+    } else {
+      return res.status(400).json({ error: 'Invalid repoUrl.' });
+    }
+
+    // Checkout new branch
+    try {
+      execSync(`git checkout -b ${targetBranch}`, { cwd: targetPath });
+    } catch (e) {
+      console.error("Failed to checkout branch.", e);
+      return res.status(500).json({ error: 'Failed to checkout new branch.' });
+    }
+
+    // Parse and write files
+    const parsedFiles = parseMarkdownFiles(markdownContent);
+    for (const file of parsedFiles) {
+      const fullPath = path.join(targetPath, file.filepath);
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(fullPath, file.code, 'utf-8');
+      console.log(`Wrote file: ${file.filepath}`);
+    }
+
+    // Commit changes
+    try {
+      execSync(`git add .`, { cwd: targetPath });
+      execSync(`git commit -m "Auto-generated SDLC implementation for ${targetBranch}"`, { cwd: targetPath });
+    } catch (e) {
+      console.error("Failed to commit.", e);
+      return res.status(500).json({ error: 'Failed to commit changes. Perhaps no files were changed.' });
+    }
+
+    // Push changes if possible (requires auth in repoUrl)
+    let pushSuccess = false;
+    try {
+      execSync(`git push -u origin ${targetBranch}`, { cwd: targetPath, stdio: 'ignore' });
+      pushSuccess = true;
+    } catch (e) {
+      console.log("Failed to push. Assuming local only or no credentials.");
+    }
+
+    res.json({ 
+      success: true, 
+      message: pushSuccess ? 'Successfully pushed to remote branch.' : 'Successfully committed to local clone branch.',
+      filesWritten: parsedFiles.length,
+      branch: targetBranch,
+      localPath: targetPath
+    });
+
+  } catch (err: any) {
+    console.error('[Apply Code Error]', err);
+    res.status(500).json({ error: 'Failed to apply code', details: err.message });
+  }
+});
+
 // Dynamic Multi-Agent Deliverable Synthesis (with Codebase Context)
 app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
   try {
-    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, codePrompt, unitTestPrompt, testPrompt, uatPrompt, deployPrompt, memoryMd } = req.body;
+    const { requirement, maskedRequirement, targetStage, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, codePrompt, testCaseCreationPrompt, testAutomationPrompt, testingResultPrompt, deployPrompt, memoryMd } = req.body;
 
     if (!requirement || requirement.trim().length === 0) {
       return res.status(400).json({ error: 'Requirement text is required' });
@@ -254,9 +336,9 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
     let activeDesignPrompt = designPrompt;
     let activeTechDocPrompt = techDocPrompt;
     let activeCodePrompt = codePrompt;
-    let activeUnitTestPrompt = unitTestPrompt;
-    let activeTestPrompt = testPrompt;
-    let activeUatPrompt = uatPrompt;
+    let activeTestCaseCreationPrompt = testCaseCreationPrompt;
+    let activeTestAutomationPrompt = testAutomationPrompt;
+    let activeTestingResultPrompt = testingResultPrompt;
     let activeDeployPrompt = deployPrompt;
 
     try {
@@ -267,9 +349,9 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
         if (!activeDesignPrompt) activeDesignPrompt = defaults.designPrompt;
         if (!activeTechDocPrompt) activeTechDocPrompt = defaults.techDocPrompt;
         if (!activeCodePrompt) activeCodePrompt = defaults.codePrompt;
-        if (!activeUnitTestPrompt) activeUnitTestPrompt = defaults.unitTestPrompt;
-        if (!activeTestPrompt) activeTestPrompt = defaults.testPrompt;
-        if (!activeUatPrompt) activeUatPrompt = defaults.uatPrompt;
+        if (!activeTestCaseCreationPrompt) activeTestCaseCreationPrompt = defaults.testCaseCreationPrompt;
+        if (!activeTestAutomationPrompt) activeTestAutomationPrompt = defaults.testAutomationPrompt;
+        if (!activeTestingResultPrompt) activeTestingResultPrompt = defaults.testingResultPrompt;
         if (!activeDeployPrompt) activeDeployPrompt = defaults.deployPrompt;
       }
     } catch (e) {
@@ -279,13 +361,14 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
     const result = await synthesizeDeliverables({
       requirement,
       maskedRequirement,
+      targetStage,
       brdPrompt: activeBrdPrompt,
       designPrompt: activeDesignPrompt,
       techDocPrompt: activeTechDocPrompt,
       codePrompt: activeCodePrompt,
-      unitTestPrompt: activeUnitTestPrompt,
-      testPrompt: activeTestPrompt,
-      uatPrompt: activeUatPrompt,
+      testCaseCreationPrompt: activeTestCaseCreationPrompt,
+      testAutomationPrompt: activeTestAutomationPrompt,
+      testingResultPrompt: activeTestingResultPrompt,
       deployPrompt: activeDeployPrompt,
       architecture,
       compliance,

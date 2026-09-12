@@ -25,7 +25,7 @@ class _Stage4CodeState extends State<Stage4Code> {
     if (feature != null && feature.codePrompt.isNotEmpty) {
       _promptCtrl.text = feature.codePrompt;
     } else {
-      _promptCtrl.text = 'Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.\n\nInclude the following:\n1. Project scaffolding with proper directory structure and module boundaries\n2. REST/gRPC endpoint handlers with full request validation and error handling\n3. Database repository layer with parameterized queries (no raw SQL injection vectors)\n4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields\n5. Authentication & authorization middleware (JWT/mTLS token verification)\n6. Environment-aware configuration (dev, staging, production) with secrets vault integration';
+      _promptCtrl.text = 'Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.\n\nFormat each file exactly as:\n### FILE: <filepath>\n```<language>\n<code>\n```\n\nInclude the following:\n1. Project scaffolding with proper directory structure and module boundaries\n2. REST/gRPC endpoint handlers with full request validation and error handling\n3. Database repository layer with parameterized queries (no raw SQL injection vectors)\n4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields\n5. Authentication & authorization middleware (JWT/mTLS token verification)\n6. Environment-aware configuration (dev, staging, production) with secrets vault integration';
     }
   }
 
@@ -197,6 +197,42 @@ class _Stage4CodeState extends State<Stage4Code> {
                       },
                       icon: const Icon(Icons.check_circle_outline, size: 16),
                       label: Text('Approve Code', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
+                    ),
+                    const SizedBox(width: 12),
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF0EA5E9),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      ),
+                      onPressed: () async {
+                        try {
+                          final payload = {
+                            'projectId': feature.projectId.toString(),
+                            'repoUrl': feature.codeAccess['repoUrl'],
+                            'baseBranch': 'main',
+                            'targetBranch': _branchCtrl.text,
+                            'markdownContent': codeContent,
+                          };
+                          final res = await ApiService.applyCodeToBranch(payload);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('✅ Code committed to branch: ${res['branch']}'),
+                              backgroundColor: const Color(0xFF059669),
+                            ),
+                          );
+                        } catch (e) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('❌ Error committing: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.merge_type_rounded, size: 16),
+                      label: Text('Commit to Branch', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                     ),
                     const SizedBox(width: 12),
                   ],

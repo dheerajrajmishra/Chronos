@@ -162,6 +162,18 @@ class ApiService {
     throw Exception('Failed to update workflow state');
   }
 
+  static Future<Map<String, dynamic>> applyCodeToBranch(Map<String, dynamic> payload) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/repository/apply-code'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(payload),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to apply code to branch: ${response.statusCode} - ${response.body}');
+  }
+
   static Future<Map<String, dynamic>> generateDeliverables(Map<String, dynamic> payload) async {
     final response = await http.post(
       Uri.parse('$baseUrl/agents/synthesize'),
