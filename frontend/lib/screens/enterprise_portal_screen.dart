@@ -12,10 +12,11 @@ import 'stages/stage1_brd.dart';
 import 'stages/stage2_design.dart';
 import 'stages/stage3_tech_doc.dart';
 import 'stages/stage4_code.dart';
-import 'stages/stage5_unit_test.dart';
-import 'stages/stage6_test.dart';
-import 'stages/stage7_uat.dart';
+import 'stages/stage5_test_cases.dart';
+import 'stages/stage6_automation_script.dart';
+import 'stages/stage7_testing_results.dart';
 import 'stages/stage8_deploy.dart';
+import 'settings/settings_screen.dart';
 
 class EnterprisePortalScreen extends StatefulWidget {
   const EnterprisePortalScreen({super.key});
@@ -71,14 +72,16 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                           return Stage3TechDoc(key: ValueKey(stage));
                         case SDLCStageType.stage4Code:
                           return Stage4Code(key: ValueKey(stage));
-                        case SDLCStageType.stage5UnitTest:
-                          return Stage5UnitTest(key: ValueKey(stage));
-                        case SDLCStageType.stage6Test:
-                          return Stage6Test(key: ValueKey(stage));
-                        case SDLCStageType.stage7Uat:
-                          return Stage7Uat(key: ValueKey(stage));
+                        case SDLCStageType.stage5TestCaseCreation:
+                          return Stage5TestCases(key: ValueKey(stage));
+                        case SDLCStageType.stage6TestAutomation:
+                          return Stage6AutomationScript(key: ValueKey(stage));
+                        case SDLCStageType.stage7TestingResult:
+                          return Stage7TestingResults(key: ValueKey(stage));
                         case SDLCStageType.stage8Deploy:
                           return Stage8Deploy(key: ValueKey(stage));
+                        case SDLCStageType.settings:
+                          return SettingsScreen(key: ValueKey(stage));
                       }
                     }),
                   ),

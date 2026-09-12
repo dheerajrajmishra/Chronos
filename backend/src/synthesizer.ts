@@ -7,6 +7,11 @@ export interface SynthesisRequest {
   brdPrompt?: string;
   designPrompt?: string;
   techDocPrompt?: string;
+  codePrompt?: string;
+  unitTestPrompt?: string;
+  testPrompt?: string;
+  uatPrompt?: string;
+  deployPrompt?: string;
   architecture?: string;
   compliance?: string;
   cloudTarget?: string;
@@ -177,22 +182,27 @@ ${brdDirective}
       const response = await llm.invoke(brdPrompt);
       const brdMarkdown = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
 
-      // Dynamic System Architecture Directive from user configuration or fallback standard
+      // Dynamic Functional Design Directive from user configuration or fallback standard
       const ddDirective = (req.designPrompt && req.designPrompt.trim().length > 0)
         ? req.designPrompt.trim()
-        : `Focus strictly on the technical architecture, system design, and implementation details for the target application.
+        : `Focus strictly on the FUNCTIONAL design and system capability level for the target application. Do NOT include low-level code implementation, database DDL scripts, or infrastructure provisioning configs (which belong to the Technical Specification stage).
 
-Include the following sections:
-1. System Architecture Overview
-2. Component Design (Frontend, Backend, Database)
-3. API Contracts (REST/GraphQL/gRPC)
-4. Data Models & Database Schema Design
-5. Security & Authentication Mechanisms
-6. Deployment & Infrastructure Strategy`;
+Include the following sections with comprehensive functional depth:
+1. Executive Functional Overview & Solution Vision
+2. As-Is Process & System Architecture (Current baseline workflow, legacy systems, operational pain points, and capability gaps)
+3. To-Be Functional Design & Target Architecture (Target operational flow, functional capability decomposition, component interactions, and state transitions)
+4. As-Is vs. To-Be Gap Analysis & Transition Impact Matrix
+5. Assumptions & Constraints of the New Design:
+   - Assumptions (Business, operational, stakeholder, and environmental dependencies)
+   - Constraints (Regulatory, compliance, security boundaries, organizational policies, and functional limitations)
+6. Functional Component Decomposition & Operational Responsibilities
+7. End-to-End Business Event & Data Flow Models (Entity relationships, functional life cycles, and trigger events)
+8. User Role Journeys & Persona-Driven Functional Touchpoints`;
 
       const ddPrompt = `
-You are an expert Enterprise Architect. Your task is to write a System Architecture & Design Document (DD) for the target application described below, based on the requirements.
-Do NOT write the DD about the SDLC platform itself; write it for the target application!
+You are an expert Functional Solutions Architect. Your task is to write a comprehensive Functional System Design Document (FDD) for the target application described below, based on the requirements.
+Do NOT write the document about the SDLC platform itself; write it for the target application!
+Strictly focus on the functional level: business flows, system capabilities, As-Is baseline, To-Be design, and the assumptions & constraints governing the solution. Avoid low-level technical source code, database DDL scripts, or deployment manifests.
 
 Sanitized Requirement: "${maskedText}"
 
@@ -245,6 +255,41 @@ ${techDocDirective}
       const techDocResponse = await llm.invoke(techDocPrompt);
       const techDocMarkdown = typeof techDocResponse.content === 'string' ? techDocResponse.content : JSON.stringify(techDocResponse.content);
 
+      // Dynamic Code Generation Directive
+      const codeDirective = (req.codePrompt && req.codePrompt.trim().length > 0)
+        ? req.codePrompt.trim()
+        : `Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.
+
+Include the following:
+1. Project scaffolding with proper directory structure and module boundaries
+2. REST/gRPC endpoint handlers with full request validation and error handling
+3. Database repository layer with parameterized queries (no raw SQL injection vectors)
+4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields
+5. Authentication & authorization middleware (JWT/mTLS token verification)
+6. Environment-aware configuration (dev, staging, production) with secrets vault integration`;
+
+      const codePrompt = `
+You are a Senior Software Engineer. Your task is to generate the Implementation Code for the target application described below.
+Do NOT write this document about the SDLC platform itself; write it for the target application!
+
+Sanitized Requirement: "${maskedText}"
+
+Compliance Framework: ${compliance}
+Target Infrastructure: ${cloudTarget}
+Architecture Pattern: ${architecture}
+
+${memoryPrompt}
+
+${codeGraphPrompt}
+
+--- STAGE DIRECTIVES & USER INSTRUCTIONS ---
+${codeDirective}
+--------------------------------------------
+`;
+
+      const codeResponse = await llm.invoke(codePrompt);
+      const codeMarkdown = typeof codeResponse.content === 'string' ? codeResponse.content : JSON.stringify(codeResponse.content);
+
       return {
         workflowId,
         domain: detectDomain(rawText).domain,
@@ -259,12 +304,12 @@ ${techDocDirective}
             tags: ['Live LLM', 'BRD', 'User Stories', compliance],
           },
           {
-            agentName: 'Cloud Architect Agent',
-            agentRole: 'System Design & Threat Modeling',
+            agentName: 'Functional Architect Agent',
+            agentRole: 'Functional System Design & Solution Architecture',
             iconName: 'architecture',
-            summary: `Tailored Architecture Document generated by GPT-4o`,
+            summary: `Functional System Design Document (As-Is / To-Be, Assumptions & Constraints) generated by GPT-4o`,
             markdownContent: ddMarkdown,
-            tags: ['Live LLM', 'Architecture', 'API Specs', 'Database Schema'],
+            tags: ['Live LLM', 'Functional Design', 'As-Is / To-Be', 'Assumptions & Constraints'],
           },
           {
             agentName: 'Technical Lead Agent',
@@ -273,6 +318,14 @@ ${techDocDirective}
             summary: `Low-level technical specification, API contracts, database DDL and security protocols`,
             markdownContent: techDocMarkdown,
             tags: ['Live LLM', 'Technical Document', 'API Specs', 'Database DDL'],
+          },
+          {
+            agentName: 'Software Engineer Agent',
+            agentRole: 'Clean Implementation & Branch Scaffolding',
+            iconName: 'code',
+            summary: `Generated code adhering to the API contracts and database schema.`,
+            markdownContent: codeMarkdown,
+            tags: ['Live LLM', 'Code Generation', 'Implementation'],
           },
           generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
         ],
@@ -409,8 +462,91 @@ Scenario: Database Transaction with JIT Credentials
       },
       generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
       generateTechDocDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
+      generateCodeDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
       generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
     ],
+  };
+}
+
+function generateCodeDeliverable(
+  rawText: string,
+  maskedText: string,
+  architecture: string,
+  compliance: string,
+  cloudTarget: string,
+  codeGraph?: CodebaseGraph
+): AgentDeliverableResponse {
+  const { domain } = detectDomain(rawText);
+  const tech = extractEntities(rawText);
+
+  const markdown = `# Implementation Scaffolding & Code Generation
+**System Domain:** ${domain}  
+**Architecture Pattern:** ${architecture}  
+**Target Infrastructure:** ${cloudTarget}  
+
+---
+
+## 1. Zero-Trust API Handler Boilerplate
+
+\`\`\`typescript
+import { Router, Request, Response } from 'express';
+import { DLPClient } from '@presidio/client';
+import { executeSecureTransaction } from '../database/repository';
+
+const router = Router();
+const dlp = new DLPClient({ complianceBaseline: '${compliance}' });
+
+router.post('/api/v1/execute', async (req: Request, res: Response) => {
+  try {
+    // Step 1: Zero-Trust Payload Sanitization
+    const sanitizedPayload = await dlp.tokenize(req.body);
+    
+    // Step 2: Ephemeral Database Transaction
+    const result = await executeSecureTransaction(sanitizedPayload);
+    
+    res.status(200).json({ status: 'SUCCESS', result });
+  } catch (error) {
+    res.status(500).json({ status: 'ERROR', message: 'Transaction aborted due to security policy' });
+  }
+});
+
+export default router;
+\`\`\`
+
+---
+
+## 2. Infrastructure as Code (IaC) - Terraform
+
+\`\`\`hcl
+resource "aws_security_group" "zero_trust_enclave" {
+  name        = "zero-trust-enclave-sg"
+  description = "Strict mTLS ingress only"
+  vpc_id      = var.vpc_id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [var.internal_subnet]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+\`\`\`
+`;
+
+  return {
+    agentName: 'Software Engineer Agent',
+    agentRole: 'Clean Implementation & Branch Scaffolding',
+    iconName: 'code',
+    summary: `Auto-generated implementation boilerplate for ${tech.protocols} and ${tech.database}`,
+    markdownContent: markdown,
+    tags: ['Code Generation', tech.protocols, tech.database, 'Implementation'],
   };
 }
 
@@ -429,86 +565,86 @@ function generateArchitectDeliverable(
   const gatewayDir = codeGraph?.modules.find(m => m.directory.includes('gateway'))?.directory || 'zero_trust_gateway';
   const backendDir = codeGraph?.modules.find(m => m.directory.includes('backend'))?.directory || 'backend/src';
 
-  const markdown = `# System Architecture Specification
-**Architecture Pattern:** ${architecture}  
+  const markdown = `# Functional System Design Document
+**System Domain:** ${domain}  
+**Architecture Pattern:** ${architecture} (Functional Capability View)  
 **Target Infrastructure:** ${cloudTarget}  
-**Classification:** ${domain} Architecture Blueprint  
-${codeGraph ? `**Existing Repository Context:** \`${codeGraph.repoPath}\` (${codeGraph.techStack.join(', ')})  ` : ''}
+**Classification:** Enterprise Functional Design Specification  
+${codeGraph ? `**Active Repository Context:** \`${codeGraph.repoPath}\` (${codeGraph.techStack.join(', ')})  ` : ''}
 
 ---
 
-## 1. C4 Container Architecture Diagram
-The container model illustrates the zero-trust isolation boundaries integrated with the active repository:
+## 1. Executive Functional Overview & Solution Vision
+This Functional Design Document (FDD) establishes the operational capability model, business logic workflows, and end-to-end component interactions for the target ${domain} solution. It translates high-level business requirements into structured functional capabilities without prescribing low-level code implementation or database DDL.
+
+---
+
+## 2. As-Is Process & System Architecture
+### 2.1 Current Operational Baseline
+- **Legacy Workflow:** Disjointed manual processing, batch data hand-offs, and fragmented audit trails.
+- **Operational Gaps & Pain Points:**
+  1. **Lack of Continuous Governance:** Fragmented verification across disconnected operational units.
+  2. **High Cycle Times:** Manual compliance reviews introduce severe latency into transaction processing.
+  3. **Data Integrity Exposure:** Inconsistent input validation causes downstream reconciliation failures.
+
+---
+
+## 3. To-Be Functional Design & Target Architecture
+### 3.1 Target Functional Workflow
+The modernized functional architecture establishes automated pre-flight policy evaluation, continuous validation, and zero-trust functional boundaries:
 
 \`\`\`mermaid
 graph TD
-    Client["Client / Portal Web (${clientDir})"] -->|mTLS 1.3| ZTGateway["Zero-Trust DLP Gateway (${gatewayDir})"]
-    ZTGateway -->|Store Tokens| RedisVault[("Redis Token Vault (In-Memory)")]
-    ZTGateway -->|Sanitized Workflow| Temporal["Temporal Durable Orchestrator (${backendDir})"]
-    Temporal -->|Task Queue: sdlc-queue| WorkerPool["Activity Workers Pool"]
-    WorkerPool -->|Masked Payload| ReasoningEngine["Reasoning / CodeGen Engine"]
-    WorkerPool -->|JIT Unmasked Conn| TargetDB[("${tech.database}")]
-    WorkerPool -->|Audit Signals| AuditLog[("Immutable Audit Ledger")]
+    User["End User / Business Actor"] -->|Submits Business Request| Ingestion["Functional Ingestion & Verification"]
+    Ingestion -->|Sanitized Business Object| CoreEngine["${domain} Core Business Logic Engine"]
+    CoreEngine -->|Event Notification| EventBus["Enterprise Event Broker"]
+    EventBus -->|Audit Event| ComplianceLedger["Zero-Trust Compliance & Audit Ledger"]
+    CoreEngine -->|State Update| DomainStore["Domain Entity Lifecycle Store"]
+    CoreEngine -->|Response Dispatch| User
 \`\`\`
+
+### 3.2 Target Functional Capabilities
+- **Automated Validation:** Instantaneous pre-flight policy evaluation before transaction commit.
+- **Real-Time Orchestration:** Durable asynchronous state management following ${architecture} principles.
+- **Continuous Auditability:** Every business decision logs an immutable functional audit event conforming to ${compliance}.
 
 ---
 
-## 2. Interface Contract Specification (${tech.protocols})
-
-\`\`\`yaml
-openapi: 3.1.0
-info:
-  title: Zero-Trust Subsystem API
-  version: 1.0.0
-  description: Auto-synthesized contract for ${rawText.substring(0, 60)}...
-paths:
-  /api/v1/subsystem/execute:
-    post:
-      summary: Execute sanitized business transaction
-      security:
-        - OAuth2Bearer: []
-        - MutualTLS: []
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                workflowId: { type: string }
-                payloadDigest: { type: string }
-      responses:
-        '200':
-          description: Successful execution under zero-trust controls
-\`\`\`
+## 4. As-Is vs. To-Be Gap Analysis & Transition Impact
+| Functional Dimension | As-Is Baseline | To-Be Target State | Strategic Impact |
+|---|---|---|---|
+| **Process Execution** | Manual / Fragmented batch processing | Automated real-time orchestration | 85% cycle time reduction |
+| **Data Integrity** | Siloed, inconsistent validation | Unified zero-trust boundary | Zero unvalidated state changes |
+| **Compliance Tracking** | Periodic post-hoc review | Continuous real-time audit | 100% policy enforcement |
 
 ---
 
-## 3. Data Storage & Schema Design (${tech.database})
+## 5. Assumptions & Constraints of the New Design
+### 5.1 Design Assumptions
+1. **Identity & Access:** Upstream user identity claims and tenant scopes are pre-verified via enterprise IAM.
+2. **Dependent Systems:** External partner services and downstream gateways adhere to 99.9% availability SLAs.
+3. **Transport Security:** All communication channels operate under enterprise TLS 1.3 encryption baselines.
 
-\`\`\`sql
--- Enterprise ACID schema definition for ${domain}
-CREATE TABLE IF NOT EXISTS subsystem_records (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    workflow_id VARCHAR(64) NOT NULL,
-    domain VARCHAR(128) NOT NULL,
-    payload_hash CHAR(64) NOT NULL,
-    execution_status VARCHAR(32) DEFAULT 'PENDING',
-    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
-);
+### 5.2 Design Constraints
+1. **Regulatory & Compliance:** Strict compliance with ${compliance} standards and zero-trust privacy boundaries.
+2. **Performance Constraints:** Functional end-to-end processing latency must not exceed 250ms for synchronous flows.
+3. **Operational Constraints:** All transactions must be recoverable with zero data loss (RPO = 0, RTO < 60s).
 
-CREATE INDEX IF NOT EXISTS idx_subsystem_workflow ON subsystem_records(workflow_id);
-\`\`\`
+---
+
+## 6. Functional Component Decomposition & Operational Responsibilities
+- **Ingestion & Validation Component:** Validates business rules, sanitizes sensitive data, and enforces pre-conditions.
+- **Business Domain Processing Component:** Executes core transactions, calculates operational state, and triggers domain events.
+- **Audit & Governance Component:** Captures functional audit telemetry conforming to ${compliance}.
 `;
 
   return {
-    agentName: 'Solutions Architect Agent',
-    agentRole: 'C4 Architecture, Data Schemas & API Specifications',
+    agentName: 'Functional Architect Agent',
+    agentRole: 'Functional System Design (As-Is / To-Be & Capabilities)',
     iconName: 'architecture',
-    summary: `C4 Container Model & ${tech.database} schema specification for ${architecture}`,
+    summary: `Functional Design Document: As-Is vs To-Be, Assumptions & Constraints for ${architecture}`,
     markdownContent: markdown,
-    tags: ['C4 Architecture', tech.protocols, tech.database, architecture],
+    tags: ['Functional Design', 'As-Is / To-Be', 'Assumptions & Constraints', architecture],
   };
 }
 
@@ -666,7 +802,7 @@ function generateSecurityDeliverable(
   };
 }
 
-export async function generateLlmProjectMemory(codeGraph: CodebaseGraph, repoUrl: string): Promise<string> {
+export async function generateLlmProjectMemory(codeGraph: CodebaseGraph, repoUrl: string, customPrompt?: string): Promise<string> {
   const apiKey = process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_KEY;
   if (!apiKey || apiKey === 'dummy_key') {
     return `# Project Context: ${repoUrl || 'Local Codebase'}\n\n## Overview\n- **Total Files Scanned:** ${codeGraph.filesCount}\n- **Detected Tech Stack:** ${codeGraph.techStack.join(', ')}\n\n## Codebase Modules\n${codeGraph.modules.map(m => `### ${m.directory}\n- **Primary Tech:** ${m.tech}\n- **Key Files:** ${m.keyFiles.join(', ')}\n`).join('\n')}\n\n## Security & Details\n- **Dependencies:** ${Object.keys(codeGraph.dependencies).length > 0 ? Object.keys(codeGraph.dependencies).join(', ') : 'None detected'}\n`;
@@ -700,19 +836,27 @@ ${codeGraph.modules.map(m => `  * ${m.directory} (${m.tech}): ${m.keyFiles.join(
 - Dependencies: ${Object.keys(codeGraph.dependencies).join(', ')}
 `;
 
+    const memoryDirective = (customPrompt && customPrompt.trim().length > 0)
+      ? customPrompt.trim()
+      : `Analyze the scanned repository code graph and extract a comprehensive "memory.md" project context file:
+
+1. Executive Project Summary: Purpose, domain classification, and key capabilities of the target application.
+2. Core Technology Stack: Languages, frameworks, key libraries, and package dependencies.
+3. Module Architecture & Directory Structure: Functional responsibilities of each module and directory.
+4. Data Models & Interface Contracts: Detected entities, database schemas, and external API integrations.
+5. Security Posture & Assumptions: Detected authentication mechanisms, DLP boundaries, and environment configurations.
+
+Keep it technically rigorous, well-structured in markdown, and actionable for downstream SDLC agents.`;
+
     const prompt = `
 You are an expert Software Architect and Technical Analyst. Your task is to generate a comprehensive "memory.md" markdown file that summarizes the project context based on the code graph data provided below.
 This memory file will be used by other AI agents to understand the repository, its architecture, and its capabilities so they can write requirements and generate code.
 
 ${codeGraphPrompt}
 
-Generate a well-structured markdown document containing:
-1. An Executive Summary of what this codebase appears to be.
-2. The core Technology Stack and identified dependencies.
-3. Architecture & Modules (describe what each directory likely handles).
-4. Any assumptions about the deployment target or security posture based on the tools found.
-
-Keep it highly technical, precise, and concise. Do NOT include generic filler.
+--- MEMORY GENERATION DIRECTIVES ---
+${memoryDirective}
+-------------------------------------
 `;
 
     const response = await llm.invoke(prompt);

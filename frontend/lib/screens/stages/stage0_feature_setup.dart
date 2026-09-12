@@ -5,6 +5,7 @@ import '../../controllers/enterprise_sdlc_controller.dart';
 import '../../theme/enterprise_theme.dart';
 import '../../services/api_service.dart';
 import '../../models/workflow_model.dart';
+import '../../widgets/stage_prompts_dialog.dart';
 
 class Stage0FeatureSetup extends StatefulWidget {
   const Stage0FeatureSetup({super.key});
@@ -18,8 +19,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
   final _codeRepoCtrl = TextEditingController();
   final _gitBranchCtrl = TextEditingController();
   final _dbUrlCtrl = TextEditingController();
-  final _reqCtrl = TextEditingController();
-  final _promptCtrl = TextEditingController();
+  final _aiInstructionCtrl = TextEditingController();
   final _memoryCtrl = TextEditingController();
 
   bool _isSaving = false;
@@ -36,8 +36,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
       _codeRepoCtrl.text = feature.codeAccess['repoUrl'] ?? '';
       _gitBranchCtrl.text = feature.codeAccess['branch'] ?? '';
       _dbUrlCtrl.text = feature.dbAccess['url'] ?? '';
-      _reqCtrl.text = feature.baseRequirement;
-      _promptCtrl.text = feature.brdPrompt;
+      _aiInstructionCtrl.text = feature.memoryPrompt;
       _memoryCtrl.text = feature.memoryMd;
       if (feature.memoryMd.isNotEmpty) {
         _syncStatus = 'success';
@@ -51,8 +50,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
     _codeRepoCtrl.dispose();
     _gitBranchCtrl.dispose();
     _dbUrlCtrl.dispose();
-    _reqCtrl.dispose();
-    _promptCtrl.dispose();
+    _aiInstructionCtrl.dispose();
     _memoryCtrl.dispose();
     super.dispose();
   }
@@ -214,8 +212,8 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
             _buildInputField('Feature Name', _nameCtrl, isDark, Icons.label_outline, hint: 'e.g. Password Based Attachment'),
             const SizedBox(height: 24),
 
-            // Section: Repository
-            _buildSectionLabel('CODE REPOSITORY', Icons.code, isDark),
+            // Section: Repository & Memory Directive
+            _buildSectionLabel('CODE REPOSITORY & CONTEXT DIRECTIVES', Icons.code, isDark),
             const SizedBox(height: 14),
             _buildInputField('Git Repo URL', _codeRepoCtrl, isDark, Icons.link, hint: 'https://github.com/org/repo.git'),
             const SizedBox(height: 14),
@@ -228,20 +226,21 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
                 _buildSyncButton(isDark, controller, feature),
               ],
             ),
+            const SizedBox(height: 14),
+            _buildInputField(
+              'AI Instruction',
+              _aiInstructionCtrl,
+              isDark,
+              Icons.smart_toy_outlined,
+              maxLines: 3,
+              hint: 'Provide specific focus areas or instructions to append to the setup prompt for generating memory.md (e.g., focus on microservices, authentication modules, database schemas)...',
+            ),
             const SizedBox(height: 24),
 
             // Section: Data Access
             _buildSectionLabel('DATA ACCESS', Icons.dns_outlined, isDark),
             const SizedBox(height: 14),
             _buildInputField('Database Connection URL', _dbUrlCtrl, isDark, Icons.dns_outlined, hint: 'postgresql://user:pass@host:5432/db'),
-            const SizedBox(height: 24),
-
-            // Section: Requirements
-            _buildSectionLabel('REQUIREMENTS', Icons.description_outlined, isDark),
-            const SizedBox(height: 14),
-            _buildInputField('Base Requirements', _reqCtrl, isDark, Icons.format_quote, maxLines: 4, hint: 'Describe what this feature should do in plain English...'),
-            const SizedBox(height: 14),
-            _buildInputField('Custom BRD Prompt (Optional)', _promptCtrl, isDark, Icons.smart_toy_outlined, maxLines: 2, hint: 'e.g. Focus on HIPAA compliance, ignore mobile views...'),
           ],
         ),
       ),
@@ -298,7 +297,23 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
     setState(() { _isSyncing = true; _syncStatus = 'syncing'; });
     controller.logTerminal("Cloning repo and generating memory.md via LLM...", level: "INFO");
     try {
-      final res = await ApiService.generateMemory(feature.projectId.toString(), _codeRepoCtrl.text, _gitBranchCtrl.text);
+      final baseSetupPrompt = (feature.memoryPrompt != null && (feature.memoryPrompt as String).trim().isNotEmpty)
+          ? (feature.memoryPrompt as String).trim()
+          : (controller.globalDefaultPrompts['memoryPrompt'] ?? controller.factoryDefaultPrompts['memoryPrompt'] ?? '').trim();
+      final aiInstruction = _aiInstructionCtrl.text.trim();
+      
+      final finalMemoryPrompt = aiInstruction.isNotEmpty
+          ? (baseSetupPrompt.isNotEmpty
+              ? '$baseSetupPrompt\n\n--- ADDITIONAL AI INSTRUCTIONS ---\n$aiInstruction'
+              : aiInstruction)
+          : (baseSetupPrompt.isNotEmpty ? baseSetupPrompt : null);
+
+      final res = await ApiService.generateMemory(
+        feature.projectId.toString(),
+        _codeRepoCtrl.text,
+        _gitBranchCtrl.text,
+        memoryPrompt: finalMemoryPrompt,
+      );
       _memoryCtrl.text = res['memoryMd'] ?? '';
       setState(() => _syncStatus = 'success');
       if (mounted) {
@@ -365,7 +380,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Project Context', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: EnterpriseTheme.getTextPrimary(isDark))),
+                      Text('Project Context (memory.md)', style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w700, color: EnterpriseTheme.getTextPrimary(isDark))),
                       const SizedBox(height: 2),
                       Text(
                         hasMemory ? 'AI-generated from repository analysis' : 'Sync your repo or paste context manually',
@@ -374,6 +389,10 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
                     ],
                   ),
                 ),
+                _buildMiniAction(Icons.psychology_rounded, 'Stage Prompts', isDark, () {
+                  StagePromptsDialog.show(context, feature, initialStageIndex: 0);
+                }),
+                const SizedBox(width: 4),
                 if (hasMemory) ...[
                   _buildMiniAction(Icons.content_copy_rounded, 'Copy', isDark, () {
                     // No clipboard import needed for web
@@ -523,7 +542,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
           const SizedBox(width: 8),
           _buildInfoChip(Icons.memory, _memoryCtrl.text.isNotEmpty ? 'Context ready' : 'No context', _memoryCtrl.text.isNotEmpty, isDark),
           const SizedBox(width: 8),
-          _buildInfoChip(Icons.description_outlined, _reqCtrl.text.isNotEmpty ? 'Requirements set' : 'No requirements', _reqCtrl.text.isNotEmpty, isDark),
+          _buildInfoChip(Icons.smart_toy_outlined, _aiInstructionCtrl.text.isNotEmpty ? 'AI Instruction set' : 'Default AI prompt', _aiInstructionCtrl.text.isNotEmpty, isDark),
           const Spacer(),
           // Save button
           _buildGradientButton(
@@ -535,12 +554,13 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
                   name: _nameCtrl.text,
                   codeAccess: {'repoUrl': _codeRepoCtrl.text, 'branch': _gitBranchCtrl.text},
                   dbAccess: {'url': _dbUrlCtrl.text},
-                  baseRequirement: _reqCtrl.text,
-                  brdPrompt: _promptCtrl.text,
+                  baseRequirement: feature.baseRequirement,
+                  brdPrompt: feature.brdPrompt,
                   designPrompt: feature.designPrompt,
                   codePrompt: feature.codePrompt,
                   testPrompt: feature.testPrompt,
                   memoryMd: _memoryCtrl.text,
+                  memoryPrompt: _aiInstructionCtrl.text,
                 );
                 
                 controller.activeFeature.value = updatedFeature;

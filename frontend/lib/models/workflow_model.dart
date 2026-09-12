@@ -5,10 +5,11 @@ enum SDLCStageType {
   stage2Design,   // Design Document
   stage3TechDoc,  // Technical Document
   stage4Code,     // Code
-  stage5UnitTest, // Unit Testing
-  stage6Test,     // Testing
-  stage7Uat,      // UAT
+  stage5TestCaseCreation, // Test Case Creation
+  stage6TestAutomation,   // Test Case Automation Script
+  stage7TestingResult,    // Testing and Result
   stage8Deploy,   // Deployment
+  settings,       // Global Settings & Prompt Configuration
 }
 
 enum EntityCategory {

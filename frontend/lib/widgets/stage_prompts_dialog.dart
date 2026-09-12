@@ -8,14 +8,15 @@ import '../theme/enterprise_theme.dart';
 
 class StagePromptsDialog extends StatefulWidget {
   final Feature feature;
+  final int initialStageIndex;
 
-  const StagePromptsDialog({Key? key, required this.feature}) : super(key: key);
+  const StagePromptsDialog({Key? key, required this.feature, this.initialStageIndex = 0}) : super(key: key);
 
-  static Future<void> show(BuildContext context, Feature feature) {
+  static Future<void> show(BuildContext context, Feature feature, {int initialStageIndex = 0}) {
     return showDialog(
       context: context,
       barrierDismissible: true,
-      builder: (ctx) => StagePromptsDialog(feature: feature),
+      builder: (ctx) => StagePromptsDialog(feature: feature, initialStageIndex: initialStageIndex),
     );
   }
 
@@ -42,20 +43,49 @@ class _StagePromptConfig {
     required this.color,
     required this.defaultPrompt,
     required String initialValue,
-  }) : controller = TextEditingController(text: initialValue.isNotEmpty ? initialValue : defaultPrompt);
+  }) : controller = TextEditingController(
+          text: (initialValue.isNotEmpty &&
+                  !initialValue.contains('Focus strictly on the technical architecture'))
+              ? initialValue
+              : defaultPrompt,
+        );
 }
 
 class _StagePromptsDialogState extends State<StagePromptsDialog> {
-  int _selectedStageIndex = 1;
+  late int _selectedStageIndex;
   bool _isSaving = false;
   late final List<_StagePromptConfig> _stages;
 
   @override
   void initState() {
     super.initState();
+    _selectedStageIndex = widget.initialStageIndex;
     final f = widget.feature;
+    final controller = Get.find<EnterpriseSDLCController>();
+
+    String getStageDefault(String key, String fallback) {
+      final configured = controller.globalDefaultPrompts[key];
+      return (configured != null && configured.trim().isNotEmpty) ? configured.trim() : fallback;
+    }
 
     _stages = [
+      _StagePromptConfig(
+        stageIndex: 0,
+        stageType: SDLCStageType.stage0Setup,
+        title: 'Stage 0: Setup & Memory',
+        agentRole: 'Context Extraction Agent (Repository Analysis & memory.md)',
+        icon: Icons.memory_rounded,
+        color: const Color(0xFF0D9488),
+        initialValue: f.memoryPrompt,
+        defaultPrompt: getStageDefault('memoryPrompt', '''Analyze the connected repository structure, architectural layers, and security context to synthesize a comprehensive memory.md.
+Extract:
+1. Executive System Summary & Architectural Baseline
+2. Core Technologies, Frameworks, and Runtime Stack
+3. Key Modules, Directory Structure & Component Boundaries
+4. Data Persistence, Schemas, and External Integration Points
+5. Zero-Trust Security Policies, Authentication, and DLP Boundaries
+6. Development Conventions, Build Workflows, and Quality Gates'''),
+      ),
       _StagePromptConfig(
         stageIndex: 1,
         stageType: SDLCStageType.stage1Brd,
@@ -64,17 +94,39 @@ class _StagePromptsDialogState extends State<StagePromptsDialog> {
         icon: Icons.article_outlined,
         color: EnterpriseTheme.brandBlue,
         initialValue: f.brdPrompt,
-        defaultPrompt: 'Generate an executive-grade Business Requirements Document (BRD) strictly following Zero-Trust principles (NIST 800-207), user stories with Given-When-Then Gherkin acceptance criteria, and compliance mapping.',
+        defaultPrompt: getStageDefault('brdPrompt', '''Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
+
+Include the following sections with exhaustive depth:
+1. Executive Summary & Problem Definition
+2. Target Business Objectives & OKRs
+3. Target Personas / User Roles
+4. In-Scope and Out-of-Scope boundaries
+5. Functional Requirements
+6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
+7. Acceptance Criteria in Gherkin (Given-When-Then) format
+8. Non-Functional Requirements & Security Controls (Functional perspective)'''),
       ),
       _StagePromptConfig(
         stageIndex: 2,
         stageType: SDLCStageType.stage2Design,
         title: 'Stage 2: Design Document',
-        agentRole: 'Cloud Architect Agent (System Architecture & C4 Blueprints)',
+        agentRole: 'Functional Solutions Architect (Functional Design & As-Is / To-Be)',
         icon: Icons.architecture_outlined,
         color: EnterpriseTheme.purple,
         initialValue: f.designPrompt,
-        defaultPrompt: 'Generate a comprehensive System Architecture and Technical Design Document (DD) including C4 container diagrams, component boundaries, data flow diagrams, and event-driven microservice patterns for the target application.',
+        defaultPrompt: getStageDefault('designPrompt', '''Focus strictly on the FUNCTIONAL design and system capability level for the target application. Do NOT include low-level code implementation, database DDL scripts, or infrastructure provisioning configs (which belong to the Technical Specification stage).
+
+Include the following sections with comprehensive functional depth:
+1. Executive Functional Overview & Solution Vision
+2. As-Is Process & System Architecture (Current baseline workflow, legacy systems, operational pain points, and capability gaps)
+3. To-Be Functional Design & Target Architecture (Target operational flow, functional capability decomposition, component interactions, and state transitions)
+4. As-Is vs. To-Be Gap Analysis & Transition Impact Matrix
+5. Assumptions & Constraints of the New Design:
+   - Assumptions (Business, operational, stakeholder, and environmental dependencies)
+   - Constraints (Regulatory, compliance, security boundaries, organizational policies, and functional limitations)
+6. Functional Component Decomposition & Operational Responsibilities
+7. End-to-End Business Event & Data Flow Models (Entity relationships, functional life cycles, and trigger events)
+8. User Role Journeys & Persona-Driven Functional Touchpoints'''),
       ),
       _StagePromptConfig(
         stageIndex: 3,
@@ -84,7 +136,13 @@ class _StagePromptsDialogState extends State<StagePromptsDialog> {
         icon: Icons.terminal_rounded,
         color: EnterpriseTheme.cyan,
         initialValue: f.techDocPrompt,
-        defaultPrompt: 'Generate a low-level Technical Specification (LLD) with exact REST/gRPC API contracts, request/response JSON schemas, PostgreSQL DDL migrations, and Zero-Trust cryptographic boundary controls.',
+        defaultPrompt: getStageDefault('techDocPrompt', '''Provide exact, implementation-ready technical specifications:
+1. Low-Level Module Architecture & Execution Flow
+2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
+3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
+4. Data Contracts & State Transition Models
+5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
+6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)'''),
       ),
       _StagePromptConfig(
         stageIndex: 4,
@@ -94,37 +152,55 @@ class _StagePromptsDialogState extends State<StagePromptsDialog> {
         icon: Icons.code_rounded,
         color: const Color(0xFF6366F1),
         initialValue: f.codePrompt,
-        defaultPrompt: 'Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema. Integrate Presidio DLP client wrappers for dynamic PII masking.',
+        defaultPrompt: getStageDefault('codePrompt', '''Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.
+
+Include the following:
+1. Project scaffolding with proper directory structure and module boundaries
+2. REST/gRPC endpoint handlers with full request validation and error handling
+3. Database repository layer with parameterized queries (no raw SQL injection vectors)
+4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields
+5. Authentication & authorization middleware (JWT/mTLS token verification)
+6. Environment-aware configuration (dev, staging, production) with secrets vault integration'''),
       ),
       _StagePromptConfig(
         stageIndex: 5,
-        stageType: SDLCStageType.stage5UnitTest,
-        title: 'Stage 5: Unit Testing',
-        agentRole: 'QA Automation Agent (Test Fixtures, Mocks & Assertions)',
+        stageType: SDLCStageType.stage5TestCaseCreation,
+        title: 'Stage 5: Test Case Creation',
+        agentRole: 'QA Test Designer (Functional & Security Cases)',
         icon: Icons.checklist_rounded,
         color: EnterpriseTheme.emerald,
-        initialValue: f.unitTestPrompt,
-        defaultPrompt: 'Generate comprehensive unit test suites with Jest/PyTest covering edge cases, Presidio vault tokenization mocks, circuit breaker failure scenarios, and database timeout resilience.',
+        initialValue: f.testCaseCreationPrompt,
+        defaultPrompt: getStageDefault('testCaseCreationPrompt', '''Generate comprehensive test cases covering functional, security, and edge-case scenarios.
+1. Outline test objectives mapped to BRD requirements.
+2. Define precondition states and necessary test data.
+3. Detail step-by-step test execution sequences.
+4. Specify expected outcomes and acceptance criteria.'''),
       ),
       _StagePromptConfig(
         stageIndex: 6,
-        stageType: SDLCStageType.stage6Test,
-        title: 'Stage 6: Testing & Security',
-        agentRole: 'CyberSec Ops Agent (DAST/SAST & Penetration Audits)',
-        icon: Icons.security_rounded,
+        stageType: SDLCStageType.stage6TestAutomation,
+        title: 'Stage 6: Test Automation Script',
+        agentRole: 'QA Automation Engineer (Script Generation)',
+        icon: Icons.integration_instructions_rounded,
         color: EnterpriseTheme.rose,
-        initialValue: f.testPrompt,
-        defaultPrompt: 'Execute end-to-end integration test suites, Presidio gateway token leakage audits, SQL injection prevention verification, and DAST vulnerability scans against OWASP Top 10 standards.',
+        initialValue: f.testAutomationPrompt,
+        defaultPrompt: getStageDefault('testAutomationPrompt', '''Generate code-level test automation scripts using established testing frameworks.
+1. Implement test cases using appropriate assertions.
+2. Provide necessary mocks or stubs for external dependencies.
+3. Structure scripts for execution in a CI/CD pipeline.'''),
       ),
       _StagePromptConfig(
         stageIndex: 7,
-        stageType: SDLCStageType.stage7Uat,
-        title: 'Stage 7: UAT (User Acceptance)',
-        agentRole: 'Product Governance Agent (Business Acceptance & Compliance)',
+        stageType: SDLCStageType.stage7TestingResult,
+        title: 'Stage 7: Testing & Result',
+        agentRole: 'QA Analyst (Log Analysis & Remediation)',
         icon: Icons.fact_check_outlined,
         color: EnterpriseTheme.amber,
-        initialValue: f.uatPrompt,
-        defaultPrompt: 'Validate enterprise business criteria and generate formal stakeholder acceptance report covering Product Owner sign-off, SLA performance verification (< 250ms), and compliance checklists.',
+        initialValue: f.testingResultPrompt,
+        defaultPrompt: getStageDefault('testingResultPrompt', '''Analyze testing logs and results, providing a summary of outcomes and remediation steps.
+1. Summarize pass/fail rates.
+2. Highlight any failing tests and suggest probable causes based on logs.
+3. Recommend remediation steps for failed tests.'''),
       ),
       _StagePromptConfig(
         stageIndex: 8,
@@ -134,7 +210,16 @@ class _StagePromptsDialogState extends State<StagePromptsDialog> {
         icon: Icons.rocket_launch_rounded,
         color: const Color(0xFF10B981),
         initialValue: f.deployPrompt,
-        defaultPrompt: 'Execute canary release rollout sequence within isolated zero-trust cloud enclave (10% -> 50% -> 100%), verify mTLS certificate health, and seal release with cryptographic SHA-256 state digest.',
+        defaultPrompt: getStageDefault('deployPrompt', '''Execute canary release rollout sequence within isolated zero-trust cloud enclave.
+
+Include the following:
+1. Pre-deployment checklist: all gates (BRD, Design, Code, Test, UAT) passed
+2. Canary rollout phases: 10% -> 50% -> 100% traffic shift with health monitors
+3. mTLS certificate provisioning and health verification
+4. Database migration execution with rollback plan
+5. Monitoring & alerting configuration (metrics, logs, traces)
+6. Cryptographic release seal: SHA-256 state digest of deployed artifacts
+7. Post-deployment smoke tests and rollback trigger conditions'''),
       ),
     ];
   }
@@ -589,23 +674,28 @@ class _StagePromptsDialogState extends State<StagePromptsDialog> {
     setState(() => _isSaving = true);
 
     try {
-      final brd = _stages[0].controller.text;
-      final design = _stages[1].controller.text;
-      final techDoc = _stages[2].controller.text;
-      final code = _stages[3].controller.text;
-      final unitTest = _stages[4].controller.text;
-      final test = _stages[5].controller.text;
-      final uat = _stages[6].controller.text;
-      final deploy = _stages[7].controller.text;
+      String getPrompt(int stageIdx) =>
+          _stages.firstWhere((s) => s.stageIndex == stageIdx, orElse: () => _stages[0]).controller.text;
+
+      final memory = getPrompt(0);
+      final brd = getPrompt(1);
+      final design = getPrompt(2);
+      final techDoc = getPrompt(3);
+      final code = getPrompt(4);
+      final testCaseCreation = getPrompt(5);
+      final testAutomation = getPrompt(6);
+      final testingResult = getPrompt(7);
+      final deploy = getPrompt(8);
 
       final success = await controller.updateFeaturePrompts(
+        memoryPrompt: memory,
         brdPrompt: brd,
         designPrompt: design,
         techDocPrompt: techDoc,
         codePrompt: code,
-        unitTestPrompt: unitTest,
-        testPrompt: test,
-        uatPrompt: uat,
+        testCaseCreationPrompt: testCaseCreation,
+        testAutomationPrompt: testAutomation,
+        testingResultPrompt: testingResult,
         deployPrompt: deploy,
       );
 

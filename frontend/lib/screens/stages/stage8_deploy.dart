@@ -143,7 +143,7 @@ class _Stage8DeployState extends State<Stage8Deploy> {
               child: Row(
                 children: [
                   OutlinedButton.icon(
-                    onPressed: () => controller.setStage(SDLCStageType.stage7Uat),
+                    onPressed: () => controller.setStage(SDLCStageType.stage7TestingResult),
                     icon: const Icon(Icons.arrow_back_rounded, size: 15),
                     label: Text('Back to UAT', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                     style: OutlinedButton.styleFrom(

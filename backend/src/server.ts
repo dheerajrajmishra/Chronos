@@ -11,7 +11,7 @@ import { RequirementsToDesignWorkflow, approvalSignal } from './workflows';
 import axios from 'axios';
 import { synthesizeDeliverables, generateLlmProjectMemory } from './synthesizer';
 import { scanRepositoryGraph, getCachedRepositoryGraph } from './codeGraph/graphEngine';
-import { initDB, query } from './db';
+import { initDB, query, FACTORY_DEFAULT_PROMPTS } from './db';
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -161,7 +161,7 @@ app.post('/api/repository/sync', async (req: Request, res: Response) => {
 // Generate Project Context (memory.md) from Codebase
 app.post('/api/repository/generate-memory', async (req: Request, res: Response) => {
   try {
-    const { projectId = 'default', repoUrl, branch } = req.body;
+    const { projectId = 'default', repoUrl, branch, memoryPrompt } = req.body;
     let targetPath = path.resolve(__dirname, '..', '..');
     
     if (repoUrl && repoUrl.startsWith('http')) {
@@ -181,7 +181,19 @@ app.post('/api/repository/generate-memory', async (req: Request, res: Response) 
     
     const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, true);
     
-    const memoryMd = await generateLlmProjectMemory(graph, repoUrl);
+    let activeMemoryPrompt = memoryPrompt;
+    if (!activeMemoryPrompt || activeMemoryPrompt.trim().length === 0) {
+      try {
+        const settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
+        if (settingsRes.rows.length > 0 && settingsRes.rows[0].value?.memoryPrompt) {
+          activeMemoryPrompt = settingsRes.rows[0].value.memoryPrompt;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    const memoryMd = await generateLlmProjectMemory(graph, repoUrl, activeMemoryPrompt);
 
     res.json({ success: true, memoryMd, graph });
   } catch (err: any) {
@@ -208,7 +220,7 @@ app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) 
 // Dynamic Multi-Agent Deliverable Synthesis (with Codebase Context)
 app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
   try {
-    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, memoryMd } = req.body;
+    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, codePrompt, unitTestPrompt, testPrompt, uatPrompt, deployPrompt, memoryMd } = req.body;
 
     if (!requirement || requirement.trim().length === 0) {
       return res.status(400).json({ error: 'Requirement text is required' });
@@ -237,12 +249,44 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
       codeGraph = await scanRepositoryGraph(targetPath, projectId);
     }
 
+    // Check global_settings table for configured default prompts if any prompt was omitted
+    let activeBrdPrompt = brdPrompt;
+    let activeDesignPrompt = designPrompt;
+    let activeTechDocPrompt = techDocPrompt;
+    let activeCodePrompt = codePrompt;
+    let activeUnitTestPrompt = unitTestPrompt;
+    let activeTestPrompt = testPrompt;
+    let activeUatPrompt = uatPrompt;
+    let activeDeployPrompt = deployPrompt;
+
+    try {
+      const settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
+      if (settingsRes.rows.length > 0) {
+        const defaults = settingsRes.rows[0].value;
+        if (!activeBrdPrompt) activeBrdPrompt = defaults.brdPrompt;
+        if (!activeDesignPrompt) activeDesignPrompt = defaults.designPrompt;
+        if (!activeTechDocPrompt) activeTechDocPrompt = defaults.techDocPrompt;
+        if (!activeCodePrompt) activeCodePrompt = defaults.codePrompt;
+        if (!activeUnitTestPrompt) activeUnitTestPrompt = defaults.unitTestPrompt;
+        if (!activeTestPrompt) activeTestPrompt = defaults.testPrompt;
+        if (!activeUatPrompt) activeUatPrompt = defaults.uatPrompt;
+        if (!activeDeployPrompt) activeDeployPrompt = defaults.deployPrompt;
+      }
+    } catch (e) {
+      // ignore, will use synthesizer fallback
+    }
+
     const result = await synthesizeDeliverables({
       requirement,
       maskedRequirement,
-      brdPrompt,
-      designPrompt,
-      techDocPrompt,
+      brdPrompt: activeBrdPrompt,
+      designPrompt: activeDesignPrompt,
+      techDocPrompt: activeTechDocPrompt,
+      codePrompt: activeCodePrompt,
+      unitTestPrompt: activeUnitTestPrompt,
+      testPrompt: activeTestPrompt,
+      uatPrompt: activeUatPrompt,
+      deployPrompt: activeDeployPrompt,
       architecture,
       compliance,
       cloudTarget,
@@ -320,11 +364,11 @@ app.post('/api/projects/:id/features', async (req: Request, res: Response) => {
 app.put('/api/features/:id', async (req: Request, res: Response) => {
   try {
     const featureId = req.params.id;
-    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md } = req.body;
+    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, memory_prompt } = req.body;
     const result = await query(
-      `UPDATE features SET name = $1, code_access = $2, db_access = $3, base_requirement = $4, brd_prompt = $5, design_prompt = $6, code_prompt = $7, test_prompt = $8, memory_md = $9
-       WHERE id = $10 RETURNING *`,
-      [name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, featureId]
+      `UPDATE features SET name = $1, code_access = $2, db_access = $3, base_requirement = $4, brd_prompt = $5, design_prompt = $6, code_prompt = $7, test_prompt = $8, memory_md = $9, memory_prompt = COALESCE($10, memory_prompt)
+       WHERE id = $11 RETURNING *`,
+      [name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, memory_prompt, featureId]
     );
     res.json(result.rows[0]);
   } catch (err: any) {
@@ -337,6 +381,7 @@ app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
   try {
     const featureId = req.params.id;
     const {
+      memory_prompt,
       brd_prompt,
       design_prompt,
       tech_doc_prompt,
@@ -345,22 +390,30 @@ app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
       test_prompt,
       uat_prompt,
       deploy_prompt,
+      test_case_creation_prompt,
+      test_automation_prompt,
+      testing_result_prompt,
       stage_prompts,
     } = req.body;
 
     const result = await query(
       `UPDATE features 
-       SET brd_prompt = COALESCE($1, brd_prompt),
-           design_prompt = COALESCE($2, design_prompt),
-           tech_doc_prompt = COALESCE($3, tech_doc_prompt),
-           code_prompt = COALESCE($4, code_prompt),
-           unit_test_prompt = COALESCE($5, unit_test_prompt),
-           test_prompt = COALESCE($6, test_prompt),
-           uat_prompt = COALESCE($7, uat_prompt),
-           deploy_prompt = COALESCE($8, deploy_prompt),
-           stage_prompts = COALESCE($9, stage_prompts)
-       WHERE id = $10 RETURNING *`,
+       SET memory_prompt = COALESCE($1, memory_prompt),
+           brd_prompt = COALESCE($2, brd_prompt),
+           design_prompt = COALESCE($3, design_prompt),
+           tech_doc_prompt = COALESCE($4, tech_doc_prompt),
+           code_prompt = COALESCE($5, code_prompt),
+           unit_test_prompt = COALESCE($6, unit_test_prompt),
+           test_prompt = COALESCE($7, test_prompt),
+           uat_prompt = COALESCE($8, uat_prompt),
+           deploy_prompt = COALESCE($9, deploy_prompt),
+           test_case_creation_prompt = COALESCE($10, test_case_creation_prompt),
+           test_automation_prompt = COALESCE($11, test_automation_prompt),
+           testing_result_prompt = COALESCE($12, testing_result_prompt),
+           stage_prompts = COALESCE($13, stage_prompts)
+       WHERE id = $14 RETURNING *`,
       [
+        memory_prompt,
         brd_prompt,
         design_prompt,
         tech_doc_prompt,
@@ -369,6 +422,9 @@ app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
         test_prompt,
         uat_prompt,
         deploy_prompt,
+        test_case_creation_prompt,
+        test_automation_prompt,
+        testing_result_prompt,
         stage_prompts ? JSON.stringify(stage_prompts) : null,
         featureId,
       ]
@@ -418,6 +474,71 @@ app.put('/api/features/:id/workflow', async (req: Request, res: Response) => {
       [current_stage, status, newData, featureId]
     );
     res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+// ─── Global Settings & Prompt Configuration Endpoints ────────────────────────
+app.get('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const result = await query('SELECT key, value FROM global_settings');
+    const settingsMap: Record<string, any> = {};
+    for (const row of result.rows) {
+      settingsMap[row.key] = row.value;
+    }
+    
+    // Ensure defaults if not present in DB
+    const theme = settingsMap['theme'] || { mode: 'light' };
+    const defaultPrompts = settingsMap['default_prompts'] || FACTORY_DEFAULT_PROMPTS;
+
+    res.json({
+      theme,
+      defaultPrompts,
+      factoryDefaults: FACTORY_DEFAULT_PROMPTS,
+    });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+app.post('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const { theme, defaultPrompts } = req.body;
+    
+    if (theme) {
+      await query(
+        `INSERT INTO global_settings (key, value, updated_at) 
+         VALUES ('theme', $1::jsonb, CURRENT_TIMESTAMP)
+         ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(theme)]
+      );
+    }
+    
+    if (defaultPrompts) {
+      await query(
+        `INSERT INTO global_settings (key, value, updated_at) 
+         VALUES ('default_prompts', $1::jsonb, CURRENT_TIMESTAMP)
+         ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
+        [JSON.stringify(defaultPrompts)]
+      );
+    }
+    
+    res.json({ success: true, message: 'Settings saved successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+app.post('/api/settings/reset-prompts', async (req: Request, res: Response) => {
+  try {
+    await query(
+      `INSERT INTO global_settings (key, value, updated_at) 
+       VALUES ('default_prompts', $1::jsonb, CURRENT_TIMESTAMP)
+       ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
+      [JSON.stringify(FACTORY_DEFAULT_PROMPTS)]
+    );
+    res.json({ success: true, defaultPrompts: FACTORY_DEFAULT_PROMPTS });
   } catch (err: any) {
     res.status(500).json({ error: 'Database error', details: err.message });
   }

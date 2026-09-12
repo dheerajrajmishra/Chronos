@@ -5,6 +5,7 @@ import '../../controllers/enterprise_sdlc_controller.dart';
 import '../../theme/enterprise_theme.dart';
 import '../../models/workflow_model.dart';
 import '../../utils/doc_exporter.dart';
+import '../../services/api_service.dart';
 
 class Stage4Code extends StatefulWidget {
   const Stage4Code({super.key});
@@ -24,7 +25,7 @@ class _Stage4CodeState extends State<Stage4Code> {
     if (feature != null && feature.codePrompt.isNotEmpty) {
       _promptCtrl.text = feature.codePrompt;
     } else {
-      _promptCtrl.text = 'Implement clean, type-safe code strictly conforming to the Technical Document API contracts and database DDL schema.';
+      _promptCtrl.text = 'Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.\n\nInclude the following:\n1. Project scaffolding with proper directory structure and module boundaries\n2. REST/gRPC endpoint handlers with full request validation and error handling\n3. Database repository layer with parameterized queries (no raw SQL injection vectors)\n4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields\n5. Authentication & authorization middleware (JWT/mTLS token verification)\n6. Environment-aware configuration (dev, staging, production) with secrets vault integration';
     }
   }
 
@@ -206,7 +207,7 @@ class _Stage4CodeState extends State<Stage4Code> {
                       padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                     ),
-                    onPressed: () => controller.setStage(SDLCStageType.stage5UnitTest),
+                    onPressed: () => controller.setStage(SDLCStageType.stage5TestCaseCreation),
                     icon: const Icon(Icons.arrow_forward_rounded, size: 16),
                     label: Text('Next: Unit Testing', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
                   ),
@@ -265,64 +266,45 @@ class _Stage4CodeState extends State<Stage4Code> {
                 onPressed: () async {
                   controller.isProcessing.value = true;
                   controller.logTerminal("Scaffolding codebase implementation in ${_branchCtrl.text}...", level: "CODE");
-                  await Future.delayed(const Duration(seconds: 2));
-                  final generatedCode = '''// Zero-Trust Implementation for ${feature.name}
-// Branch: ${_branchCtrl.text}
-// Generated with Zero-Trust Presidio DLP Protection
+                  
+                  try {
+                    final payload = {
+                      'requirement': feature.baseRequirement,
+                      'projectId': feature.id.toString(),
+                      'repoUrl': feature.codeAccess['repoUrl'],
+                      'repoBranch': _branchCtrl.text,
+                      'codePrompt': _promptCtrl.text,
+                      'architecture': 'Zero-Trust Framework',
+                      'compliance': 'NIST 800-207',
+                      'memoryMd': feature.memoryMd,
+                    };
+                    
+                    final res = await ApiService.generateDeliverables(payload);
+                    
+                    String generatedCode = "// Failed to generate code.";
+                    if (res['deliverables'] != null) {
+                      final codeDeliverable = res['deliverables'].firstWhere(
+                        (d) => d['agentName'] == 'Software Engineer Agent' || d['tags'].contains('Code Generation'),
+                        orElse: () => null,
+                      );
+                      if (codeDeliverable != null) {
+                        generatedCode = codeDeliverable['markdownContent'];
+                      }
+                    }
 
-import { PresidioVaultClient } from '@enterprise/zero-trust-vault';
-import { Pool } from 'pg';
-
-export interface WorkflowPayload {
-  featureId: number;
-  rawRequirement: string;
-  complianceBaseline: string;
-}
-
-export class ZeroTrustExecutionService {
-  private db: Pool;
-  private vaultClient: PresidioVaultClient;
-
-  constructor() {
-    this.db = new Pool({
-      host: process.env.DB_HOST || '10.240.1.12',
-      port: 5432,
-      database: 'secure_sdlc_db',
-      ssl: { rejectUnauthorized: true }
-    });
-    this.vaultClient = new PresidioVaultClient({
-      vaultTtlMinutes: 30,
-      enforceDynamicMasking: true
-    });
-  }
-
-  /**
-   * Securely process execution payload through Zero-Trust Presidio Gateway
-   */
-  async executeSecureTransaction(payload: WorkflowPayload): Promise<{ success: boolean; transactionId: string }> {
-    // 1. DLP Gateway Sanitization
-    const sanitized = await this.vaultClient.sanitize(payload.rawRequirement);
-    
-    // 2. Persist with Parameterized Query (SQL Injection Protected)
-    const result = await this.db.query(
-      `INSERT INTO feature_\$1_records (feature_id, sanitized_digest, status) 
-       VALUES (\$1, \$2, 'ACTIVE') RETURNING id`,
-      [payload.featureId, sanitized.sha256Hash]
-    );
-
-    return {
-      success: true,
-      transactionId: result.rows[0].id
-    };
-  }
-}
-''';
-                  await controller.updateWorkflowStage(4, 'code_ready', {
-                    'code_content': generatedCode,
-                    'branch_name': _branchCtrl.text,
-                  });
-                  controller.logTerminal("Code written and committed to branch: ${_branchCtrl.text}", level: "GIT");
-                  controller.isProcessing.value = false;
+                    await controller.updateWorkflowStage(4, 'code_ready', {
+                      'code_content': generatedCode,
+                      'branch_name': _branchCtrl.text,
+                    });
+                    controller.logTerminal("Code generated and committed to branch: ${_branchCtrl.text}", level: "GIT");
+                  } catch (e) {
+                    controller.logTerminal("Error generating code: \$e", level: "ERROR");
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Error generating code: \$e'), backgroundColor: Colors.red),
+                    );
+                  } finally {
+                    controller.isProcessing.value = false;
+                  }
                 },
                 icon: const Icon(Icons.code_rounded, color: Colors.white),
                 label: Text('Generate Code in Branch', style: GoogleFonts.inter(fontSize: 15, fontWeight: FontWeight.w600, color: Colors.white)),

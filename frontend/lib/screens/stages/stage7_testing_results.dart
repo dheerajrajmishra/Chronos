@@ -12,14 +12,14 @@ import '../../theme/enterprise_theme.dart';
 import '../../models/workflow_model.dart';
 import '../../services/api_service.dart';
 
-class Stage2Design extends StatefulWidget {
-  const Stage2Design({super.key});
+class Stage7TestingResults extends StatefulWidget {
+  const Stage7TestingResults({super.key});
 
   @override
-  State<Stage2Design> createState() => _Stage2DesignState();
+  State<Stage7TestingResults> createState() => _Stage7TestingResultsState();
 }
 
-class _Stage2DesignState extends State<Stage2Design> {
+class _Stage7TestingResultsState extends State<Stage7TestingResults> {
   final _promptCtrl = TextEditingController();
   final _designEditCtrl = TextEditingController();
   bool _showRaw = false;
@@ -75,7 +75,7 @@ Include the following sections with comprehensive functional depth:
               _isEditingDesign = false;
             });
             await controller.updateWorkflowStage(2, 'pending', {
-              'design_content': content,
+              'testing_results_content': content,
               'design_approved': false,
             });
             controller.logTerminal('Design document re-uploaded from ${file.name}', level: 'INFO');
@@ -107,7 +107,7 @@ Include the following sections with comprehensive functional depth:
   Future<void> _saveDesignEdits(EnterpriseSDLCController controller) async {
     final text = _designEditCtrl.text;
     await controller.updateWorkflowStage(2, 'pending', {
-      'design_content': text,
+      'testing_results_content': text,
       'design_approved': false,
     });
     setState(() {
@@ -135,7 +135,7 @@ Include the following sections with comprehensive functional depth:
       if (feature == null) return const Center(child: Text("No Feature Selected"));
       
       final isGenerating = controller.isProcessing.value;
-      final designContent = wf?.stageData['design_content'] as String?;
+      final designContent = wf?.stageData['testing_results_content'] as String?;
       final brdContent = wf?.stageData['brd_content'] as String?;
       final isApproved = wf?.stageData['design_approved'] == true ||
           (wf?.currentStage == 2 && wf?.status == 'approved');
@@ -737,7 +737,7 @@ Include the following sections with comprehensive functional depth:
         children: [
           // Back button
           _buildNavButton(
-            onPressed: () => controller.setStage(SDLCStageType.stage1Brd),
+            onPressed: () => controller.setStage(SDLCStageType.stage6TestAutomation),
             icon: Icons.arrow_back_rounded,
             label: 'Back to BRD',
             isDark: isDark,
@@ -807,7 +807,7 @@ Include the following sections with comprehensive functional depth:
                   onPressed: () async {
                     final content = _designEditCtrl.text;
                     await controller.updateWorkflowStage(2, 'approved', {
-                      'design_content': content,
+                      'testing_results_content': content,
                       'design_approved': true,
                     });
                     setState(() {
@@ -840,7 +840,7 @@ Include the following sections with comprehensive functional depth:
                 _buildGradientButton(
                   onPressed: () async {
                     await controller.updateWorkflowStage(2, 'approved', {
-                      'design_content': designContent,
+                      'testing_results_content': designContent,
                       'design_approved': true,
                     });
                     controller.logTerminal('Design approved and confirmed.', level: 'SUCCESS');
@@ -870,7 +870,7 @@ Include the following sections with comprehensive functional depth:
           ],
           // Next button
           _buildGradientButton(
-            onPressed: () => controller.setStage(SDLCStageType.stage3TechDoc),
+            onPressed: () => controller.setStage(SDLCStageType.stage8Deploy),
             icon: Icons.arrow_forward_rounded,
             label: 'Next: Technical Document',
             isDark: isDark,
@@ -907,12 +907,12 @@ Include the following sections with comprehensive functional depth:
       }
 
       await controller.updateWorkflowStage(2, 'designing', {
-        'design_content': ddContent,
+        'testing_results_content': ddContent,
         'design_approved': false,
       });
     } catch (e) {
       controller.logTerminal("Design synthesis failed: $e", level: "ERROR");
-      await controller.updateWorkflowStage(2, 'error', {'design_content': 'Error generating Design: $e'});
+      await controller.updateWorkflowStage(2, 'error', {'testing_results_content': 'Error generating Design: $e'});
     } finally {
       controller.isProcessing.value = false;
     }

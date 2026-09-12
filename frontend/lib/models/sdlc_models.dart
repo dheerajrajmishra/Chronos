@@ -29,6 +29,10 @@ class Feature {
   final String unitTestPrompt;
   final String uatPrompt;
   final String deployPrompt;
+  final String testCaseCreationPrompt;
+  final String testAutomationPrompt;
+  final String testingResultPrompt;
+  final String memoryPrompt;
   final Map<String, dynamic> stagePrompts;
   final String memoryMd;
 
@@ -47,6 +51,10 @@ class Feature {
     this.unitTestPrompt = '',
     this.uatPrompt = '',
     this.deployPrompt = '',
+    this.testCaseCreationPrompt = '',
+    this.testAutomationPrompt = '',
+    this.testingResultPrompt = '',
+    this.memoryPrompt = '',
     this.stagePrompts = const {},
     required this.memoryMd,
   });
@@ -67,6 +75,10 @@ class Feature {
       unitTestPrompt: json['unit_test_prompt'] ?? '',
       uatPrompt: json['uat_prompt'] ?? '',
       deployPrompt: json['deploy_prompt'] ?? '',
+      testCaseCreationPrompt: json['test_case_creation_prompt'] ?? '',
+      testAutomationPrompt: json['test_automation_prompt'] ?? '',
+      testingResultPrompt: json['testing_result_prompt'] ?? '',
+      memoryPrompt: json['memory_prompt'] ?? json['stage_prompts']?['memoryPrompt'] ?? '',
       stagePrompts: json['stage_prompts'] is Map ? Map<String, dynamic>.from(json['stage_prompts']) : {},
       memoryMd: json['memory_md'] ?? '',
     );

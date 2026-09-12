@@ -149,6 +149,19 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
               activeAccent: primaryAccent,
             ),
 
+            const SizedBox(width: 4),
+
+            // ─── Settings Button ─────────────────────────────
+            _headerIconButton(
+              icon: Icons.tune_rounded,
+              color: controller.currentStage.value == SDLCStageType.settings ? primaryAccent : textSecColor,
+              tooltip: 'Settings & Prompts Configuration',
+              onTap: () => controller.setStage(SDLCStageType.settings),
+              isDark: isDark,
+              isActive: controller.currentStage.value == SDLCStageType.settings,
+              activeAccent: primaryAccent,
+            ),
+
             const SizedBox(width: 8),
 
             // ─── New Pipeline CTA ────────────────────────────
@@ -280,14 +293,16 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
         return 'Stage 3: Technical Document';
       case SDLCStageType.stage4Code:
         return 'Stage 4: Code';
-      case SDLCStageType.stage5UnitTest:
-        return 'Stage 5: Unit Testing';
-      case SDLCStageType.stage6Test:
-        return 'Stage 6: Testing';
-      case SDLCStageType.stage7Uat:
-        return 'Stage 7: UAT';
+      case SDLCStageType.stage5TestCaseCreation:
+        return 'Stage 5: Test Case Creation';
+      case SDLCStageType.stage6TestAutomation:
+        return 'Stage 6: Test Automation Script';
+      case SDLCStageType.stage7TestingResult:
+        return 'Stage 7: Testing & Result';
       case SDLCStageType.stage8Deploy:
         return 'Stage 8: Deployment';
+      case SDLCStageType.settings:
+        return 'Global Settings & Prompts Configuration';
     }
   }
 }

@@ -11,8 +11,13 @@ class EnterpriseSDLCController extends GetxController {
   final RxString userRole = 'Principal Security Architect'.obs;
   final RxBool isSidebarCollapsed = false.obs;
 
-  // Theme Mode State
-  final RxBool isDarkMode = true.obs;
+  // Theme Mode State (Default is Light Theme as requested)
+  final RxBool isDarkMode = false.obs;
+
+  // Global Configured Prompts & Settings State
+  final RxMap<String, String> globalDefaultPrompts = <String, String>{}.obs;
+  final RxMap<String, String> factoryDefaultPrompts = <String, String>{}.obs;
+  final RxBool isLoadingSettings = false.obs;
 
   // New Project and Feature Models
   final RxList<Project> projectList = <Project>[].obs;
@@ -37,12 +42,79 @@ class EnterpriseSDLCController extends GetxController {
   @override
   void onInit() {
     super.onInit();
+    loadGlobalSettings();
     fetchProjects();
   }
 
+  Future<void> loadGlobalSettings() async {
+    try {
+      isLoadingSettings.value = true;
+      final settings = await ApiService.getGlobalSettings();
+      if (settings.containsKey('theme') && settings['theme'] is Map) {
+        final mode = settings['theme']['mode'];
+        if (mode == 'dark') {
+          isDarkMode.value = true;
+          Get.changeThemeMode(ThemeMode.dark);
+        } else if (mode == 'light') {
+          isDarkMode.value = false;
+          Get.changeThemeMode(ThemeMode.light);
+        }
+      }
+      if (settings.containsKey('defaultPrompts') && settings['defaultPrompts'] is Map) {
+        final Map<String, dynamic> dp = settings['defaultPrompts'];
+        globalDefaultPrompts.clear();
+        dp.forEach((k, v) => globalDefaultPrompts[k] = v.toString());
+      }
+      if (settings.containsKey('factoryDefaults') && settings['factoryDefaults'] is Map) {
+        final Map<String, dynamic> fd = settings['factoryDefaults'];
+        factoryDefaultPrompts.clear();
+        fd.forEach((k, v) => factoryDefaultPrompts[k] = v.toString());
+      }
+    } catch (e) {
+      logTerminal("Failed to load global settings: $e", level: "WARN");
+    } finally {
+      isLoadingSettings.value = false;
+    }
+  }
+
+  void setThemeMode(bool dark) {
+    isDarkMode.value = dark;
+    Get.changeThemeMode(dark ? ThemeMode.dark : ThemeMode.light);
+    ApiService.saveGlobalSettings(theme: {'mode': dark ? 'dark' : 'light'}).catchError((_) => false);
+  }
+
   void toggleTheme() {
-    isDarkMode.value = !isDarkMode.value;
-    Get.changeThemeMode(isDarkMode.value ? ThemeMode.dark : ThemeMode.light);
+    setThemeMode(!isDarkMode.value);
+  }
+
+  Future<bool> saveGlobalPrompts(Map<String, String> prompts) async {
+    try {
+      final success = await ApiService.saveGlobalSettings(defaultPrompts: prompts);
+      if (success) {
+        globalDefaultPrompts.assignAll(prompts);
+        logTerminal("Global default prompts successfully saved to database.", level: "SUCCESS");
+        return true;
+      }
+    } catch (e) {
+      logTerminal("Failed to save global default prompts: $e", level: "ERROR");
+    }
+    return false;
+  }
+
+  Future<bool> resetGlobalPrompts() async {
+    try {
+      final res = await ApiService.resetDefaultPrompts();
+      if (res.containsKey('defaultPrompts') && res['defaultPrompts'] is Map) {
+        final Map<String, dynamic> dp = res['defaultPrompts'];
+        globalDefaultPrompts.clear();
+        dp.forEach((k, v) => globalDefaultPrompts[k] = v.toString());
+        logTerminal("Default prompts reset to factory baseline.", level: "SUCCESS");
+        return true;
+      }
+    } catch (e) {
+      logTerminal("Failed to reset prompts: $e", level: "ERROR");
+    }
+    return false;
   }
 
   void logTerminal(String message, {String level = 'INFO'}) {
@@ -175,10 +247,11 @@ class EnterpriseSDLCController extends GetxController {
     String? designPrompt,
     String? techDocPrompt,
     String? codePrompt,
-    String? unitTestPrompt,
-    String? testPrompt,
-    String? uatPrompt,
+    String? testCaseCreationPrompt,
+    String? testAutomationPrompt,
+    String? testingResultPrompt,
     String? deployPrompt,
+    String? memoryPrompt,
     Map<String, dynamic>? stagePrompts,
   }) async {
     if (activeFeature.value == null) return false;
@@ -189,10 +262,11 @@ class EnterpriseSDLCController extends GetxController {
         designPrompt: designPrompt,
         techDocPrompt: techDocPrompt,
         codePrompt: codePrompt,
-        unitTestPrompt: unitTestPrompt,
-        testPrompt: testPrompt,
-        uatPrompt: uatPrompt,
+        testCaseCreationPrompt: testCaseCreationPrompt,
+        testAutomationPrompt: testAutomationPrompt,
+        testingResultPrompt: testingResultPrompt,
         deployPrompt: deployPrompt,
+        memoryPrompt: memoryPrompt,
         stagePrompts: stagePrompts,
       );
       activeFeature.value = updated;

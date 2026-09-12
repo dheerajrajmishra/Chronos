@@ -243,8 +243,6 @@ class ProjectHubScreen extends StatelessWidget {
 
   void _showCreateFeatureDialog(BuildContext context, EnterpriseSDLCController controller, Project activePrj, bool isDark) {
     final nameCtrl = TextEditingController();
-    final reqCtrl = TextEditingController();
-    final promptCtrl = TextEditingController();
     final codeRepoCtrl = TextEditingController(text: 'https://github.com/my-org/repo.git');
     final dbUrlCtrl = TextEditingController(text: 'postgres://user:pass@localhost:5432/db');
 
@@ -295,10 +293,6 @@ class ProjectHubScreen extends StatelessWidget {
                     _buildInputField('Code Access (Git Repo URL)', codeRepoCtrl, isDark, Icons.code),
                     const SizedBox(height: 20),
                     _buildInputField('Database Access URL', dbUrlCtrl, isDark, Icons.dns_outlined),
-                    const SizedBox(height: 20),
-                    _buildInputField('Base Requirements (Plain English)', reqCtrl, isDark, Icons.format_quote, maxLines: 3),
-                    const SizedBox(height: 20),
-                    _buildInputField('Custom BRD Generation Prompt', promptCtrl, isDark, Icons.smart_toy_outlined, maxLines: 2),
                     const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
@@ -317,8 +311,8 @@ class ProjectHubScreen extends StatelessWidget {
                                 name: nameCtrl.text,
                                 codeAccess: {'repoUrl': codeRepoCtrl.text},
                                 dbAccess: {'url': dbUrlCtrl.text},
-                                baseRequirement: reqCtrl.text,
-                                brdPrompt: promptCtrl.text,
+                                baseRequirement: '',
+                                brdPrompt: '',
                               );
                               Get.back();
                             }

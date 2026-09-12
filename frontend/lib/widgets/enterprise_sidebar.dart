@@ -81,18 +81,39 @@ class EnterpriseSidebar extends StatelessWidget {
               child: ListView(
                 padding: EdgeInsets.symmetric(vertical: 6, horizontal: isCollapsed ? 6 : 10),
                 children: [
-                  if (!isCollapsed) _sectionLabel('Workspaces', textMutedColor),
-                  _WorkspaceNavItem(
-                    controller: controller,
-                    stage: SDLCStageType.projectHub,
-                    title: 'Projects & Access',
-                    icon: Icons.grid_view_rounded,
-                    badge: 'HUB',
-                    isCollapsed: isCollapsed,
-                    isDark: isDark,
-                  ),
+                  if (!showPipelineStages) ...[
+                    if (!isCollapsed) _sectionLabel('Workspaces', textMutedColor),
+                    _WorkspaceNavItem(
+                      controller: controller,
+                      stage: SDLCStageType.projectHub,
+                      title: 'Projects & Access',
+                      icon: Icons.grid_view_rounded,
+                      badge: 'HUB',
+                      isCollapsed: isCollapsed,
+                      isDark: isDark,
+                    ),
+                    _WorkspaceNavItem(
+                      controller: controller,
+                      stage: SDLCStageType.settings,
+                      title: 'Settings & Prompts',
+                      icon: Icons.tune_rounded,
+                      badge: 'CONFIG',
+                      isCollapsed: isCollapsed,
+                      isDark: isDark,
+                    ),
+                  ],
 
                   if (showPipelineStages) ...[
+                    if (!isCollapsed) _sectionLabel('Exit Feature', textMutedColor),
+                    _WorkspaceNavItem(
+                      controller: controller,
+                      stage: SDLCStageType.projectHub,
+                      title: 'Back to Workspaces',
+                      icon: Icons.arrow_back_rounded,
+                      badge: 'EXIT',
+                      isCollapsed: isCollapsed,
+                      isDark: isDark,
+                    ),
                     if (!isCollapsed) ...[
                       const SizedBox(height: 12),
                       Row(
@@ -190,13 +211,13 @@ class EnterpriseSidebar extends StatelessWidget {
                       isWfActive: activeFeature != null && currentWfStage == 4,
                     ),
 
-                    // Stage 5: Unit Testing
+                    // Stage 5: Test Case Creation
                     _PipelineStageNavItem(
                       key: const ValueKey('stage5'),
                       controller: controller,
-                      stage: SDLCStageType.stage5UnitTest,
+                      stage: SDLCStageType.stage5TestCaseCreation,
                       stageIndex: 5,
-                      title: 'Unit Testing',
+                      title: 'Test Cases',
                       icon: Icons.checklist_rounded,
                       isCollapsed: isCollapsed,
                       isDark: isDark,
@@ -204,27 +225,27 @@ class EnterpriseSidebar extends StatelessWidget {
                       isWfActive: activeFeature != null && currentWfStage == 5,
                     ),
 
-                    // Stage 6: Testing
+                    // Stage 6: Test Automation Script
                     _PipelineStageNavItem(
                       key: const ValueKey('stage6'),
                       controller: controller,
-                      stage: SDLCStageType.stage6Test,
+                      stage: SDLCStageType.stage6TestAutomation,
                       stageIndex: 6,
-                      title: 'Testing',
-                      icon: Icons.security_rounded,
+                      title: 'Automation Script',
+                      icon: Icons.integration_instructions_rounded,
                       isCollapsed: isCollapsed,
                       isDark: isDark,
                       isDone: activeFeature != null && currentWfStage > 6,
                       isWfActive: activeFeature != null && currentWfStage == 6,
                     ),
 
-                    // Stage 7: UAT
+                    // Stage 7: Testing & Result
                     _PipelineStageNavItem(
                       key: const ValueKey('stage7'),
                       controller: controller,
-                      stage: SDLCStageType.stage7Uat,
+                      stage: SDLCStageType.stage7TestingResult,
                       stageIndex: 7,
-                      title: 'UAT',
+                      title: 'Testing & Result',
                       icon: Icons.fact_check_outlined,
                       isCollapsed: isCollapsed,
                       isDark: isDark,

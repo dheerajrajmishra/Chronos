@@ -78,6 +78,7 @@ class ApiService {
     required String codePrompt,
     required String testPrompt,
     required String memoryMd,
+    String? memoryPrompt,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/features/$featureId'),
@@ -92,6 +93,7 @@ class ApiService {
         'code_prompt': codePrompt,
         'test_prompt': testPrompt,
         'memory_md': memoryMd,
+        if (memoryPrompt != null) 'memory_prompt': memoryPrompt,
       }),
     );
     if (response.statusCode == 200) {
@@ -106,10 +108,11 @@ class ApiService {
     String? designPrompt,
     String? techDocPrompt,
     String? codePrompt,
-    String? unitTestPrompt,
-    String? testPrompt,
-    String? uatPrompt,
+    String? testCaseCreationPrompt,
+    String? testAutomationPrompt,
+    String? testingResultPrompt,
     String? deployPrompt,
+    String? memoryPrompt,
     Map<String, dynamic>? stagePrompts,
   }) async {
     final response = await http.put(
@@ -120,10 +123,11 @@ class ApiService {
         if (designPrompt != null) 'design_prompt': designPrompt,
         if (techDocPrompt != null) 'tech_doc_prompt': techDocPrompt,
         if (codePrompt != null) 'code_prompt': codePrompt,
-        if (unitTestPrompt != null) 'unit_test_prompt': unitTestPrompt,
-        if (testPrompt != null) 'test_prompt': testPrompt,
-        if (uatPrompt != null) 'uat_prompt': uatPrompt,
+        if (testCaseCreationPrompt != null) 'test_case_creation_prompt': testCaseCreationPrompt,
+        if (testAutomationPrompt != null) 'test_automation_prompt': testAutomationPrompt,
+        if (testingResultPrompt != null) 'testing_result_prompt': testingResultPrompt,
         if (deployPrompt != null) 'deploy_prompt': deployPrompt,
+        if (memoryPrompt != null) 'memory_prompt': memoryPrompt,
         if (stagePrompts != null) 'stage_prompts': stagePrompts,
       }),
     );
@@ -170,7 +174,12 @@ class ApiService {
     throw Exception('Failed to generate deliverables: ${response.body}');
   }
 
-  static Future<Map<String, dynamic>> generateMemory(String projectId, String repoUrl, String branch) async {
+  static Future<Map<String, dynamic>> generateMemory(
+    String projectId,
+    String repoUrl,
+    String branch, {
+    String? memoryPrompt,
+  }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/repository/generate-memory'),
       headers: {'Content-Type': 'application/json'},
@@ -178,11 +187,43 @@ class ApiService {
         'projectId': projectId,
         'repoUrl': repoUrl,
         'branch': branch,
+        if (memoryPrompt != null && memoryPrompt.isNotEmpty) 'memoryPrompt': memoryPrompt,
       }),
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
     throw Exception('Failed to generate repository memory: ${response.statusCode}');
+  }
+
+  static Future<Map<String, dynamic>> getGlobalSettings() async {
+    final response = await http.get(Uri.parse('$baseUrl/settings'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to load global settings: ${response.statusCode}');
+  }
+
+  static Future<bool> saveGlobalSettings({Map<String, dynamic>? theme, Map<String, dynamic>? defaultPrompts}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/settings'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (theme != null) 'theme': theme,
+        if (defaultPrompts != null) 'defaultPrompts': defaultPrompts,
+      }),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<Map<String, dynamic>> resetDefaultPrompts() async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/settings/reset-prompts'),
+      headers: {'Content-Type': 'application/json'},
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to reset default prompts: ${response.statusCode}');
   }
 }
