@@ -1,11 +1,12 @@
 enum SDLCStageType {
   projectHub,
-  specStudio,
-  vaultInspector,
-  agentOrchestration,
-  approvalGate,
-  codeGenSbom,
-  auditTelemetry,
+  stage0Setup,
+  stage1Brd,
+  stage2Design,
+  stage3Code,
+  stage4Test,
+  stage5Uat,
+  stage6Deploy,
 }
 
 enum EntityCategory {
@@ -254,7 +255,7 @@ class WorkflowExecution {
     this.llmModel = 'Azure OpenAI GPT-4o (PitchPerfect Engine)',
     CodeAccessConfig? codeAccess,
     DbAccessConfig? dbAccess,
-    this.currentStage = SDLCStageType.specStudio,
+    this.currentStage = SDLCStageType.stage1Brd,
     this.status = 'DRAFT',
     DateTime? createdAt,
     this.isApproved = false,
@@ -273,4 +274,79 @@ class WorkflowExecution {
         deliverables = deliverables ?? [],
         sbomItems = sbomItems ?? [],
         auditHistory = auditHistory ?? [];
+}
+
+class CodeModuleInfo {
+  final String name;
+  final String directory;
+  final int filesCount;
+  final String tech;
+  final List<String> keyFiles;
+
+  CodeModuleInfo({
+    required this.name,
+    required this.directory,
+    required this.filesCount,
+    required this.tech,
+    required this.keyFiles,
+  });
+
+  factory CodeModuleInfo.fromJson(Map<String, dynamic> json) {
+    return CodeModuleInfo(
+      name: json['name'] ?? '',
+      directory: json['directory'] ?? '',
+      filesCount: json['filesCount'] ?? 0,
+      tech: json['tech'] ?? '',
+      keyFiles: List<String>.from(json['keyFiles'] ?? []),
+    );
+  }
+}
+
+class CodebaseGraph {
+  final String projectId;
+  final String repoPath;
+  final String repoUrl;
+  final String branch;
+  final DateTime lastSyncedAt;
+  final int filesCount;
+  final int totalSizeBytes;
+  final List<String> techStack;
+  final List<CodeModuleInfo> modules;
+  final String graphDigest;
+  final bool isFromCache;
+  final String summaryMarkdown;
+
+  CodebaseGraph({
+    required this.projectId,
+    required this.repoPath,
+    required this.repoUrl,
+    required this.branch,
+    required this.lastSyncedAt,
+    required this.filesCount,
+    required this.totalSizeBytes,
+    required this.techStack,
+    required this.modules,
+    required this.graphDigest,
+    required this.isFromCache,
+    required this.summaryMarkdown,
+  });
+
+  factory CodebaseGraph.fromJson(Map<String, dynamic> json) {
+    return CodebaseGraph(
+      projectId: json['projectId'] ?? '',
+      repoPath: json['repoPath'] ?? '',
+      repoUrl: json['repoUrl'] ?? '',
+      branch: json['branch'] ?? 'main',
+      lastSyncedAt: DateTime.tryParse(json['lastSyncedAt'] ?? '') ?? DateTime.now(),
+      filesCount: json['filesCount'] ?? 0,
+      totalSizeBytes: json['totalSizeBytes'] ?? 0,
+      techStack: List<String>.from(json['techStack'] ?? []),
+      modules: (json['modules'] as List<dynamic>? ?? [])
+          .map((m) => CodeModuleInfo.fromJson(m as Map<String, dynamic>))
+          .toList(),
+      graphDigest: json['graphDigest'] ?? '',
+      isFromCache: json['isFromCache'] ?? false,
+      summaryMarkdown: json['summaryMarkdown'] ?? '',
+    );
+  }
 }

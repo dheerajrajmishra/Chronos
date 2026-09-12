@@ -1,13 +1,16 @@
 import { ChatOpenAI, AzureChatOpenAI } from '@langchain/openai';
+import { CodebaseGraph } from './codeGraph/graphEngine';
 
 export interface SynthesisRequest {
   requirement: string;
   maskedRequirement?: string;
+  brdPrompt?: string;
   architecture?: string;
   compliance?: string;
   cloudTarget?: string;
   llmModel?: string;
   apiKey?: string;
+  codeGraph?: CodebaseGraph;
 }
 
 export interface AgentDeliverableResponse {
@@ -120,6 +123,16 @@ export async function synthesizeDeliverables(req: SynthesisRequest): Promise<Syn
         });
       }
 
+      const codeGraphPrompt = req.codeGraph ? `
+Existing Codebase Baseline (Inspected from local repository graph):
+- Repository: ${req.codeGraph.repoPath} (${req.codeGraph.filesCount} files)
+- Tech Stack: ${req.codeGraph.techStack.join(', ')}
+- Modules:
+${req.codeGraph.modules.map(m => `  * ${m.directory} (${m.tech}): ${m.keyFiles.join(', ')}`).join('\n')}
+
+IMPORTANT: Ground the BRD in this existing codebase. Include an "Existing Codebase Integration & File Impact Matrix" specifying modified modules vs new files.
+` : '';
+
       const brdPrompt = `
 You are a Principal AI Business Analyst in a Zero-Trust Enterprise SDLC platform.
 Create a comprehensive, production-grade Business Requirements Document (BRD) formatted in GitHub Markdown for the following sanitized requirement:
@@ -129,15 +142,19 @@ Create a comprehensive, production-grade Business Requirements Document (BRD) fo
 Compliance Framework: ${compliance}
 Target Architecture: ${architecture}
 Target Cloud: ${cloudTarget}
+${codeGraphPrompt}
 
 Include the following sections with exhaustive depth:
 1. Executive Summary & Problem Definition (directly addressing the user's specific request)
-2. In-Scope and Out-of-Scope boundaries
-3. Target Business Objectives & OKRs
-4. Epics and Detailed User Stories (US-1.1, US-1.2, US-2.1, etc. with user persona, action, outcome)
-5. Acceptance Criteria in Gherkin (Given-When-Then) format
-6. Non-Functional Requirements (Latency, Throughput, Fault Tolerance, Zero-Trust Security)
-7. Audit and Compliance Matrix (${compliance})
+2. Existing Codebase Baseline & Integration Touchpoints
+3. Codebase File Impact & Delta Matrix (Modified existing files vs. New files)
+4. In-Scope and Out-of-Scope boundaries
+5. Target Business Objectives & OKRs
+6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
+7. Acceptance Criteria in Gherkin (Given-When-Then) format
+8. Non-Functional Requirements & Security Controls
+
+${req.brdPrompt && req.brdPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.brdPrompt}\n---------------------------------` : ''}
 `;
 
       const response = await llm.invoke(brdPrompt);
@@ -156,7 +173,7 @@ Include the following sections with exhaustive depth:
             markdownContent: brdMarkdown,
             tags: ['Live LLM', 'BRD', 'User Stories', compliance],
           },
-          generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget),
+          generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, req.codeGraph),
           generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
         ],
       };
@@ -166,7 +183,7 @@ Include the following sections with exhaustive depth:
   }
 
   // Autonomous Semantic Synthesizer (Zero-Trust Local Engine)
-  return generateSemanticDeliverables(workflowId, rawText, maskedText, architecture, compliance, cloudTarget);
+  return generateSemanticDeliverables(workflowId, rawText, maskedText, architecture, compliance, cloudTarget, req.codeGraph);
 }
 
 function generateSemanticDeliverables(
@@ -175,7 +192,8 @@ function generateSemanticDeliverables(
   maskedText: string,
   architecture: string,
   compliance: string,
-  cloudTarget: string
+  cloudTarget: string,
+  codeGraph?: CodebaseGraph
 ): SynthesisResult {
   const { domain, actors, keywords } = detectDomain(rawText);
   const tech = extractEntities(rawText);
@@ -184,12 +202,43 @@ function generateSemanticDeliverables(
   const cleanSnippet = rawText.replace(/[\n\r]+/g, ' ').trim();
   const summaryTitle = cleanSnippet.length > 90 ? cleanSnippet.substring(0, 90) + '...' : cleanSnippet;
 
+  const codeGraphSection = codeGraph ? `
+## 2. Inspected Codebase Baseline & Graph Architecture
+The Solutions Architect Agent inspected the local repository (\`${codeGraph.repoPath}\`):
+- **Repository Scope:** ${codeGraph.filesCount} source files indexed (${(codeGraph.totalSizeBytes / 1024).toFixed(1)} KB)
+- **Identified Tech Stack:** ${codeGraph.techStack.join(' • ')}
+- **Architecture Modules Detected:**
+${codeGraph.modules.map(m => `  - **\`${m.directory}\`** (${m.filesCount} files, *${m.tech}*): \`${m.keyFiles.join('`, `')}\``).join('\n')}
+- **Cache Synchronization State:** \`${codeGraph.graphDigest.substring(0, 16)}...\` (${codeGraph.isFromCache ? '⚡ Retrieved from local code graph cache' : '🔄 Full repository scan verified'})
+
+---
+
+## 3. Codebase File Impact & Delta Matrix
+
+| Module / File Target | Existing Capability | Proposed Feature Delta | Impact Level |
+| :--- | :--- | :--- | :--- |
+| \`${codeGraph.modules[0]?.directory || 'backend/src'}\` | Express Server & Temporal Activities | Add endpoints for ${tech.protocols} and transaction handlers | **MODIFIED** |
+| \`${codeGraph.modules[1]?.directory || 'frontend/lib'}\` | Flutter Portal UI & State Controllers | Update reactive state and telemetry triggers | **MODIFIED** |
+| \`zero_trust_gateway\` | Presidio Analyzer & Redis Vault | Register custom regex and NER token patterns for feature secrets | **CONFIGURED** |
+| \`new_services/${summaryTitle.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 24)}\` | Domain Service Subsystem | Implement ${tech.database} persistence and business logic | **NEW MODULE** |
+` : `
+## 2. In-Scope vs. Out-of-Scope Matrix
+
+| Category | In-Scope Deliverables | Out-of-Scope Constraints |
+| :--- | :--- | :--- |
+| **Data Ingestion** | Real-time payload sanitization, tokenization into Redis Vault, and HMAC SHA-256 verification. | Ingestion of unencrypted plain-text payloads over unverified networks. |
+| **Core Processing** | Autonomous multi-agent synthesis, contract generation for ${tech.protocols}, and schema migration for ${tech.database}. | Direct unmasked third-party external LLM calls without DLP interception. |
+| **Integration** | Secure connectors for ${tech.database} with JIT credential leases (< 30 min). | Hardcoded database credentials or static production tokens. |
+| **Governance** | Dual-signature Human-in-the-Loop approval gate with cryptographic hash matching. | Auto-deployment to production bypass gates without compliance officer review. |
+`;
+
   const brdMarkdown = `# Business Requirements Document (BRD)
 **Workflow Reference:** \`${workflowId}\`  
 **System Classification:** ${domain.toUpperCase()} // RESTRICTED ZERO-TRUST  
 **Compliance Baseline:** ${compliance}  
 **Cloud Enclave:** ${cloudTarget}  
 **Target Architecture:** ${architecture}  
+${codeGraph ? `**Codebase Repository:** \`${codeGraph.repoPath}\` (${codeGraph.filesCount} files indexed)  ` : ''}
 
 ---
 
@@ -205,19 +254,10 @@ The current operational model requires an automated, cryptographically secured i
 Deploy an isolated zero-trust service subsystem conforming to **${compliance}** standards, interfacing with **${tech.database}** and communicating over **${tech.protocols}** within the **${cloudTarget}** private perimeter.
 
 ---
-
-## 2. In-Scope vs. Out-of-Scope Matrix
-
-| Category | In-Scope Deliverables | Out-of-Scope Constraints |
-| :--- | :--- | :--- |
-| **Data Ingestion** | Real-time payload sanitization, tokenization into Redis Vault, and HMAC SHA-256 verification. | Ingestion of unencrypted plain-text payloads over unverified networks. |
-| **Core Processing** | Autonomous multi-agent synthesis, contract generation for ${tech.protocols}, and schema migration for ${tech.database}. | Direct unmasked third-party external LLM calls without DLP interception. |
-| **Integration** | Secure connectors for ${tech.database} with JIT credential leases (< 30 min). | Hardcoded database credentials or static production tokens. |
-| **Governance** | Dual-signature Human-in-the-Loop approval gate with cryptographic hash matching. | Auto-deployment to production bypass gates without compliance officer review. |
-
+${codeGraphSection}
 ---
 
-## 3. Target Objectives & Key Results (OKRs)
+## 4. Target Objectives & Key Results (OKRs)
 
 - **OKR-1 (Zero-Trust Security):** Achieve **0% raw PII / Secret leakage** to external reasoning models by verifying 100% token substitution at the Presidio DLP Gateway.
 - **OKR-2 (Performance SLA):** Guarantee end-to-end ingestion and processing latency of **P95 < 250ms** across all authenticated ${tech.protocols} endpoints.
@@ -283,7 +323,7 @@ Scenario: Database Transaction with JIT Credentials
         markdownContent: brdMarkdown,
         tags: ['BRD', 'User Stories', domain, compliance],
       },
-      generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget),
+      generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
       generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
     ],
   };
@@ -294,26 +334,32 @@ function generateArchitectDeliverable(
   maskedText: string,
   architecture: string,
   compliance: string,
-  cloudTarget: string
+  cloudTarget: string,
+  codeGraph?: CodebaseGraph
 ): AgentDeliverableResponse {
   const { domain } = detectDomain(rawText);
   const tech = extractEntities(rawText);
+
+  const clientDir = codeGraph?.modules.find(m => m.directory.includes('frontend'))?.directory || 'frontend/lib';
+  const gatewayDir = codeGraph?.modules.find(m => m.directory.includes('gateway'))?.directory || 'zero_trust_gateway';
+  const backendDir = codeGraph?.modules.find(m => m.directory.includes('backend'))?.directory || 'backend/src';
 
   const markdown = `# System Architecture Specification
 **Architecture Pattern:** ${architecture}  
 **Target Infrastructure:** ${cloudTarget}  
 **Classification:** ${domain} Architecture Blueprint  
+${codeGraph ? `**Existing Repository Context:** \`${codeGraph.repoPath}\` (${codeGraph.techStack.join(', ')})  ` : ''}
 
 ---
 
 ## 1. C4 Container Architecture Diagram
-The container model illustrates the zero-trust isolation boundaries for the requested feature:
+The container model illustrates the zero-trust isolation boundaries integrated with the active repository:
 
 \`\`\`mermaid
 graph TD
-    Client["Client / Web Gateway"] -->|mTLS 1.3| ZTGateway["Zero-Trust DLP Gateway (Presidio)"]
+    Client["Client / Portal Web (${clientDir})"] -->|mTLS 1.3| ZTGateway["Zero-Trust DLP Gateway (${gatewayDir})"]
     ZTGateway -->|Store Tokens| RedisVault[("Redis Token Vault (In-Memory)")]
-    ZTGateway -->|Sanitized Workflow| Temporal["Temporal Durable Orchestrator"]
+    ZTGateway -->|Sanitized Workflow| Temporal["Temporal Durable Orchestrator (${backendDir})"]
     Temporal -->|Task Queue: sdlc-queue| WorkerPool["Activity Workers Pool"]
     WorkerPool -->|Masked Payload| ReasoningEngine["Reasoning / CodeGen Engine"]
     WorkerPool -->|JIT Unmasked Conn| TargetDB[("${tech.database}")]

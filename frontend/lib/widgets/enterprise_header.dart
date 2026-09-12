@@ -57,11 +57,11 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
             ),
             _breadcrumbSeparator(textMutedColor),
             if (prj != null) ...[
-              _breadcrumbItem(prj.projectKey, textColor, textMutedColor),
+              _breadcrumbItem(prj.name, textColor, textMutedColor),
               _breadcrumbSeparator(textMutedColor),
             ],
             if (wf != null) ...[
-              _breadcrumbItem(wf.id, primaryAccent, textMutedColor),
+              _breadcrumbItem(wf.id.toString(), primaryAccent, textMutedColor),
               const SizedBox(width: 10),
               _statusChip(wf.status, isDark),
             ] else ...[
@@ -155,7 +155,7 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
             _ActionButton(
               label: 'New Pipeline',
               icon: Icons.add_rounded,
-              onTap: () => controller.setStage(SDLCStageType.specStudio),
+              onTap: () => controller.setStage(SDLCStageType.projectHub),
               isDark: isDark,
             ),
           ],
@@ -270,18 +270,20 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
     switch (stage) {
       case SDLCStageType.projectHub:
         return 'Projects & Access Hub';
-      case SDLCStageType.specStudio:
-        return 'Ingestion & Spec Studio';
-      case SDLCStageType.vaultInspector:
-        return 'Token Vault Inspector';
-      case SDLCStageType.agentOrchestration:
-        return 'Agent Orchestration';
-      case SDLCStageType.approvalGate:
-        return 'Governance Gate';
-      case SDLCStageType.codeGenSbom:
-        return 'Code Gen & SBOM';
-      case SDLCStageType.auditTelemetry:
-        return 'Audit & Telemetry';
+      case SDLCStageType.stage0Setup:
+        return 'Stage 0: Feature Setup';
+      case SDLCStageType.stage1Brd:
+        return 'Stage 1: BRD';
+      case SDLCStageType.stage2Design:
+        return 'Stage 2: Design';
+      case SDLCStageType.stage3Code:
+        return 'Stage 3: Code Gen';
+      case SDLCStageType.stage4Test:
+        return 'Stage 4: Test Automation';
+      case SDLCStageType.stage5Uat:
+        return 'Stage 5: UAT';
+      case SDLCStageType.stage6Deploy:
+        return 'Stage 6: Deploy';
     }
   }
 }

@@ -7,12 +7,13 @@ import '../theme/enterprise_theme.dart';
 import '../widgets/enterprise_sidebar.dart';
 import '../widgets/enterprise_header.dart';
 import 'projects/project_hub_screen.dart';
-import 'stages/stage1_spec_studio.dart';
-import 'stages/stage2_vault_inspector.dart';
-import 'stages/stage3_agent_orchestration.dart';
-import 'stages/stage4_approval_gate.dart';
-import 'stages/stage5_codegen_sbom.dart';
-import 'stages/stage6_audit_telemetry.dart';
+import 'stages/stage0_feature_setup.dart';
+import 'stages/stage1_brd.dart';
+import 'stages/stage2_design.dart';
+import 'stages/stage3_code.dart';
+import 'stages/stage4_test.dart';
+import 'stages/stage5_uat.dart';
+import 'stages/stage6_deploy.dart';
 
 class EnterprisePortalScreen extends StatefulWidget {
   const EnterprisePortalScreen({Key? key}) : super(key: key);
@@ -57,18 +58,22 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                       switch (controller.currentStage.value) {
                         case SDLCStageType.projectHub:
                           return const ProjectHubScreen();
-                        case SDLCStageType.specStudio:
-                          return const Stage1SpecStudio();
-                        case SDLCStageType.vaultInspector:
-                          return const Stage2VaultInspector();
-                        case SDLCStageType.agentOrchestration:
-                          return const Stage3AgentOrchestration();
-                        case SDLCStageType.approvalGate:
-                          return const Stage4ApprovalGate();
-                        case SDLCStageType.codeGenSbom:
-                          return const Stage5CodeGenSbom();
-                        case SDLCStageType.auditTelemetry:
-                          return const Stage6AuditTelemetry();
+                        case SDLCStageType.stage0Setup:
+                          return const Stage0FeatureSetup();
+                        case SDLCStageType.stage1Brd:
+                          return const Stage1Brd();
+                        case SDLCStageType.stage2Design:
+                          return const Stage2Design();
+                        case SDLCStageType.stage3Code:
+                          return const Stage3Code();
+                        case SDLCStageType.stage4Test:
+                          return const Stage4Test();
+                        case SDLCStageType.stage5Uat:
+                          return const Stage5Uat();
+                        case SDLCStageType.stage6Deploy:
+                          return const Stage6Deploy();
+                        default:
+                          return const Center(child: Text("Unknown Stage"));
                       }
                     }),
                   ),

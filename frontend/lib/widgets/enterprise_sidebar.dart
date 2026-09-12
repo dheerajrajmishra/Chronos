@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
 import '../models/workflow_model.dart';
+import '../models/sdlc_models.dart';
 import '../theme/enterprise_theme.dart';
 
 class EnterpriseSidebar extends StatelessWidget {
@@ -64,54 +65,63 @@ class EnterpriseSidebar extends StatelessWidget {
                   ],
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.specStudio,
-                    title: 'Ingestion & Spec Studio',
-                    icon: Icons.auto_awesome_outlined,
+                    stage: SDLCStageType.stage0Setup,
+                    title: '0. Feature Setup',
+                    icon: Icons.settings_applications_outlined,
+                    badge: '0',
+                    isCollapsed: isCollapsed,
+                    isDark: isDark,
+                  ),
+                  _NavItem(
+                    controller: controller,
+                    stage: SDLCStageType.stage1Brd,
+                    title: '1. BRD Generation',
+                    icon: Icons.article_outlined,
                     badge: '1',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.vaultInspector,
-                    title: 'Token Vault Inspector',
-                    icon: Icons.vpn_key_outlined,
+                    stage: SDLCStageType.stage2Design,
+                    title: '2. Design Document',
+                    icon: Icons.architecture_outlined,
                     badge: '2',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.agentOrchestration,
-                    title: 'Agent Orchestration',
-                    icon: Icons.hub_outlined,
+                    stage: SDLCStageType.stage3Code,
+                    title: '3. Code Generation',
+                    icon: Icons.code_outlined,
                     badge: '3',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.approvalGate,
-                    title: 'Governance Gate',
-                    icon: Icons.verified_outlined,
+                    stage: SDLCStageType.stage4Test,
+                    title: '4. Test Automation',
+                    icon: Icons.bug_report_outlined,
                     badge: '4',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.codeGenSbom,
-                    title: 'Code Gen & SBOM',
-                    icon: Icons.terminal_outlined,
+                    stage: SDLCStageType.stage5Uat,
+                    title: '5. UAT',
+                    icon: Icons.fact_check_outlined,
                     badge: '5',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
                   ),
                   _NavItem(
                     controller: controller,
-                    stage: SDLCStageType.auditTelemetry,
-                    title: 'Audit & Telemetry',
-                    icon: Icons.insights_outlined,
+                    stage: SDLCStageType.stage6Deploy,
+                    title: '6. Deployment',
+                    icon: Icons.rocket_launch_outlined,
                     badge: '6',
                     isCollapsed: isCollapsed,
                     isDark: isDark,
@@ -205,8 +215,8 @@ class EnterpriseSidebar extends StatelessWidget {
   // ─── Project Switcher ──────────────────────────────────────────────
   Widget _buildProjectSwitcher(
     EnterpriseSDLCController controller,
-    ProjectWorkspace activePrj,
-    List<ProjectWorkspace> projects,
+    Project activePrj,
+    List<Project> projects,
     bool isDark,
     Color inputBg,
     Color primaryAccent,
@@ -216,7 +226,7 @@ class EnterpriseSidebar extends StatelessWidget {
   ) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(12, 12, 12, 4),
-      child: PopupMenuButton<ProjectWorkspace>(
+      child: PopupMenuButton<Project>(
         initialValue: activePrj,
         onSelected: controller.selectProject,
         color: EnterpriseTheme.getCardBgElevated(isDark),
@@ -248,7 +258,7 @@ class EnterpriseSidebar extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      activePrj.projectKey,
+                      'PRJ-${activePrj.id}',
                       style: GoogleFonts.inter(
                         color: primaryAccent,
                         fontSize: 10,
@@ -287,7 +297,7 @@ class EnterpriseSidebar extends StatelessWidget {
                 ),
                 const SizedBox(width: 8),
                 Text(
-                  "[${p.projectKey}] ",
+                  "[PRJ-${p.id}] ",
                   style: GoogleFonts.inter(color: primaryAccent, fontSize: 11, fontWeight: FontWeight.w700),
                 ),
                 Expanded(

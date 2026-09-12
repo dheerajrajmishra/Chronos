@@ -1,8 +1,9 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/enterprise_sdlc_controller.dart';
-import '../../models/workflow_model.dart';
+import '../../models/sdlc_models.dart';
 import '../../theme/enterprise_theme.dart';
 
 class ProjectHubScreen extends StatelessWidget {
@@ -16,616 +17,546 @@ class ProjectHubScreen extends StatelessWidget {
       final isDark = controller.isDarkMode.value;
       final projects = controller.projectList;
       final activePrj = controller.activeProject.value;
+      final features = controller.activeProjectFeatures;
+      
       final textColor = EnterpriseTheme.getTextPrimary(isDark);
       final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
-      final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
-      final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
-      final borderColor = EnterpriseTheme.getCardBorder(isDark);
 
-      return SingleChildScrollView(
-        padding: const EdgeInsets.all(28.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // ─── Page Header ──────────────────────────────
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(gradient: EnterpriseTheme.brandGradient, borderRadius: BorderRadius.circular(10)),
-                  child: const Icon(Icons.grid_view_rounded, color: Colors.white, size: 22),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
+      return Container(
+        decoration: BoxDecoration(
+          color: EnterpriseTheme.getBackground(isDark),
+          image: DecorationImage(
+            image: const NetworkImage('https://www.transparenttextures.com/patterns/cubes.png'),
+            opacity: isDark ? 0.05 : 0.03,
+            repeat: ImageRepeat.repeat,
+          ),
+        ),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 40.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Header Section
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                crossAxisAlignment: CrossAxisAlignment.end,
+                children: [
+                  Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('Projects & Access Hub', style: GoogleFonts.inter(color: textColor, fontSize: 20, fontWeight: FontWeight.w700, letterSpacing: -0.3)),
-                      const SizedBox(height: 2),
-                      Text('Configure projects, define code & database governance, and launch scoped pipelines.', style: GoogleFonts.inter(color: textSecColor, fontSize: 13)),
+                      ShaderMask(
+                        shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
+                        child: Text(
+                          'Projects & Workspaces',
+                          style: GoogleFonts.outfit(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold, letterSpacing: -0.5),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Manage your secure enclaves and automated SDLC pipelines.',
+                        style: GoogleFonts.inter(color: textSecColor, fontSize: 15),
+                      ),
                     ],
                   ),
-                ),
-                _ActionButton(
-                  label: 'New Project',
-                  icon: Icons.add_rounded,
-                  isDark: isDark,
-                  onTap: () => _showCreateProjectDialog(context, controller, isDark),
-                ),
-              ],
-            ),
-
-            const SizedBox(height: 24),
-
-            // ─── Metrics ──────────────────────────────────
-            Row(
-              children: [
-                Expanded(child: _metricCard(isDark: isDark, title: 'PROJECTS', value: '${projects.length}', subtitle: 'Policy guarded', color: primaryAccent, icon: Icons.folder_outlined)),
-                const SizedBox(width: 12),
-                Expanded(child: _metricCard(isDark: isDark, title: 'PIPELINES', value: '${projects.fold<int>(0, (sum, p) => sum + p.activePipelinesCount)}', subtitle: 'Active', color: EnterpriseTheme.emerald, icon: Icons.hub_outlined)),
-                const SizedBox(width: 12),
-                Expanded(child: _metricCard(isDark: isDark, title: 'CODE ACCESS', value: 'mTLS', subtitle: 'Signed commits', color: EnterpriseTheme.purple, icon: Icons.code_rounded)),
-                const SizedBox(width: 12),
-                Expanded(child: _metricCard(isDark: isDark, title: 'DB ACCESS', value: 'JIT TTL', subtitle: 'PII tokenization', color: EnterpriseTheme.amber, icon: Icons.dns_outlined)),
-              ],
-            ),
-
-            const SizedBox(height: 28),
-
-            // ─── Section Label ────────────────────────────
-            Text('WORKSPACES', style: GoogleFonts.inter(color: textMutedColor, fontSize: 10, fontWeight: FontWeight.w600, letterSpacing: 0.8)),
-            const SizedBox(height: 14),
-
-            // ─── Projects Grid ────────────────────────────
-            LayoutBuilder(builder: (context, constraints) {
-              final isWide = constraints.maxWidth > 900;
-              return GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: projects.length,
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: isWide ? 2 : 1,
-                  crossAxisSpacing: 14,
-                  mainAxisSpacing: 14,
-                  mainAxisExtent: 320,
-                ),
-                itemBuilder: (context, index) {
-                  final prj = projects[index];
-                  final isSelected = activePrj?.id == prj.id;
-                  return _ProjectCard(
-                    controller: controller,
-                    prj: prj,
-                    isSelected: isSelected,
+                  _buildGradientButton(
+                    onPressed: () => _showCreateProjectDialog(context, controller, isDark),
+                    icon: Icons.add_circle_outline,
+                    label: 'New Project',
                     isDark: isDark,
-                  );
-                },
-              );
-            }),
-          ],
+                  )
+                ],
+              ),
+              
+              const SizedBox(height: 48),
+              
+              // Projects Section
+              Row(
+                children: [
+                  Icon(Icons.folder_copy_outlined, color: textSecColor, size: 20),
+                  const SizedBox(width: 8),
+                  Text('ACTIVE PROJECTS', style: GoogleFonts.inter(color: textSecColor, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                ],
+              ),
+              const SizedBox(height: 16),
+              
+              if (projects.isEmpty)
+                _buildEmptyState('No projects found.', 'Get started by creating a new secure workspace.', Icons.folder_off_outlined, isDark)
+              else
+                Wrap(
+                  spacing: 24,
+                  runSpacing: 24,
+                  children: projects.map((p) => _ModernProjectCard(project: p, activeProject: activePrj, controller: controller, isDark: isDark)).toList(),
+                ),
+
+              const SizedBox(height: 64),
+
+              // Features Section (only if project selected)
+              if (activePrj != null) ...[
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(Icons.hub_outlined, color: EnterpriseTheme.emerald, size: 20),
+                        const SizedBox(width: 8),
+                        Text('FEATURES IN ${activePrj.name.toUpperCase()}', style: GoogleFonts.inter(color: textSecColor, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
+                      ],
+                    ),
+                    _buildGradientButton(
+                      onPressed: () => _showCreateFeatureDialog(context, controller, activePrj, isDark),
+                      icon: Icons.rocket_launch_outlined,
+                      label: 'New Feature',
+                      isDark: isDark,
+                      gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
+                    )
+                  ],
+                ),
+                const SizedBox(height: 16),
+                if (features.isEmpty)
+                  _buildEmptyState('No features defined.', 'Create a feature to kick off a zero-trust SDLC workflow.', Icons.auto_awesome_mosaic_outlined, isDark)
+                else
+                  Wrap(
+                    spacing: 24,
+                    runSpacing: 24,
+                    children: features.map((f) => _ModernFeatureCard(feature: f, controller: controller, isDark: isDark)).toList(),
+                  ),
+              ],
+            ],
+          ),
         ),
       );
     });
   }
 
-  Widget _metricCard({required bool isDark, required String title, required String value, required String subtitle, required Color color, required IconData icon}) {
+  Widget _buildEmptyState(String title, String subtitle, IconData icon, bool isDark) {
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: EnterpriseTheme.cardDecoration(isDark: isDark),
-      child: Row(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 48),
+      decoration: BoxDecoration(
+        color: EnterpriseTheme.getSurface(isDark).withOpacity(0.5),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: EnterpriseTheme.getCardBorder(isDark), style: BorderStyle.solid),
+      ),
+      child: Column(
         children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.1 : 0.08),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icon, color: color, size: 20),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(isDark), fontSize: 9, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                const SizedBox(height: 2),
-                Text(value, style: GoogleFonts.inter(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 20, fontWeight: FontWeight.w700)),
-                Text(subtitle, style: GoogleFonts.inter(color: color, fontSize: 10, fontWeight: FontWeight.w500)),
-              ],
-            ),
-          ),
+          Icon(icon, size: 48, color: EnterpriseTheme.getTextMuted(isDark)),
+          const SizedBox(height: 16),
+          Text(title, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 18, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 4),
+          Text(subtitle, style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 14)),
         ],
       ),
     );
   }
 
+  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient}) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: gradient ?? EnterpriseTheme.brandGradient,
+        borderRadius: BorderRadius.circular(12),
+        boxShadow: [
+          BoxShadow(
+            color: (gradient?.colors.first ?? EnterpriseTheme.getPrimaryAccent(isDark)).withOpacity(0.3),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          )
+        ],
+      ),
+      child: ElevatedButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon, size: 18),
+        label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.transparent,
+          foregroundColor: Colors.white,
+          shadowColor: Colors.transparent,
+          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        ),
+      ),
+    );
+  }
+
+  // Modern Glassmorphism Dialog
   void _showCreateProjectDialog(BuildContext context, EnterpriseSDLCController controller, bool isDark) {
     final nameCtrl = TextEditingController();
-    final keyCtrl = TextEditingController();
     final descCtrl = TextEditingController();
-    final repoUrlCtrl = TextEditingController();
-    final branchCtrl = TextEditingController(text: 'main');
-    final dbHostCtrl = TextEditingController(text: '10.240.1.12');
-    final dbPortCtrl = TextEditingController(text: '5432');
-    final dbNameCtrl = TextEditingController(text: 'enterprise_core_db');
-
-    String selectedEnv = 'Staging Enclave (PCI-DSS 4.0)';
-    String selectedSecTier = 'Tier 1 (Mission Critical)';
-    String selectedCompliance = 'SOC2 Type II + PCI-DSS 4.0';
-    String selectedGitProvider = 'GitHub Enterprise';
-    String selectedAccessScope = 'PR Scaffolding (Automated PR Creation)';
-    bool enforceSigned = true;
-    bool secretScan = true;
-    String selectedDbType = 'PostgreSQL (ACID Cluster)';
-    String selectedDbPrivilege = 'Read-Write (Zero-Trust Tokenized)';
-    int selectedJitTtl = 60;
-    bool dynamicMask = true;
-
-    final textColor = EnterpriseTheme.getTextPrimary(isDark);
-    final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
-    final cardBg = EnterpriseTheme.getCardBg(isDark);
-    final borderColor = EnterpriseTheme.getCardBorder(isDark);
-    final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
 
     showDialog(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (context, setModalState) {
-          return Dialog(
-            backgroundColor: cardBg,
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14), side: BorderSide(color: borderColor)),
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
             child: Container(
-              width: 780,
-              padding: const EdgeInsets.all(24),
+              width: 480,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: EnterpriseTheme.getSurface(isDark).withOpacity(0.85),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: EnterpriseTheme.getCardBorder(isDark).withOpacity(0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 40)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: Icon(Icons.dashboard_customize_rounded, color: EnterpriseTheme.getPrimaryAccent(isDark)),
+                      ),
+                      const SizedBox(width: 16),
+                      Text('Create Workspace', style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 24, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  _buildInputField('Project Name', nameCtrl, isDark, Icons.title),
+                  const SizedBox(height: 20),
+                  _buildInputField('Description', descCtrl, isDark, Icons.description, maxLines: 3),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        style: TextButton.styleFrom(foregroundColor: EnterpriseTheme.getTextSecondary(isDark), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 12),
+                      _buildGradientButton(
+                        onPressed: () {
+                          if (nameCtrl.text.isNotEmpty) {
+                            controller.createProject(nameCtrl.text, descCtrl.text);
+                            Get.back();
+                          }
+                        },
+                        icon: Icons.check,
+                        label: 'Create Project',
+                        isDark: isDark,
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showCreateFeatureDialog(BuildContext context, EnterpriseSDLCController controller, Project activePrj, bool isDark) {
+    final nameCtrl = TextEditingController();
+    final reqCtrl = TextEditingController();
+    final promptCtrl = TextEditingController();
+    final codeRepoCtrl = TextEditingController(text: 'https://github.com/my-org/repo.git');
+    final dbUrlCtrl = TextEditingController(text: 'postgres://user:pass@localhost:5432/db');
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 600,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: EnterpriseTheme.getSurface(isDark).withOpacity(0.85),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: EnterpriseTheme.getCardBorder(isDark).withOpacity(0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 40)],
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Dialog header
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(gradient: EnterpriseTheme.brandGradient, borderRadius: BorderRadius.circular(8)),
-                          child: const Icon(Icons.add_rounded, color: Colors.white, size: 18),
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(color: EnterpriseTheme.purple.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                          child: const Icon(Icons.rocket_launch, color: EnterpriseTheme.purple),
                         ),
-                        const SizedBox(width: 12),
-                        Text('Create Project Workspace', style: GoogleFonts.inter(color: textColor, fontSize: 17, fontWeight: FontWeight.w700)),
-                        const Spacer(),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () => Navigator.pop(ctx),
-                            borderRadius: BorderRadius.circular(6),
-                            child: Padding(
-                              padding: const EdgeInsets.all(4),
-                              child: Icon(Icons.close_rounded, color: EnterpriseTheme.getTextMuted(isDark), size: 18),
-                            ),
+                        const SizedBox(width: 16),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Define Feature', style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 24, fontWeight: FontWeight.bold)),
+                              Text('Target Workspace: ${activePrj.name}', style: GoogleFonts.inter(color: EnterpriseTheme.purple, fontSize: 13, fontWeight: FontWeight.w500)),
+                            ],
                           ),
                         ),
                       ],
                     ),
-                    Divider(color: borderColor, height: 28),
-
-                    // Project basics
-                    Row(
-                      children: [
-                        Expanded(flex: 3, child: _dialogField(isDark: isDark, label: 'Project Name', controller: nameCtrl, hint: 'e.g. Identity & Access Broker')),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 1, child: _dialogField(isDark: isDark, label: 'Key', controller: keyCtrl, hint: 'IAM-CORE')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _dialogField(isDark: isDark, label: 'Description', controller: descCtrl, hint: 'High-level business context', maxLines: 2),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        Expanded(child: _dialogDropdown(isDark: isDark, label: 'Environment', value: selectedEnv, items: ['Staging Enclave (PCI-DSS 4.0)', 'GovCloud Health Enclave', 'Production GovCloud', 'Multi-Tenant Public Cloud'], onChanged: (v) => setModalState(() => selectedEnv = v!))),
-                        const SizedBox(width: 12),
-                        Expanded(child: _dialogDropdown(isDark: isDark, label: 'Security Tier', value: selectedSecTier, items: ['Tier 1 (Mission Critical)', 'Tier 1 (HIPAA Restricted)', 'Tier 1 (Identity Root)', 'Tier 2 (Standard Enterprise)'], onChanged: (v) => setModalState(() => selectedSecTier = v!))),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _dialogDropdown(isDark: isDark, label: 'Compliance', value: selectedCompliance, items: ['SOC2 Type II + PCI-DSS 4.0', 'HIPAA Security Rule + HITRUST', 'FedRAMP High + ISO 27001', 'GDPR & CCPA Standard'], onChanged: (v) => setModalState(() => selectedCompliance = v!)),
-
+                    const SizedBox(height: 32),
+                    _buildInputField('Feature Name', nameCtrl, isDark, Icons.label_outline),
                     const SizedBox(height: 20),
-                    Text('CODE ACCESS', style: GoogleFonts.inter(color: primaryAccent, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-                    const SizedBox(height: 10),
-                    _dialogDropdown(isDark: isDark, label: 'Git Provider', value: selectedGitProvider, items: ['GitHub Enterprise', 'GitLab Security Tier', 'Azure DevOps', 'Bitbucket Data Center'], onChanged: (v) => setModalState(() => selectedGitProvider = v!)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(flex: 3, child: _dialogField(isDark: isDark, label: 'Repository URL', controller: repoUrlCtrl, hint: 'https://github.com/org/repo.git')),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 1, child: _dialogField(isDark: isDark, label: 'Branch', controller: branchCtrl, hint: 'main')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _dialogDropdown(isDark: isDark, label: 'Access Scope', value: selectedAccessScope, items: ['Read-Only (Static Analysis)', 'PR Scaffolding (Automated PR Creation)', 'Full Write (Direct Branch Commit - Strict MFA)'], onChanged: (v) => setModalState(() => selectedAccessScope = v!)),
-                    const SizedBox(height: 12),
-                    _toggle(isDark: isDark, label: 'Enforce Signed Commits (GPG/SSH)', value: enforceSigned, onChanged: (v) => setModalState(() => enforceSigned = v), accent: primaryAccent),
-                    _toggle(isDark: isDark, label: 'Pre-Commit Secret Scanning', value: secretScan, onChanged: (v) => setModalState(() => secretScan = v), accent: primaryAccent),
-
+                    _buildInputField('Code Access (Git Repo URL)', codeRepoCtrl, isDark, Icons.code),
                     const SizedBox(height: 20),
-                    Text('DATABASE ACCESS', style: GoogleFonts.inter(color: EnterpriseTheme.amber, fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 0.8)),
-                    const SizedBox(height: 10),
-                    _dialogDropdown(isDark: isDark, label: 'Database Engine', value: selectedDbType, items: ['PostgreSQL (ACID Cluster)', 'MongoDB (Encrypted Cluster)', 'Redis Cluster (In-Memory)', 'Snowflake Data Warehouse', 'MySQL Enterprise'], onChanged: (v) => setModalState(() => selectedDbType = v!)),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(flex: 3, child: _dialogField(isDark: isDark, label: 'Host', controller: dbHostCtrl, hint: '10.240.1.12')),
-                        const SizedBox(width: 12),
-                        Expanded(flex: 1, child: _dialogField(isDark: isDark, label: 'Port', controller: dbPortCtrl, hint: '5432')),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    _dialogField(isDark: isDark, label: 'Database Name', controller: dbNameCtrl, hint: 'enterprise_core_db'),
-                    const SizedBox(height: 12),
-                    _dialogDropdown(isDark: isDark, label: 'Privilege', value: selectedDbPrivilege, items: ['Read-Only (Audit / Query)', 'Read-Write (Zero-Trust Tokenized)', 'DDL Migrations (Schema Admin Approval)'], onChanged: (v) => setModalState(() => selectedDbPrivilege = v!)),
-                    const SizedBox(height: 12),
-                    _dialogDropdown(isDark: isDark, label: 'JIT TTL', value: '$selectedJitTtl Minutes', items: ['15 Minutes', '60 Minutes', '480 Minutes'], onChanged: (v) => setModalState(() => selectedJitTtl = int.parse(v!.split(' ').first))),
-                    const SizedBox(height: 12),
-                    _toggle(isDark: isDark, label: 'Dynamic Column-Level PII Masking', value: dynamicMask, onChanged: (v) => setModalState(() => dynamicMask = v), accent: EnterpriseTheme.amber),
-
-                    Divider(color: borderColor, height: 32),
+                    _buildInputField('Database Access URL', dbUrlCtrl, isDark, Icons.dns_outlined),
+                    const SizedBox(height: 20),
+                    _buildInputField('Base Requirements (Plain English)', reqCtrl, isDark, Icons.format_quote, maxLines: 3),
+                    const SizedBox(height: 20),
+                    _buildInputField('Custom BRD Generation Prompt', promptCtrl, isDark, Icons.smart_toy_outlined, maxLines: 2),
+                    const SizedBox(height: 32),
                     Row(
                       mainAxisAlignment: MainAxisAlignment.end,
                       children: [
                         TextButton(
-                          onPressed: () => Navigator.pop(ctx),
-                          child: Text('Cancel', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(isDark), fontWeight: FontWeight.w500)),
+                          onPressed: () => Get.back(),
+                          style: TextButton.styleFrom(foregroundColor: EnterpriseTheme.getTextSecondary(isDark), padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16)),
+                          child: const Text('Cancel'),
                         ),
                         const SizedBox(width: 12),
-                        Material(
-                          color: Colors.transparent,
-                          child: InkWell(
-                            onTap: () {
-                              if (nameCtrl.text.trim().isEmpty || keyCtrl.text.trim().isEmpty) {
-                                Get.snackbar('Missing Fields', 'Enter Project Name and Key.', backgroundColor: EnterpriseTheme.rose, colorText: Colors.white, borderRadius: 8);
-                                return;
-                              }
-                              controller.createNewProject(
-                                name: nameCtrl.text.trim(),
-                                projectKey: keyCtrl.text.trim(),
-                                description: descCtrl.text.trim().isEmpty ? 'Enterprise project workspace.' : descCtrl.text.trim(),
-                                environment: selectedEnv,
-                                securityTier: selectedSecTier,
-                                complianceBaseline: selectedCompliance,
-                                codeAccess: CodeAccessConfig(provider: selectedGitProvider, repoUrl: repoUrlCtrl.text.trim().isEmpty ? 'https://github.com/org/repo.git' : repoUrlCtrl.text.trim(), defaultBranch: branchCtrl.text.trim().isEmpty ? 'main' : branchCtrl.text.trim(), branchRule: 'feature/${keyCtrl.text.trim().toLowerCase()}-*', accessScope: selectedAccessScope, enforceSignedCommits: enforceSigned, preCommitSecretScan: secretScan),
-                                dbAccess: DbAccessConfig(dbType: selectedDbType, host: dbHostCtrl.text.trim().isEmpty ? '10.240.1.12' : dbHostCtrl.text.trim(), port: int.tryParse(dbPortCtrl.text.trim()) ?? 5432, databaseName: dbNameCtrl.text.trim().isEmpty ? 'enterprise_db' : dbNameCtrl.text.trim(), privilegeLevel: selectedDbPrivilege, jitTtlMinutes: selectedJitTtl, enableDynamicMasking: dynamicMask, isVaulted: true),
+                        _buildGradientButton(
+                          onPressed: () {
+                            if (nameCtrl.text.isNotEmpty) {
+                              controller.createFeature(
+                                projectId: activePrj.id,
+                                name: nameCtrl.text,
+                                codeAccess: {'repoUrl': codeRepoCtrl.text},
+                                dbAccess: {'url': dbUrlCtrl.text},
+                                baseRequirement: reqCtrl.text,
+                                brdPrompt: promptCtrl.text,
                               );
-                              Navigator.pop(ctx);
-                            },
-                            borderRadius: BorderRadius.circular(8),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                              decoration: BoxDecoration(gradient: EnterpriseTheme.brandGradient, borderRadius: BorderRadius.circular(8)),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  const Icon(Icons.check_rounded, size: 16, color: Colors.white),
-                                  const SizedBox(width: 6),
-                                  Text('Create Workspace', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 13)),
-                                ],
-                              ),
-                            ),
-                          ),
+                              Get.back();
+                            }
+                          },
+                          icon: Icons.play_arrow_rounded,
+                          label: 'Initialize Workflow',
+                          isDark: isDark,
+                          gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
                         ),
                       ],
-                    ),
+                    )
                   ],
                 ),
               ),
             ),
-          );
-        },
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildInputField(String label, TextEditingController controller, bool isDark, IconData icon, {int maxLines = 1}) {
+    return TextField(
+      controller: controller,
+      maxLines: maxLines,
+      style: GoogleFonts.inter(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 14),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(isDark)),
+        prefixIcon: maxLines == 1 ? Icon(icon, color: EnterpriseTheme.getTextMuted(isDark), size: 18) : null,
+        filled: true,
+        fillColor: EnterpriseTheme.getInputBg(isDark),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(isDark)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(isDark)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide(color: EnterpriseTheme.getPrimaryAccent(isDark)),
+        ),
       ),
     );
   }
-
-  Widget _dialogField({required bool isDark, required String label, required TextEditingController controller, required String hint, int maxLines = 1}) {
-    final textColor = EnterpriseTheme.getTextPrimary(isDark);
-    final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
-    final inputBg = EnterpriseTheme.getInputBg(isDark);
-    final borderColor = EnterpriseTheme.getCardBorder(isDark);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: GoogleFonts.inter(color: textSecColor, fontSize: 11, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
-        TextField(
-          controller: controller,
-          maxLines: maxLines,
-          style: GoogleFonts.inter(color: textColor, fontSize: 12),
-          decoration: InputDecoration(
-            hintText: hint,
-            hintStyle: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(isDark), fontSize: 12),
-            filled: true,
-            fillColor: inputBg,
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: borderColor)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: BorderSide(color: EnterpriseTheme.getPrimaryAccent(isDark), width: 1.5)),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _dialogDropdown({required bool isDark, required String label, required String value, required List<String> items, required ValueChanged<String?> onChanged}) {
-    final textColor = EnterpriseTheme.getTextPrimary(isDark);
-    final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
-    final inputBg = EnterpriseTheme.getInputBg(isDark);
-    final cardBgElevated = EnterpriseTheme.getCardBgElevated(isDark);
-    final borderColor = EnterpriseTheme.getCardBorder(isDark);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: GoogleFonts.inter(color: textSecColor, fontSize: 11, fontWeight: FontWeight.w500)),
-        const SizedBox(height: 4),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(color: inputBg, borderRadius: BorderRadius.circular(8), border: Border.all(color: borderColor)),
-          child: DropdownButtonHideUnderline(
-            child: DropdownButton<String>(
-              value: items.contains(value) ? value : items.first,
-              isExpanded: true,
-              dropdownColor: cardBgElevated,
-              icon: Icon(Icons.expand_more_rounded, color: textSecColor, size: 18),
-              items: items.map((item) => DropdownMenuItem(value: item, child: Text(item, style: GoogleFonts.inter(color: textColor, fontSize: 12)))).toList(),
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _toggle({required bool isDark, required String label, required bool value, required ValueChanged<bool> onChanged, required Color accent}) {
-    return SwitchListTile(
-      title: Text(label, style: GoogleFonts.inter(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 12)),
-      value: value,
-      activeColor: accent,
-      contentPadding: EdgeInsets.zero,
-      dense: true,
-      onChanged: onChanged,
-    );
-  }
 }
 
-// ─── Project Card with hover ────────────────────────────────────────
-class _ProjectCard extends StatefulWidget {
+// ─── Modern Animated Cards ───────────────────────────────────────────────────
+
+class _ModernProjectCard extends StatefulWidget {
+  final Project project;
+  final Project? activeProject;
   final EnterpriseSDLCController controller;
-  final ProjectWorkspace prj;
-  final bool isSelected;
   final bool isDark;
 
-  const _ProjectCard({required this.controller, required this.prj, required this.isSelected, required this.isDark});
+  const _ModernProjectCard({required this.project, required this.activeProject, required this.controller, required this.isDark});
 
   @override
-  State<_ProjectCard> createState() => _ProjectCardState();
+  State<_ModernProjectCard> createState() => _ModernProjectCardState();
 }
 
-class _ProjectCardState extends State<_ProjectCard> {
+class _ModernProjectCardState extends State<_ModernProjectCard> {
   bool _isHovered = false;
 
   @override
   Widget build(BuildContext context) {
-    final isDark = widget.isDark;
-    final prj = widget.prj;
-    final isSelected = widget.isSelected;
-    final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
-    final textColor = EnterpriseTheme.getTextPrimary(isDark);
-    final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
-    final textMutedColor = EnterpriseTheme.getTextMuted(isDark);
-    final inputBg = EnterpriseTheme.getInputBg(isDark);
-    final borderColor = EnterpriseTheme.getCardBorder(isDark);
-
+    final isSelected = widget.activeProject?.id == widget.project.id;
+    final primaryColor = EnterpriseTheme.getPrimaryAccent(widget.isDark);
+    
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          color: EnterpriseTheme.getCardBg(isDark),
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: isSelected ? primaryAccent.withValues(alpha: 0.6) : borderColor, width: isSelected ? 1.5 : 1.0),
-          boxShadow: _isHovered
-              ? [BoxShadow(color: (isSelected ? primaryAccent : Colors.black).withValues(alpha: isDark ? 0.2 : 0.08), blurRadius: 16, offset: const Offset(0, 4))]
-              : [BoxShadow(color: Colors.black.withValues(alpha: isDark ? 0.15 : 0.04), blurRadius: 4, offset: const Offset(0, 1))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: isSelected ? primaryAccent.withValues(alpha: 0.12) : inputBg,
-                    borderRadius: BorderRadius.circular(5),
-                    border: Border.all(color: isSelected ? primaryAccent.withValues(alpha: 0.4) : borderColor),
-                  ),
-                  child: Text(prj.projectKey, style: GoogleFonts.jetBrainsMono(color: isSelected ? primaryAccent : textColor, fontSize: 10, fontWeight: FontWeight.w700)),
-                ),
-                const SizedBox(width: 8),
-                Expanded(child: Text(prj.name, style: GoogleFonts.inter(color: textColor, fontSize: 14, fontWeight: FontWeight.w600), overflow: TextOverflow.ellipsis)),
-                if (isSelected)
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => widget.controller.selectProject(widget.project),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          width: 320,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: isSelected 
+                ? primaryColor.withOpacity(0.05) 
+                : (_isHovered ? EnterpriseTheme.getSubtleBg(widget.isDark) : EnterpriseTheme.getSurface(widget.isDark)),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: isSelected ? primaryColor : (_isHovered ? primaryColor.withOpacity(0.5) : EnterpriseTheme.getCardBorder(widget.isDark)),
+              width: isSelected ? 2 : 1,
+            ),
+            boxShadow: _isHovered ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))] : [],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(color: EnterpriseTheme.emerald.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(4)),
-                    child: Text('ACTIVE', style: GoogleFonts.inter(color: EnterpriseTheme.emerald, fontSize: 9, fontWeight: FontWeight.w700)),
-                  ),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(prj.description, style: GoogleFonts.inter(color: textSecColor, fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
-
-            Divider(color: borderColor, height: 18),
-
-            // Code access
-            _accessRow(
-              icon: Icons.code_rounded,
-              iconColor: primaryAccent,
-              title: prj.codeAccess.provider,
-              subtitle: prj.codeAccess.repoUrl,
-              badge: prj.codeAccess.accessScope.split(' ').first,
-              badgeColor: EnterpriseTheme.purple,
-              isDark: isDark,
-              textMutedColor: textMutedColor,
-            ),
-            const SizedBox(height: 8),
-            // DB access
-            _accessRow(
-              icon: Icons.dns_outlined,
-              iconColor: EnterpriseTheme.amber,
-              title: prj.dbAccess.dbType.split(' ').first,
-              subtitle: "${prj.dbAccess.host}:${prj.dbAccess.port}/${prj.dbAccess.databaseName}",
-              badge: 'JIT ${prj.dbAccess.jitTtlMinutes}m',
-              badgeColor: EnterpriseTheme.emerald,
-              isDark: isDark,
-              textMutedColor: textMutedColor,
-            ),
-
-            const Spacer(),
-
-            // Footer
-            Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
-                  decoration: BoxDecoration(color: EnterpriseTheme.getSubtleBg(isDark), borderRadius: BorderRadius.circular(5)),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.shield_outlined, size: 11, color: EnterpriseTheme.emerald),
-                      const SizedBox(width: 4),
-                      Text(prj.complianceBaseline.split('+').first.trim(), style: GoogleFonts.inter(color: textColor, fontSize: 10, fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
-                const Spacer(),
-                if (!isSelected)
-                  Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: () => widget.controller.selectProject(prj),
-                      borderRadius: BorderRadius.circular(6),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(borderRadius: BorderRadius.circular(6), border: Border.all(color: borderColor)),
-                        child: Text('Select', style: GoogleFonts.inter(color: textColor, fontSize: 11, fontWeight: FontWeight.w500)),
-                      ),
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: isSelected ? primaryColor.withOpacity(0.15) : EnterpriseTheme.getSubtleBg(widget.isDark),
+                      borderRadius: BorderRadius.circular(8),
                     ),
+                    child: Icon(Icons.folder_shared_outlined, color: isSelected ? primaryColor : EnterpriseTheme.getTextSecondary(widget.isDark), size: 20),
                   ),
-                const SizedBox(width: 8),
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () => widget.controller.initiatePipelineForProject(prj),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(gradient: EnterpriseTheme.brandGradient, borderRadius: BorderRadius.circular(6)),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.bolt_rounded, size: 13, color: Colors.white),
-                          const SizedBox(width: 4),
-                          Text('Pipeline', style: GoogleFonts.inter(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 11)),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ],
+                  if (isSelected)
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+                      child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                    )
+                ],
+              ),
+              const SizedBox(height: 20),
+              Text(widget.project.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 20, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 8),
+              Text(
+                widget.project.description,
+                style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 14, height: 1.4),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  Icon(Icons.timeline_outlined, size: 14, color: EnterpriseTheme.getTextMuted(widget.isDark)),
+                  const SizedBox(width: 6),
+                  Text('PRJ-${widget.project.id}', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 12, fontWeight: FontWeight.w500)),
+                ],
+              )
+            ],
+          ),
         ),
       ),
     );
   }
+}
 
-  Widget _accessRow({required IconData icon, required Color iconColor, required String title, required String subtitle, required String badge, required Color badgeColor, required bool isDark, required Color textMutedColor}) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: EnterpriseTheme.getInputBg(isDark),
-        borderRadius: BorderRadius.circular(7),
-        border: Border.all(color: EnterpriseTheme.getCardBorder(isDark)),
-      ),
-      child: Row(
-        children: [
-          Icon(icon, size: 14, color: iconColor),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+class _ModernFeatureCard extends StatefulWidget {
+  final Feature feature;
+  final EnterpriseSDLCController controller;
+  final bool isDark;
+
+  const _ModernFeatureCard({required this.feature, required this.controller, required this.isDark});
+
+  @override
+  State<_ModernFeatureCard> createState() => _ModernFeatureCardState();
+}
+
+class _ModernFeatureCardState extends State<_ModernFeatureCard> {
+  bool _isHovered = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return MouseRegion(
+      onEnter: (_) => setState(() => _isHovered = true),
+      onExit: (_) => setState(() => _isHovered = false),
+      cursor: SystemMouseCursors.click,
+      child: GestureDetector(
+        onTap: () => widget.controller.selectFeature(widget.feature),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          width: 320,
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: _isHovered ? EnterpriseTheme.getSubtleBg(widget.isDark) : EnterpriseTheme.getSurface(widget.isDark),
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(
+              color: _isHovered ? EnterpriseTheme.purple.withOpacity(0.5) : EnterpriseTheme.getCardBorder(widget.isDark),
+            ),
+            boxShadow: _isHovered ? [BoxShadow(color: EnterpriseTheme.purple.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))] : [],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: EnterpriseTheme.purple.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.rocket_launch_outlined, color: EnterpriseTheme.purple, size: 20),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: Text(widget.feature.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: EnterpriseTheme.getInputBg(widget.isDark).withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(title, style: GoogleFonts.inter(color: iconColor, fontSize: 10, fontWeight: FontWeight.w600)),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 1),
-                      decoration: BoxDecoration(color: badgeColor.withValues(alpha: isDark ? 0.12 : 0.08), borderRadius: BorderRadius.circular(3)),
-                      child: Text(badge, style: GoogleFonts.inter(color: badgeColor, fontSize: 9, fontWeight: FontWeight.w600)),
+                    Text('REQUIREMENT', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    const SizedBox(height: 4),
+                    Text(
+                      widget.feature.baseRequirement,
+                      style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 13, height: 1.4),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
-                Text(subtitle, style: GoogleFonts.jetBrainsMono(color: textMutedColor, fontSize: 10), overflow: TextOverflow.ellipsis),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Action Button with hover ───────────────────────────────────────
-class _ActionButton extends StatefulWidget {
-  final String label;
-  final IconData icon;
-  final VoidCallback onTap;
-  final bool isDark;
-  const _ActionButton({required this.label, required this.icon, required this.onTap, required this.isDark});
-
-  @override
-  State<_ActionButton> createState() => _ActionButtonState();
-}
-
-class _ActionButtonState extends State<_ActionButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onTap: widget.onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-          decoration: BoxDecoration(
-            gradient: EnterpriseTheme.brandGradient,
-            borderRadius: BorderRadius.circular(8),
-            boxShadow: _isHovered
-                ? [BoxShadow(color: EnterpriseTheme.brandBlue.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 2))]
-                : [],
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(widget.icon, size: 14, color: Colors.white),
-              const SizedBox(width: 6),
-              Text(widget.label, style: GoogleFonts.inter(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('FTR-${widget.feature.id}', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 12, fontWeight: FontWeight.w500)),
+                  Row(
+                    children: [
+                      Text('Open Workflow', style: GoogleFonts.inter(color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 13, fontWeight: FontWeight.w600)),
+                      const SizedBox(width: 4),
+                      Icon(Icons.arrow_forward_rounded, size: 16, color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark)),
+                    ],
+                  )
+                ],
+              )
             ],
           ),
         ),
