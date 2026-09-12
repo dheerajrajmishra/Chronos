@@ -5,12 +5,16 @@ export interface SynthesisRequest {
   requirement: string;
   maskedRequirement?: string;
   brdPrompt?: string;
+  designPrompt?: string;
+  techDocPrompt?: string;
   architecture?: string;
   compliance?: string;
   cloudTarget?: string;
   llmModel?: string;
   apiKey?: string;
+  repoUrl?: string;
   codeGraph?: CodebaseGraph;
+  memoryMd?: string;
 }
 
 export interface AgentDeliverableResponse {
@@ -124,41 +128,107 @@ export async function synthesizeDeliverables(req: SynthesisRequest): Promise<Syn
       }
 
       const codeGraphPrompt = req.codeGraph ? `
-Existing Codebase Baseline (Inspected from local repository graph):
-- Repository: ${req.codeGraph.repoPath} (${req.codeGraph.filesCount} files)
+Target Application Context: 
+- Original Repository URL: ${req.repoUrl || 'Unknown'}
+- Local Clone Path: \`${req.codeGraph.repoPath}\` (${req.codeGraph.filesCount} files)
 - Tech Stack: ${req.codeGraph.techStack.join(', ')}
 - Modules:
 ${req.codeGraph.modules.map(m => `  * ${m.directory} (${m.tech}): ${m.keyFiles.join(', ')}`).join('\n')}
+` : '';
 
-IMPORTANT: Ground the BRD in this existing codebase. Include an "Existing Codebase Integration & File Impact Matrix" specifying modified modules vs new files.
+      const memoryPrompt = req.memoryMd ? `
+--- Project Context (memory.md) ---
+${req.memoryMd}
+-----------------------------------
 ` : '';
 
       const brdPrompt = `
-You are a Principal AI Business Analyst in a Zero-Trust Enterprise SDLC platform.
-Create a comprehensive, production-grade Business Requirements Document (BRD) formatted in GitHub Markdown for the following sanitized requirement:
+You are an expert AI Business Analyst. Your task is to write a Business Requirements Document (BRD) for the target application described below. 
+Do NOT write the BRD about the SDLC platform itself; write it for the target application!
 
-"${maskedText}"
+Sanitized Requirement: "${maskedText}"
 
 Compliance Framework: ${compliance}
-Target Architecture: ${architecture}
-Target Cloud: ${cloudTarget}
+
+${memoryPrompt}
+
 ${codeGraphPrompt}
 
+Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
+
 Include the following sections with exhaustive depth:
-1. Executive Summary & Problem Definition (directly addressing the user's specific request)
-2. Existing Codebase Baseline & Integration Touchpoints
-3. Codebase File Impact & Delta Matrix (Modified existing files vs. New files)
+1. Executive Summary & Problem Definition
+2. Target Business Objectives & OKRs
+3. Target Personas / User Roles
 4. In-Scope and Out-of-Scope boundaries
-5. Target Business Objectives & OKRs
+5. Functional Requirements
 6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
 7. Acceptance Criteria in Gherkin (Given-When-Then) format
-8. Non-Functional Requirements & Security Controls
+8. Non-Functional Requirements & Security Controls (Functional perspective)
 
 ${req.brdPrompt && req.brdPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.brdPrompt}\n---------------------------------` : ''}
 `;
 
       const response = await llm.invoke(brdPrompt);
       const brdMarkdown = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+
+      const ddPrompt = `
+You are an expert Enterprise Architect. Your task is to write a System Architecture & Design Document (DD) for the target application described below, based on the requirements.
+Do NOT write the DD about the SDLC platform itself; write it for the target application!
+
+Sanitized Requirement: "${maskedText}"
+
+Compliance Framework: ${compliance}
+Target Infrastructure: ${cloudTarget}
+Architecture Pattern: ${architecture}
+
+${memoryPrompt}
+
+${codeGraphPrompt}
+
+Focus strictly on the technical architecture, system design, and implementation details for the target application.
+
+Include the following sections:
+1. System Architecture Overview
+2. Component Design (Frontend, Backend, Database)
+3. API Contracts (REST/GraphQL/gRPC)
+4. Data Models & Database Schema Design
+5. Security & Authentication Mechanisms
+6. Deployment & Infrastructure Strategy
+
+${req.designPrompt && req.designPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.designPrompt}\n---------------------------------` : ''}
+`;
+
+      const ddResponse = await llm.invoke(ddPrompt);
+      const ddMarkdown = typeof ddResponse.content === 'string' ? ddResponse.content : JSON.stringify(ddResponse.content);
+
+      const techDocPrompt = `
+You are a Principal Software Engineer and Technical Lead. Your task is to write a comprehensive Low-Level Technical Document (Tech Specs) for the target application described below.
+Do NOT write this document about the SDLC platform itself; write it for the target application!
+
+Sanitized Requirement: "${maskedText}"
+
+Compliance Framework: ${compliance}
+Target Infrastructure: ${cloudTarget}
+Architecture Pattern: ${architecture}
+
+${memoryPrompt}
+
+${codeGraphPrompt}
+
+Provide exact, implementation-ready technical specifications:
+1. Low-Level Module Architecture & Execution Flow
+2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
+3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
+4. Data Contracts & State Transition Models
+5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
+6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)
+
+${req.techDocPrompt && req.techDocPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.techDocPrompt}\n---------------------------------` : ''}
+`;
+
+      const techDocResponse = await llm.invoke(techDocPrompt);
+      const techDocMarkdown = typeof techDocResponse.content === 'string' ? techDocResponse.content : JSON.stringify(techDocResponse.content);
 
       return {
         workflowId,
@@ -173,16 +243,33 @@ ${req.brdPrompt && req.brdPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRU
             markdownContent: brdMarkdown,
             tags: ['Live LLM', 'BRD', 'User Stories', compliance],
           },
-          generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, req.codeGraph),
+          {
+            agentName: 'Cloud Architect Agent',
+            agentRole: 'System Design & Threat Modeling',
+            iconName: 'architecture',
+            summary: `Tailored Architecture Document generated by GPT-4o`,
+            markdownContent: ddMarkdown,
+            tags: ['Live LLM', 'Architecture', 'API Specs', 'Database Schema'],
+          },
+          {
+            agentName: 'Technical Lead Agent',
+            agentRole: 'Low-Level Technical Specification & API Schemas',
+            iconName: 'terminal',
+            summary: `Low-level technical specification, API contracts, database DDL and security protocols`,
+            markdownContent: techDocMarkdown,
+            tags: ['Live LLM', 'Technical Document', 'API Specs', 'Database DDL'],
+          },
           generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
         ],
       };
     } catch (err: any) {
-      console.warn('[Synthesizer] Cloud LLM invocation failed, falling back to autonomous semantic engine:', err.message);
+      console.warn('[Synthesizer] Cloud LLM invocation failed:', err.message);
+      throw new Error(`LLM API Error: ${err.message}`);
     }
   }
 
   // Autonomous Semantic Synthesizer (Zero-Trust Local Engine)
+  // Only runs if no API key is provided
   return generateSemanticDeliverables(workflowId, rawText, maskedText, architecture, compliance, cloudTarget, req.codeGraph);
 }
 
@@ -202,35 +289,17 @@ function generateSemanticDeliverables(
   const cleanSnippet = rawText.replace(/[\n\r]+/g, ' ').trim();
   const summaryTitle = cleanSnippet.length > 90 ? cleanSnippet.substring(0, 90) + '...' : cleanSnippet;
 
-  const codeGraphSection = codeGraph ? `
-## 2. Inspected Codebase Baseline & Graph Architecture
-The Solutions Architect Agent inspected the local repository (\`${codeGraph.repoPath}\`):
-- **Repository Scope:** ${codeGraph.filesCount} source files indexed (${(codeGraph.totalSizeBytes / 1024).toFixed(1)} KB)
-- **Identified Tech Stack:** ${codeGraph.techStack.join(' • ')}
-- **Architecture Modules Detected:**
-${codeGraph.modules.map(m => `  - **\`${m.directory}\`** (${m.filesCount} files, *${m.tech}*): \`${m.keyFiles.join('`, `')}\``).join('\n')}
-- **Cache Synchronization State:** \`${codeGraph.graphDigest.substring(0, 16)}...\` (${codeGraph.isFromCache ? '⚡ Retrieved from local code graph cache' : '🔄 Full repository scan verified'})
-
----
-
-## 3. Codebase File Impact & Delta Matrix
-
-| Module / File Target | Existing Capability | Proposed Feature Delta | Impact Level |
-| :--- | :--- | :--- | :--- |
-| \`${codeGraph.modules[0]?.directory || 'backend/src'}\` | Express Server & Temporal Activities | Add endpoints for ${tech.protocols} and transaction handlers | **MODIFIED** |
-| \`${codeGraph.modules[1]?.directory || 'frontend/lib'}\` | Flutter Portal UI & State Controllers | Update reactive state and telemetry triggers | **MODIFIED** |
-| \`zero_trust_gateway\` | Presidio Analyzer & Redis Vault | Register custom regex and NER token patterns for feature secrets | **CONFIGURED** |
-| \`new_services/${summaryTitle.toLowerCase().replace(/[^a-z0-9]/g, '_').substring(0, 24)}\` | Domain Service Subsystem | Implement ${tech.database} persistence and business logic | **NEW MODULE** |
-` : `
+  const scopeSection = `
 ## 2. In-Scope vs. Out-of-Scope Matrix
 
 | Category | In-Scope Deliverables | Out-of-Scope Constraints |
 | :--- | :--- | :--- |
-| **Data Ingestion** | Real-time payload sanitization, tokenization into Redis Vault, and HMAC SHA-256 verification. | Ingestion of unencrypted plain-text payloads over unverified networks. |
-| **Core Processing** | Autonomous multi-agent synthesis, contract generation for ${tech.protocols}, and schema migration for ${tech.database}. | Direct unmasked third-party external LLM calls without DLP interception. |
-| **Integration** | Secure connectors for ${tech.database} with JIT credential leases (< 30 min). | Hardcoded database credentials or static production tokens. |
-| **Governance** | Dual-signature Human-in-the-Loop approval gate with cryptographic hash matching. | Auto-deployment to production bypass gates without compliance officer review. |
+| **Data Ingestion** | Real-time payload sanitization and verification. | Ingestion of unencrypted plain-text payloads over unverified networks. |
+| **Core Processing** | Autonomous business logic generation based on ${tech.protocols}. | Direct unmasked third-party external LLM calls. |
+| **Integration** | Secure connectors for ${tech.database}. | Hardcoded database credentials or static production tokens. |
+| **Governance** | Dual-signature Human-in-the-Loop approval gate. | Auto-deployment to production bypass gates without compliance officer review. |
 `;
+
 
   const brdMarkdown = `# Business Requirements Document (BRD)
 **Workflow Reference:** \`${workflowId}\`  
@@ -254,7 +323,7 @@ The current operational model requires an automated, cryptographically secured i
 Deploy an isolated zero-trust service subsystem conforming to **${compliance}** standards, interfacing with **${tech.database}** and communicating over **${tech.protocols}** within the **${cloudTarget}** private perimeter.
 
 ---
-${codeGraphSection}
+${scopeSection}
 ---
 
 ## 4. Target Objectives & Key Results (OKRs)
@@ -324,6 +393,7 @@ Scenario: Database Transaction with JIT Credentials
         tags: ['BRD', 'User Stories', domain, compliance],
       },
       generateArchitectDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
+      generateTechDocDeliverable(rawText, maskedText, architecture, compliance, cloudTarget, codeGraph),
       generateSecurityDeliverable(rawText, maskedText, compliance, cloudTarget),
     ],
   };
@@ -427,6 +497,114 @@ CREATE INDEX IF NOT EXISTS idx_subsystem_workflow ON subsystem_records(workflow_
   };
 }
 
+function generateTechDocDeliverable(
+  rawText: string,
+  maskedText: string,
+  architecture: string,
+  compliance: string,
+  cloudTarget: string,
+  codeGraph?: CodebaseGraph
+): AgentDeliverableResponse {
+  const { domain } = detectDomain(rawText);
+  const tech = extractEntities(rawText);
+
+  const markdown = `# Low-Level Technical Document (LLD)
+**System Domain:** ${domain}  
+**Architecture Pattern:** ${architecture}  
+**Target Infrastructure:** ${cloudTarget}  
+**Security Clearance:** Zero-Trust Tier 1 (${compliance})  
+
+---
+
+## 1. Low-Level Component Architecture
+The module executes within an isolated container runtime interfacing with **${tech.database}** and communicating over **${tech.protocols}**:
+
+\`\`\`
++-----------------------+       mTLS 1.3       +------------------------------------+
+| API Ingestion Gateway | -------------------> | DLP Tokenizer & Vault Interceptor  |
++-----------------------+                      +------------------------------------+
+                                                                  |
+                                                                  v
++-----------------------+   PostgreSQL DDL     +------------------------------------+
+|  Encrypted Storage    | <------------------- |  Zero-Trust Business Logic Engine  |
++-----------------------+                      +------------------------------------+
+\`\`\`
+
+---
+
+## 2. API Contract Specifications (REST / JSON-RPC)
+
+### 2.1 Endpoint: Submit & Sanitize Payload
+- **Route:** \`POST /api/v1/workspaces/execute\`
+- **Headers:**
+  - \`Authorization: Bearer <mTLS-JIT-Token>\`
+  - \`X-Zero-Trust-Client-Cert: SHA256:<ClientCertThumbprint>\`
+  - \`Content-Type: application/json\`
+- **Request Schema:**
+\`\`\`json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["payload", "complianceBaseline", "idempotencyKey"],
+  "properties": {
+    "payload": { "type": "string", "description": "Raw input payload prior to gateway sanitization" },
+    "complianceBaseline": { "type": "string", "enum": ["SOC2", "HIPAA", "PCI-DSS", "GDPR"] },
+    "idempotencyKey": { "type": "string", "format": "uuid" },
+    "executionMode": { "type": "string", "default": "DETERMINISTIC" }
+  }
+}
+\`\`\`
+- **Success Response (200 OK):**
+\`\`\`json
+{
+  "status": "SANITIZED_AND_QUEUED",
+  "sanitizedTokenCount": 3,
+  "transactionId": "tx_9981a20bf12",
+  "vaultReceipt": "sha256:7b910e54d...",
+  "timestamp": "2026-09-12T16:00:00Z"
+}
+\`\`\`
+
+---
+
+## 3. Database Schema & Migration DDL (PostgreSQL)
+
+\`\`\`sql
+-- Zero-Trust Protected Data Store Migration
+CREATE TABLE IF NOT EXISTS secure_audit_records (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    feature_ref VARCHAR(120) NOT NULL,
+    sanitized_digest VARCHAR(64) NOT NULL,
+    vault_token_reference VARCHAR(128) NOT NULL,
+    compliance_tag VARCHAR(50) DEFAULT '${compliance}',
+    execution_status VARCHAR(40) NOT NULL DEFAULT 'INITIALIZED',
+    actor_id VARCHAR(80) NOT NULL,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX IF NOT EXISTS idx_audit_feature_ref ON secure_audit_records(feature_ref);
+CREATE INDEX IF NOT EXISTS idx_audit_compliance ON secure_audit_records(compliance_tag);
+\`\`\`
+
+---
+
+## 4. Cryptographic Enforcement & Resilience
+- **Cryptographic Cipher Suites:** TLS_AES_256_GCM_SHA384 and TLS_CHACHA20_POLY1305_SHA256.
+- **Circuit Breaker Threshold:** 5 consecutive failures trips breaker for 30 seconds backoff.
+- **Token Vault Invalidation:** All in-memory surrogate tokens expire strictly after 30 minutes JIT TTL.
+`;
+
+  return {
+    agentName: 'Technical Lead Agent',
+    agentRole: 'Low-Level Technical Specification & API Schemas',
+    iconName: 'terminal',
+    summary: `Low-level technical specification, API contracts, database DDL and security protocols`,
+    markdownContent: markdown,
+    tags: ['Technical Document', 'API Specs', 'Database DDL', 'Security Protocols'],
+  };
+}
+
 function generateSecurityDeliverable(
   rawText: string,
   maskedText: string,
@@ -472,3 +650,61 @@ function generateSecurityDeliverable(
     tags: ['STRIDE', 'OWASP', compliance, 'Zero-Trust'],
   };
 }
+
+export async function generateLlmProjectMemory(codeGraph: CodebaseGraph, repoUrl: string): Promise<string> {
+  const apiKey = process.env.OPENAI_API_KEY || process.env.AZURE_OPENAI_KEY;
+  if (!apiKey || apiKey === 'dummy_key') {
+    return `# Project Context: ${repoUrl || 'Local Codebase'}\n\n## Overview\n- **Total Files Scanned:** ${codeGraph.filesCount}\n- **Detected Tech Stack:** ${codeGraph.techStack.join(', ')}\n\n## Codebase Modules\n${codeGraph.modules.map(m => `### ${m.directory}\n- **Primary Tech:** ${m.tech}\n- **Key Files:** ${m.keyFiles.join(', ')}\n`).join('\n')}\n\n## Security & Details\n- **Dependencies:** ${Object.keys(codeGraph.dependencies).length > 0 ? Object.keys(codeGraph.dependencies).join(', ') : 'None detected'}\n`;
+  }
+
+  try {
+    let llm: any;
+    if (process.env.AZURE_OPENAI_KEY) {
+      llm = new AzureChatOpenAI({
+        azureOpenAIApiKey: apiKey,
+        azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_INSTANCE || 'pitchperfectllmengine2',
+        azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+        azureOpenAIApiVersion: '2024-02-15-preview',
+        temperature: 0.2,
+      });
+    } else {
+      llm = new ChatOpenAI({
+        openAIApiKey: apiKey,
+        modelName: 'gpt-4o',
+        temperature: 0.2,
+      });
+    }
+
+    const codeGraphPrompt = `
+Target Application Context: 
+- Original Repository URL: ${repoUrl || 'Unknown'}
+- Local Clone Path: \`${codeGraph.repoPath}\` (${codeGraph.filesCount} files)
+- Tech Stack: ${codeGraph.techStack.join(', ')}
+- Modules:
+${codeGraph.modules.map(m => `  * ${m.directory} (${m.tech}): ${m.keyFiles.join(', ')}`).join('\n')}
+- Dependencies: ${Object.keys(codeGraph.dependencies).join(', ')}
+`;
+
+    const prompt = `
+You are an expert Software Architect and Technical Analyst. Your task is to generate a comprehensive "memory.md" markdown file that summarizes the project context based on the code graph data provided below.
+This memory file will be used by other AI agents to understand the repository, its architecture, and its capabilities so they can write requirements and generate code.
+
+${codeGraphPrompt}
+
+Generate a well-structured markdown document containing:
+1. An Executive Summary of what this codebase appears to be.
+2. The core Technology Stack and identified dependencies.
+3. Architecture & Modules (describe what each directory likely handles).
+4. Any assumptions about the deployment target or security posture based on the tools found.
+
+Keep it highly technical, precise, and concise. Do NOT include generic filler.
+`;
+
+    const response = await llm.invoke(prompt);
+    return typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+  } catch (err: any) {
+    console.warn('[Generate Memory] LLM invocation failed, falling back to static:', err.message);
+    return `# Project Context: ${repoUrl || 'Local Codebase'}\n\n## Overview\n- **Total Files Scanned:** ${codeGraph.filesCount}\n- **Detected Tech Stack:** ${codeGraph.techStack.join(', ')}\n\n## Codebase Modules\n${codeGraph.modules.map(m => `### ${m.directory}\n- **Primary Tech:** ${m.tech}\n- **Key Files:** ${m.keyFiles.join(', ')}\n`).join('\n')}\n\n## Security & Details\n- **Dependencies:** ${Object.keys(codeGraph.dependencies).length > 0 ? Object.keys(codeGraph.dependencies).join(', ') : 'None detected'}\n`;
+  }
+}
+

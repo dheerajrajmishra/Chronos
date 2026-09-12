@@ -34,12 +34,12 @@ class DocExporter {
 </html>
 ''';
 
-    // 3. Trigger download as .doc file
+    // 3. Trigger download as .docx file
     final bytes = utf8.encode(wordHtml);
     final blob = html.Blob([bytes], 'application/msword');
     final url = html.Url.createObjectUrlFromBlob(blob);
-    final anchor = html.AnchorElement(href: url)
-      ..setAttribute('download', filename.endsWith('.doc') ? filename : '$filename.doc')
+    html.AnchorElement(href: url)
+      ..setAttribute('download', filename.endsWith('.docx') ? filename : '$filename.docx')
       ..click();
     html.Url.revokeObjectUrl(url);
   }

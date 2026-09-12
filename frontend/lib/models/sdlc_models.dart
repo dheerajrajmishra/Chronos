@@ -22,6 +22,15 @@ class Feature {
   final Map<String, dynamic> dbAccess;
   final String baseRequirement;
   final String brdPrompt;
+  final String designPrompt;
+  final String codePrompt;
+  final String testPrompt;
+  final String techDocPrompt;
+  final String unitTestPrompt;
+  final String uatPrompt;
+  final String deployPrompt;
+  final Map<String, dynamic> stagePrompts;
+  final String memoryMd;
 
   Feature({
     required this.id,
@@ -31,6 +40,15 @@ class Feature {
     required this.dbAccess,
     required this.baseRequirement,
     required this.brdPrompt,
+    required this.designPrompt,
+    required this.codePrompt,
+    required this.testPrompt,
+    this.techDocPrompt = '',
+    this.unitTestPrompt = '',
+    this.uatPrompt = '',
+    this.deployPrompt = '',
+    this.stagePrompts = const {},
+    required this.memoryMd,
   });
 
   factory Feature.fromJson(Map<String, dynamic> json) {
@@ -42,6 +60,15 @@ class Feature {
       dbAccess: json['db_access'] ?? {},
       baseRequirement: json['base_requirement'] ?? '',
       brdPrompt: json['brd_prompt'] ?? '',
+      designPrompt: json['design_prompt'] ?? '',
+      codePrompt: json['code_prompt'] ?? '',
+      testPrompt: json['test_prompt'] ?? '',
+      techDocPrompt: json['tech_doc_prompt'] ?? '',
+      unitTestPrompt: json['unit_test_prompt'] ?? '',
+      uatPrompt: json['uat_prompt'] ?? '',
+      deployPrompt: json['deploy_prompt'] ?? '',
+      stagePrompts: json['stage_prompts'] is Map ? Map<String, dynamic>.from(json['stage_prompts']) : {},
+      memoryMd: json['memory_md'] ?? '',
     );
   }
 }

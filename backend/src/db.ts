@@ -33,9 +33,23 @@ export const initDB = async () => {
         db_access JSONB,
         base_requirement TEXT,
         brd_prompt TEXT,
+        design_prompt TEXT,
+        code_prompt TEXT,
+        test_prompt TEXT,
+        memory_md TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS memory_md TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS design_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS code_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS test_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS tech_doc_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS unit_test_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS uat_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS deploy_prompt TEXT;`);
+    await client.query(`ALTER TABLE features ADD COLUMN IF NOT EXISTS stage_prompts JSONB DEFAULT '{}';`);
 
     // Create Workflows Table
     await client.query(`

@@ -1,12 +1,14 @@
 enum SDLCStageType {
   projectHub,
-  stage0Setup,
-  stage1Brd,
-  stage2Design,
-  stage3Code,
-  stage4Test,
-  stage5Uat,
-  stage6Deploy,
+  stage0Setup,    // Feature setup
+  stage1Brd,      // BRD
+  stage2Design,   // Design Document
+  stage3TechDoc,  // Technical Document
+  stage4Code,     // Code
+  stage5UnitTest, // Unit Testing
+  stage6Test,     // Testing
+  stage7Uat,      // UAT
+  stage8Deploy,   // Deployment
 }
 
 enum EntityCategory {

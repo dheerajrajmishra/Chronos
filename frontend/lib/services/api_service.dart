@@ -42,6 +42,10 @@ class ApiService {
     required Map<String, dynamic> dbAccess,
     required String baseRequirement,
     required String brdPrompt,
+    required String designPrompt,
+    required String codePrompt,
+    required String testPrompt,
+    required String memoryMd,
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/projects/$projectId/features'),
@@ -52,6 +56,10 @@ class ApiService {
         'db_access': dbAccess,
         'base_requirement': baseRequirement,
         'brd_prompt': brdPrompt,
+        'design_prompt': designPrompt,
+        'code_prompt': codePrompt,
+        'test_prompt': testPrompt,
+        'memory_md': memoryMd,
       }),
     );
     if (response.statusCode == 200) {
@@ -66,6 +74,10 @@ class ApiService {
     required Map<String, dynamic> dbAccess,
     required String baseRequirement,
     required String brdPrompt,
+    required String designPrompt,
+    required String codePrompt,
+    required String testPrompt,
+    required String memoryMd,
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/features/$featureId'),
@@ -76,12 +88,49 @@ class ApiService {
         'db_access': dbAccess,
         'base_requirement': baseRequirement,
         'brd_prompt': brdPrompt,
+        'design_prompt': designPrompt,
+        'code_prompt': codePrompt,
+        'test_prompt': testPrompt,
+        'memory_md': memoryMd,
       }),
     );
     if (response.statusCode == 200) {
       return Feature.fromJson(jsonDecode(response.body));
     }
     throw Exception('Failed to update feature');
+  }
+
+  static Future<Feature> updateFeaturePrompts(
+    int featureId, {
+    String? brdPrompt,
+    String? designPrompt,
+    String? techDocPrompt,
+    String? codePrompt,
+    String? unitTestPrompt,
+    String? testPrompt,
+    String? uatPrompt,
+    String? deployPrompt,
+    Map<String, dynamic>? stagePrompts,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/features/$featureId/prompts'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        if (brdPrompt != null) 'brd_prompt': brdPrompt,
+        if (designPrompt != null) 'design_prompt': designPrompt,
+        if (techDocPrompt != null) 'tech_doc_prompt': techDocPrompt,
+        if (codePrompt != null) 'code_prompt': codePrompt,
+        if (unitTestPrompt != null) 'unit_test_prompt': unitTestPrompt,
+        if (testPrompt != null) 'test_prompt': testPrompt,
+        if (uatPrompt != null) 'uat_prompt': uatPrompt,
+        if (deployPrompt != null) 'deploy_prompt': deployPrompt,
+        if (stagePrompts != null) 'stage_prompts': stagePrompts,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Feature.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to update feature prompts: ${response.statusCode}');
   }
 
   static Future<WorkflowState> getWorkflowState(int featureId) async {
@@ -119,5 +168,21 @@ class ApiService {
       return jsonDecode(response.body);
     }
     throw Exception('Failed to generate deliverables: ${response.body}');
+  }
+
+  static Future<Map<String, dynamic>> generateMemory(String projectId, String repoUrl, String branch) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/repository/generate-memory'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode({
+        'projectId': projectId,
+        'repoUrl': repoUrl,
+        'branch': branch,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    throw Exception('Failed to generate repository memory: ${response.statusCode}');
   }
 }

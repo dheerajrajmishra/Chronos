@@ -112,6 +112,10 @@ class EnterpriseSDLCController extends GetxController {
     required Map<String, dynamic> dbAccess,
     required String baseRequirement,
     required String brdPrompt,
+    String designPrompt = "",
+    String codePrompt = "",
+    String testPrompt = "",
+    String memoryMd = "",
   }) async {
     try {
       final f = await ApiService.createFeature(
@@ -121,6 +125,10 @@ class EnterpriseSDLCController extends GetxController {
         dbAccess: dbAccess,
         baseRequirement: baseRequirement,
         brdPrompt: brdPrompt,
+        designPrompt: designPrompt,
+        codePrompt: codePrompt,
+        testPrompt: testPrompt,
+        memoryMd: memoryMd,
       );
       activeProjectFeatures.insert(0, f);
       selectFeature(f);
@@ -159,6 +167,47 @@ class EnterpriseSDLCController extends GetxController {
       logTerminal("Workflow updated to stage $stage ($status)", level: "WORKFLOW");
     } catch (e) {
       logTerminal("Failed to update workflow: $e", level: "ERROR");
+    }
+  }
+
+  Future<bool> updateFeaturePrompts({
+    String? brdPrompt,
+    String? designPrompt,
+    String? techDocPrompt,
+    String? codePrompt,
+    String? unitTestPrompt,
+    String? testPrompt,
+    String? uatPrompt,
+    String? deployPrompt,
+    Map<String, dynamic>? stagePrompts,
+  }) async {
+    if (activeFeature.value == null) return false;
+    try {
+      final updated = await ApiService.updateFeaturePrompts(
+        activeFeature.value!.id,
+        brdPrompt: brdPrompt,
+        designPrompt: designPrompt,
+        techDocPrompt: techDocPrompt,
+        codePrompt: codePrompt,
+        unitTestPrompt: unitTestPrompt,
+        testPrompt: testPrompt,
+        uatPrompt: uatPrompt,
+        deployPrompt: deployPrompt,
+        stagePrompts: stagePrompts,
+      );
+      activeFeature.value = updated;
+      
+      // Also update in list
+      final idx = activeProjectFeatures.indexWhere((f) => f.id == updated.id);
+      if (idx != -1) {
+        activeProjectFeatures[idx] = updated;
+      }
+      
+      logTerminal("Stage prompts saved to database for feature: ${updated.name}", level: "CONFIG");
+      return true;
+    } catch (e) {
+      logTerminal("Failed to save stage prompts: $e", level: "ERROR");
+      return false;
     }
   }
 }

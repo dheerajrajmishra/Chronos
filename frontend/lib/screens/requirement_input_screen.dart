@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class RequirementInputScreen extends StatelessWidget {
-  const RequirementInputScreen({Key? key}) : super(key: key);
+  const RequirementInputScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

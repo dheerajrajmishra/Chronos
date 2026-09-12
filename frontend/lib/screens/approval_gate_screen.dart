@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 
 class ApprovalGateScreen extends StatelessWidget {
-  const ApprovalGateScreen({Key? key}) : super(key: key);
+  const ApprovalGateScreen({super.key});
 
   @override
   Widget build(BuildContext context) {

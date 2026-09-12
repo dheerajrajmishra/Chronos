@@ -10,13 +10,15 @@ import 'projects/project_hub_screen.dart';
 import 'stages/stage0_feature_setup.dart';
 import 'stages/stage1_brd.dart';
 import 'stages/stage2_design.dart';
-import 'stages/stage3_code.dart';
-import 'stages/stage4_test.dart';
-import 'stages/stage5_uat.dart';
-import 'stages/stage6_deploy.dart';
+import 'stages/stage3_tech_doc.dart';
+import 'stages/stage4_code.dart';
+import 'stages/stage5_unit_test.dart';
+import 'stages/stage6_test.dart';
+import 'stages/stage7_uat.dart';
+import 'stages/stage8_deploy.dart';
 
 class EnterprisePortalScreen extends StatefulWidget {
-  const EnterprisePortalScreen({Key? key}) : super(key: key);
+  const EnterprisePortalScreen({super.key});
 
   @override
   State<EnterprisePortalScreen> createState() => _EnterprisePortalScreenState();
@@ -55,25 +57,28 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                   // Active Stage Body Viewport
                   Expanded(
                     child: Obx(() {
-                      switch (controller.currentStage.value) {
+                      final stage = controller.currentStage.value;
+                      switch (stage) {
                         case SDLCStageType.projectHub:
-                          return const ProjectHubScreen();
+                          return ProjectHubScreen(key: ValueKey(stage));
                         case SDLCStageType.stage0Setup:
-                          return const Stage0FeatureSetup();
+                          return Stage0FeatureSetup(key: ValueKey(stage));
                         case SDLCStageType.stage1Brd:
-                          return const Stage1Brd();
+                          return Stage1Brd(key: ValueKey(stage));
                         case SDLCStageType.stage2Design:
-                          return const Stage2Design();
-                        case SDLCStageType.stage3Code:
-                          return const Stage3Code();
-                        case SDLCStageType.stage4Test:
-                          return const Stage4Test();
-                        case SDLCStageType.stage5Uat:
-                          return const Stage5Uat();
-                        case SDLCStageType.stage6Deploy:
-                          return const Stage6Deploy();
-                        default:
-                          return const Center(child: Text("Unknown Stage"));
+                          return Stage2Design(key: ValueKey(stage));
+                        case SDLCStageType.stage3TechDoc:
+                          return Stage3TechDoc(key: ValueKey(stage));
+                        case SDLCStageType.stage4Code:
+                          return Stage4Code(key: ValueKey(stage));
+                        case SDLCStageType.stage5UnitTest:
+                          return Stage5UnitTest(key: ValueKey(stage));
+                        case SDLCStageType.stage6Test:
+                          return Stage6Test(key: ValueKey(stage));
+                        case SDLCStageType.stage7Uat:
+                          return Stage7Uat(key: ValueKey(stage));
+                        case SDLCStageType.stage8Deploy:
+                          return Stage8Deploy(key: ValueKey(stage));
                       }
                     }),
                   ),

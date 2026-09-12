@@ -18,19 +18,10 @@ class ProjectHubScreen extends StatelessWidget {
       final projects = controller.projectList;
       final activePrj = controller.activeProject.value;
       final features = controller.activeProjectFeatures;
-      
-      final textColor = EnterpriseTheme.getTextPrimary(isDark);
       final textSecColor = EnterpriseTheme.getTextSecondary(isDark);
 
       return Container(
-        decoration: BoxDecoration(
-          color: EnterpriseTheme.getBackground(isDark),
-          image: DecorationImage(
-            image: const NetworkImage('https://www.transparenttextures.com/patterns/cubes.png'),
-            opacity: isDark ? 0.05 : 0.03,
-            repeat: ImageRepeat.repeat,
-          ),
-        ),
+        color: EnterpriseTheme.getBackground(isDark),
         child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 40.0),
           child: Column(

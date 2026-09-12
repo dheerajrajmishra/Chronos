@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import express, { Request, Response } from 'express';
 import cors from 'cors';
 import { Pool } from 'pg';
@@ -8,7 +9,7 @@ import { execSync } from 'child_process';
 import { Connection, Client } from '@temporalio/client';
 import { RequirementsToDesignWorkflow, approvalSignal } from './workflows';
 import axios from 'axios';
-import { synthesizeDeliverables } from './synthesizer';
+import { synthesizeDeliverables, generateLlmProjectMemory } from './synthesizer';
 import { scanRepositoryGraph, getCachedRepositoryGraph } from './codeGraph/graphEngine';
 import { initDB, query } from './db';
 
@@ -157,6 +158,38 @@ app.post('/api/repository/sync', async (req: Request, res: Response) => {
   }
 });
 
+// Generate Project Context (memory.md) from Codebase
+app.post('/api/repository/generate-memory', async (req: Request, res: Response) => {
+  try {
+    const { projectId = 'default', repoUrl, branch } = req.body;
+    let targetPath = path.resolve(__dirname, '..', '..');
+    
+    if (repoUrl && repoUrl.startsWith('http')) {
+      targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
+      console.log(`Cloning ${repoUrl} to ${targetPath} for memory generation...`);
+      try {
+        if (branch && branch.trim().length > 0) {
+          execSync(`git clone -b ${branch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        } else {
+          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        }
+      } catch (e) {
+        console.error("Failed to clone, falling back to default.", e);
+        targetPath = path.resolve(__dirname, '..', '..');
+      }
+    }
+    
+    const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, true);
+    
+    const memoryMd = await generateLlmProjectMemory(graph, repoUrl);
+
+    res.json({ success: true, memoryMd, graph });
+  } catch (err: any) {
+    console.error('[Generate Memory Error]', err);
+    res.status(500).json({ error: 'Failed to generate project memory', details: err.message });
+  }
+});
+
 // Fetch Cached Repository Code Graph
 app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) => {
   try {
@@ -175,7 +208,7 @@ app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) 
 // Dynamic Multi-Agent Deliverable Synthesis (with Codebase Context)
 app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
   try {
-    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, brdPrompt } = req.body;
+    const { requirement, maskedRequirement, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, memoryMd } = req.body;
 
     if (!requirement || requirement.trim().length === 0) {
       return res.status(400).json({ error: 'Requirement text is required' });
@@ -188,9 +221,13 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
       
       if (repoUrl && repoUrl.startsWith('http')) {
         targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
-        console.log(`Cloning ${repoUrl} to ${targetPath}...`);
+        console.log(`Cloning ${repoUrl} (branch: ${repoBranch || 'default'}) to ${targetPath}...`);
         try {
-          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+          if (repoBranch && repoBranch.trim().length > 0) {
+            execSync(`git clone -b ${repoBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+          } else {
+            execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+          }
         } catch (e) {
           console.error("Failed to clone, falling back to default.", e);
           targetPath = path.resolve(__dirname, '..', '..');
@@ -204,12 +241,16 @@ app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
       requirement,
       maskedRequirement,
       brdPrompt,
+      designPrompt,
+      techDocPrompt,
       architecture,
       compliance,
       cloudTarget,
       llmModel,
       apiKey,
+      repoUrl,
       codeGraph: codeGraph || undefined,
+      memoryMd,
     });
 
     res.json(result);
@@ -260,11 +301,11 @@ app.get('/api/projects/:id/features', async (req: Request, res: Response) => {
 app.post('/api/projects/:id/features', async (req: Request, res: Response) => {
   try {
     const projectId = req.params.id;
-    const { name, code_access, db_access, base_requirement, brd_prompt } = req.body;
+    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md } = req.body;
     const result = await query(
-      `INSERT INTO features (project_id, name, code_access, db_access, base_requirement, brd_prompt) 
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [projectId, name, code_access, db_access, base_requirement, brd_prompt]
+      `INSERT INTO features (project_id, name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md) 
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [projectId, name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md]
     );
     const featureId = result.rows[0].id;
     // Auto-create initial workflow state
@@ -279,11 +320,58 @@ app.post('/api/projects/:id/features', async (req: Request, res: Response) => {
 app.put('/api/features/:id', async (req: Request, res: Response) => {
   try {
     const featureId = req.params.id;
-    const { name, code_access, db_access, base_requirement, brd_prompt } = req.body;
+    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md } = req.body;
     const result = await query(
-      `UPDATE features SET name = $1, code_access = $2, db_access = $3, base_requirement = $4, brd_prompt = $5
-       WHERE id = $6 RETURNING *`,
-      [name, code_access, db_access, base_requirement, brd_prompt, featureId]
+      `UPDATE features SET name = $1, code_access = $2, db_access = $3, base_requirement = $4, brd_prompt = $5, design_prompt = $6, code_prompt = $7, test_prompt = $8, memory_md = $9
+       WHERE id = $10 RETURNING *`,
+      [name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, featureId]
+    );
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
+// Update feature prompts for all stages
+app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
+  try {
+    const featureId = req.params.id;
+    const {
+      brd_prompt,
+      design_prompt,
+      tech_doc_prompt,
+      code_prompt,
+      unit_test_prompt,
+      test_prompt,
+      uat_prompt,
+      deploy_prompt,
+      stage_prompts,
+    } = req.body;
+
+    const result = await query(
+      `UPDATE features 
+       SET brd_prompt = COALESCE($1, brd_prompt),
+           design_prompt = COALESCE($2, design_prompt),
+           tech_doc_prompt = COALESCE($3, tech_doc_prompt),
+           code_prompt = COALESCE($4, code_prompt),
+           unit_test_prompt = COALESCE($5, unit_test_prompt),
+           test_prompt = COALESCE($6, test_prompt),
+           uat_prompt = COALESCE($7, uat_prompt),
+           deploy_prompt = COALESCE($8, deploy_prompt),
+           stage_prompts = COALESCE($9, stage_prompts)
+       WHERE id = $10 RETURNING *`,
+      [
+        brd_prompt,
+        design_prompt,
+        tech_doc_prompt,
+        code_prompt,
+        unit_test_prompt,
+        test_prompt,
+        uat_prompt,
+        deploy_prompt,
+        stage_prompts ? JSON.stringify(stage_prompts) : null,
+        featureId,
+      ]
     );
     res.json(result.rows[0]);
   } catch (err: any) {

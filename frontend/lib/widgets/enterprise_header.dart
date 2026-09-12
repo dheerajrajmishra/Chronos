@@ -275,15 +275,19 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
       case SDLCStageType.stage1Brd:
         return 'Stage 1: BRD';
       case SDLCStageType.stage2Design:
-        return 'Stage 2: Design';
-      case SDLCStageType.stage3Code:
-        return 'Stage 3: Code Gen';
-      case SDLCStageType.stage4Test:
-        return 'Stage 4: Test Automation';
-      case SDLCStageType.stage5Uat:
-        return 'Stage 5: UAT';
-      case SDLCStageType.stage6Deploy:
-        return 'Stage 6: Deploy';
+        return 'Stage 2: Design Document';
+      case SDLCStageType.stage3TechDoc:
+        return 'Stage 3: Technical Document';
+      case SDLCStageType.stage4Code:
+        return 'Stage 4: Code';
+      case SDLCStageType.stage5UnitTest:
+        return 'Stage 5: Unit Testing';
+      case SDLCStageType.stage6Test:
+        return 'Stage 6: Testing';
+      case SDLCStageType.stage7Uat:
+        return 'Stage 7: UAT';
+      case SDLCStageType.stage8Deploy:
+        return 'Stage 8: Deployment';
     }
   }
 }
