@@ -142,6 +142,21 @@ ${req.memoryMd}
 -----------------------------------
 ` : '';
 
+      // Dynamic BRD Directive from user configuration or fallback standard
+      const brdDirective = (req.brdPrompt && req.brdPrompt.trim().length > 0)
+        ? req.brdPrompt.trim()
+        : `Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
+
+Include the following sections with exhaustive depth:
+1. Executive Summary & Problem Definition
+2. Target Business Objectives & OKRs
+3. Target Personas / User Roles
+4. In-Scope and Out-of-Scope boundaries
+5. Functional Requirements
+6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
+7. Acceptance Criteria in Gherkin (Given-When-Then) format
+8. Non-Functional Requirements & Security Controls (Functional perspective)`;
+
       const brdPrompt = `
 You are an expert AI Business Analyst. Your task is to write a Business Requirements Document (BRD) for the target application described below. 
 Do NOT write the BRD about the SDLC platform itself; write it for the target application!
@@ -154,23 +169,26 @@ ${memoryPrompt}
 
 ${codeGraphPrompt}
 
-Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
-
-Include the following sections with exhaustive depth:
-1. Executive Summary & Problem Definition
-2. Target Business Objectives & OKRs
-3. Target Personas / User Roles
-4. In-Scope and Out-of-Scope boundaries
-5. Functional Requirements
-6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
-7. Acceptance Criteria in Gherkin (Given-When-Then) format
-8. Non-Functional Requirements & Security Controls (Functional perspective)
-
-${req.brdPrompt && req.brdPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.brdPrompt}\n---------------------------------` : ''}
+--- STAGE DIRECTIVES & USER INSTRUCTIONS ---
+${brdDirective}
+--------------------------------------------
 `;
 
       const response = await llm.invoke(brdPrompt);
       const brdMarkdown = typeof response.content === 'string' ? response.content : JSON.stringify(response.content);
+
+      // Dynamic System Architecture Directive from user configuration or fallback standard
+      const ddDirective = (req.designPrompt && req.designPrompt.trim().length > 0)
+        ? req.designPrompt.trim()
+        : `Focus strictly on the technical architecture, system design, and implementation details for the target application.
+
+Include the following sections:
+1. System Architecture Overview
+2. Component Design (Frontend, Backend, Database)
+3. API Contracts (REST/GraphQL/gRPC)
+4. Data Models & Database Schema Design
+5. Security & Authentication Mechanisms
+6. Deployment & Infrastructure Strategy`;
 
       const ddPrompt = `
 You are an expert Enterprise Architect. Your task is to write a System Architecture & Design Document (DD) for the target application described below, based on the requirements.
@@ -186,21 +204,24 @@ ${memoryPrompt}
 
 ${codeGraphPrompt}
 
-Focus strictly on the technical architecture, system design, and implementation details for the target application.
-
-Include the following sections:
-1. System Architecture Overview
-2. Component Design (Frontend, Backend, Database)
-3. API Contracts (REST/GraphQL/gRPC)
-4. Data Models & Database Schema Design
-5. Security & Authentication Mechanisms
-6. Deployment & Infrastructure Strategy
-
-${req.designPrompt && req.designPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.designPrompt}\n---------------------------------` : ''}
+--- STAGE DIRECTIVES & USER INSTRUCTIONS ---
+${ddDirective}
+--------------------------------------------
 `;
 
       const ddResponse = await llm.invoke(ddPrompt);
       const ddMarkdown = typeof ddResponse.content === 'string' ? ddResponse.content : JSON.stringify(ddResponse.content);
+
+      // Dynamic Technical Specification Directive from user configuration or fallback standard
+      const techDocDirective = (req.techDocPrompt && req.techDocPrompt.trim().length > 0)
+        ? req.techDocPrompt.trim()
+        : `Provide exact, implementation-ready technical specifications:
+1. Low-Level Module Architecture & Execution Flow
+2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
+3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
+4. Data Contracts & State Transition Models
+5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
+6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)`;
 
       const techDocPrompt = `
 You are a Principal Software Engineer and Technical Lead. Your task is to write a comprehensive Low-Level Technical Document (Tech Specs) for the target application described below.
@@ -216,15 +237,9 @@ ${memoryPrompt}
 
 ${codeGraphPrompt}
 
-Provide exact, implementation-ready technical specifications:
-1. Low-Level Module Architecture & Execution Flow
-2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
-3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
-4. Data Contracts & State Transition Models
-5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
-6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)
-
-${req.techDocPrompt && req.techDocPrompt.trim().length > 0 ? `\n--- CRITICAL USER INSTRUCTIONS ---\n${req.techDocPrompt}\n---------------------------------` : ''}
+--- STAGE DIRECTIVES & USER INSTRUCTIONS ---
+${techDocDirective}
+--------------------------------------------
 `;
 
       const techDocResponse = await llm.invoke(techDocPrompt);

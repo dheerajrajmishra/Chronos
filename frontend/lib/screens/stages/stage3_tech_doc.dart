@@ -23,7 +23,12 @@ class _Stage3TechDocState extends State<Stage3TechDoc> {
   @override
   void initState() {
     super.initState();
-    _promptCtrl.text = 'Generate a low-level Technical Document with REST/gRPC API specifications, PostgreSQL DDL schemas, and Zero-Trust cryptographic boundary controls.';
+    final feature = Get.find<EnterpriseSDLCController>().activeFeature.value;
+    if (feature != null && feature.techDocPrompt.isNotEmpty) {
+      _promptCtrl.text = feature.techDocPrompt;
+    } else {
+      _promptCtrl.text = 'Generate a low-level Technical Specification (LLD) with exact REST/gRPC API contracts, request/response JSON schemas, PostgreSQL DDL migrations, and Zero-Trust cryptographic boundary controls.';
+    }
   }
 
   @override

@@ -29,7 +29,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
     final feature = Get.find<EnterpriseSDLCController>().activeFeature.value;
     if (feature != null) {
       _reqCtrl.text = feature.baseRequirement;
-      _promptCtrl.text = feature.brdPrompt;
+      _promptCtrl.text = feature.brdPrompt.isNotEmpty
+          ? feature.brdPrompt
+          : 'Generate an executive-grade Business Requirements Document (BRD) strictly following Zero-Trust principles (NIST 800-207), user stories with Given-When-Then Gherkin acceptance criteria, and compliance mapping.';
     }
   }
 
