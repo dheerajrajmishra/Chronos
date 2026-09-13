@@ -28,6 +28,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
   @override
   void initState() {
     super.initState();
+    orgController.text = 'chronos-admin';
+    emailController.text = 'admin@chronos.dev';
+    passwordController.text = 'admin';
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(seconds: 3),
@@ -683,18 +686,58 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     if (success) {
       final sdlcController = Get.find<EnterpriseSDLCController>();
       await sdlcController.fetchProjects();
-      Get.offAllNamed('/dashboard');
+      Get.offAllNamed('/portal');
     } else {
       Get.snackbar(
         'Authentication Failed',
         'Invalid credentials, IP blocked, or user not found.',
-        backgroundColor: EnterpriseTheme.rose.withOpacity(0.9),
+        backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
         colorText: Colors.white,
         snackPosition: SnackPosition.TOP,
         margin: const EdgeInsets.all(16),
         borderRadius: 10,
         icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
       );
+    }
+  }
+
+  Future<void> _handleQuickAdminLogin() async {
+    orgController.text = 'chronos-admin';
+    emailController.text = 'admin@chronos.dev';
+    passwordController.text = 'admin';
+
+    isLoading.value = true;
+    try {
+      bool success = await authController.login('admin@chronos.dev', 'admin', 'chronos-admin');
+      if (!success) {
+        success = await authController.login('admin@zerotrust.com', 'admin', 'chronos-admin');
+      }
+
+      if (success) {
+        final sdlcController = Get.find<EnterpriseSDLCController>();
+        await sdlcController.fetchProjects();
+        Get.offAllNamed('/portal');
+      } else {
+        Get.snackbar(
+          'Login Failed',
+          'Could not authenticate admin. Please ensure backend is running.',
+          backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 10,
+          icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Login Error',
+        e.toString(),
+        backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 
@@ -765,7 +808,7 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
           const SizedBox(width: 8),
           Obx(
             () => ElevatedButton.icon(
-              onPressed: isLoading.value ? null : _handleSignIn,
+              onPressed: isLoading.value ? null : _handleQuickAdminLogin,
               icon: const Icon(Icons.bolt_rounded, size: 15),
               label: const Text('1-Click Login'),
               style: ElevatedButton.styleFrom(

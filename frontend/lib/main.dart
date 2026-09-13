@@ -26,13 +26,14 @@ class ZeroTrustApp extends StatelessWidget {
     final authController = Get.find<AuthController>();
 
     return Obx(() {
+      final isAuth = authController.isAuthenticated.value;
       return GetMaterialApp(
         title: 'Chronos',
         debugShowCheckedModeBanner: false,
         theme: EnterpriseTheme.lightTheme,
         darkTheme: EnterpriseTheme.darkTheme,
         themeMode: controller.isDarkMode.value ? ThemeMode.dark : ThemeMode.light,
-        initialRoute: authController.isAuthenticated.value ? '/portal' : '/login',
+        home: isAuth ? const EnterprisePortalScreen() : LoginScreen(),
         getPages: [
           GetPage(name: '/login', page: () => LoginScreen()),
           GetPage(name: '/portal', page: () => const EnterprisePortalScreen()),
