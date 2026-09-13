@@ -17,6 +17,8 @@ import 'stages/stage6_automation_script.dart';
 import 'stages/stage7_testing_results.dart';
 import 'stages/stage8_deploy.dart';
 import 'settings/settings_screen.dart';
+import 'admin/tenant_management_screen.dart';
+import 'admin/user_management_screen.dart';
 
 class EnterprisePortalScreen extends StatefulWidget {
   const EnterprisePortalScreen({super.key});
@@ -82,6 +84,10 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                           return Stage8Deploy(key: ValueKey(stage));
                         case SDLCStageType.settings:
                           return SettingsScreen(key: ValueKey(stage));
+                        case SDLCStageType.tenantAdmin:
+                          return TenantManagementScreen(key: ValueKey(stage));
+                        case SDLCStageType.userManagement:
+                          return UserManagementScreen(key: ValueKey(stage));
                       }
                     }),
                   ),

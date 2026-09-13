@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'controllers/enterprise_sdlc_controller.dart';
 import 'controllers/auth_controller.dart';
+import 'controllers/tenant_admin_controller.dart';
+import 'controllers/user_management_controller.dart';
 import 'screens/enterprise_portal_screen.dart';
 import 'screens/auth/login_screen.dart';
 import 'theme/enterprise_theme.dart';
@@ -10,6 +12,8 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   Get.put(AuthController());
   Get.put(EnterpriseSDLCController());
+  Get.put(TenantAdminController());
+  Get.put(UserManagementController());
   runApp(const ZeroTrustApp());
 }
 

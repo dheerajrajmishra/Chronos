@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:get/get.dart';
 import '../models/sdlc_models.dart';
+import '../models/tenant_model.dart';
 import '../controllers/auth_controller.dart';
 
 
@@ -16,6 +17,7 @@ class ApiService {
     };
   }
 
+  // ─── LLM CONFIG ──────────────────────────────────────
 
   static Future<Map<String, dynamic>> getLlmConfig() async {
     final response = await http.get(Uri.parse('$baseUrl/settings/llm-config'), headers: _getHeaders());
@@ -33,6 +35,8 @@ class ApiService {
     );
     return response.statusCode == 200;
   }
+
+  // ─── PROJECTS ──────────────────────────────────────
 
   static Future<List<Project>> getProjects() async {
     final response = await http.get(Uri.parse('$baseUrl/projects'), headers: _getHeaders());
@@ -74,6 +78,8 @@ class ApiService {
     );
     return response.statusCode == 200;
   }
+
+  // ─── FEATURES ──────────────────────────────────────
 
   static Future<List<Feature>> getFeatures(int projectId) async {
     final response = await http.get(Uri.parse('$baseUrl/projects/$projectId/features'), headers: _getHeaders());
@@ -193,6 +199,8 @@ class ApiService {
     throw Exception('Failed to update feature prompts: ${response.statusCode}');
   }
 
+  // ─── WORKFLOWS ──────────────────────────────────────
+
   static Future<WorkflowState> getWorkflowState(int featureId) async {
     final response = await http.get(Uri.parse('$baseUrl/features/$featureId/workflow'), headers: _getHeaders());
     if (response.statusCode == 200) {
@@ -217,6 +225,8 @@ class ApiService {
     }
     throw Exception('Failed to update workflow state');
   }
+
+  // ─── REPOSITORY ──────────────────────────────────────
 
   static Future<Map<String, dynamic>> applyCodeToBranch(Map<String, dynamic> payload) async {
     final response = await http.post(
@@ -264,6 +274,8 @@ class ApiService {
     throw Exception('Failed to generate repository memory: ${response.statusCode}');
   }
 
+  // ─── SETTINGS ──────────────────────────────────────
+
   static Future<Map<String, dynamic>> getGlobalSettings() async {
     final response = await http.get(Uri.parse('$baseUrl/settings'), headers: _getHeaders());
     if (response.statusCode == 200) {
@@ -293,5 +305,204 @@ class ApiService {
       return jsonDecode(response.body);
     }
     throw Exception('Failed to reset default prompts: ${response.statusCode}');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // ─── TENANT ADMIN API (System Admin only) ────────────
+  // ═══════════════════════════════════════════════════════
+
+  static Future<List<Tenant>> getTenants() async {
+    final response = await http.get(Uri.parse('$baseUrl/admin/tenants'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => Tenant.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load tenants: ${response.statusCode}');
+  }
+
+  static Future<Tenant> createTenant({
+    required String name,
+    String? slug,
+    String plan = 'free',
+    int maxUsers = 10,
+    String? adminEmail,
+    String? adminPassword,
+    String? adminName,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin/tenants'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'name': name,
+        if (slug != null) 'slug': slug,
+        'plan': plan,
+        'max_users': maxUsers,
+        if (adminEmail != null) 'admin_email': adminEmail,
+        if (adminPassword != null) 'admin_password': adminPassword,
+        if (adminName != null) 'admin_name': adminName,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Tenant.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to create tenant: ${response.body}');
+  }
+
+  static Future<Tenant> updateTenant(int id, {
+    String? name,
+    String? slug,
+    String? status,
+    String? plan,
+    int? maxUsers,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/admin/tenants/$id'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (slug != null) 'slug': slug,
+        if (status != null) 'status': status,
+        if (plan != null) 'plan': plan,
+        if (maxUsers != null) 'max_users': maxUsers,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return Tenant.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to update tenant: ${response.statusCode}');
+  }
+
+  static Future<bool> suspendTenant(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/admin/tenants/$id'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<List<TenantUser>> getTenantUsers(int tenantId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/users'),
+      headers: _getHeaders(),
+    );
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => TenantUser.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load tenant users: ${response.statusCode}');
+  }
+
+  static Future<bool> addTenantUser(int tenantId, {
+    required String email,
+    String? password,
+    String? name,
+    String role = 'viewer',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/users'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'email': email,
+        if (password != null) 'password': password,
+        if (name != null) 'name': name,
+        'role': role,
+      }),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> removeTenantUser(int tenantId, int userId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/users/$userId'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<AdminStats> getAdminStats() async {
+    final response = await http.get(Uri.parse('$baseUrl/admin/stats'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      return AdminStats.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to load admin stats: ${response.statusCode}');
+  }
+
+  // ═══════════════════════════════════════════════════════
+  // ─── USER MANAGEMENT API (Org Admin within tenant) ───
+  // ═══════════════════════════════════════════════════════
+
+  static Future<List<TenantUser>> getUsers() async {
+    final response = await http.get(Uri.parse('$baseUrl/saas/users'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => TenantUser.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load users: ${response.statusCode}');
+  }
+
+  static Future<bool> createUser({
+    required String email,
+    required String password,
+    String? name,
+    String role = 'viewer',
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/saas/users'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'email': email,
+        'password': password,
+        if (name != null) 'name': name,
+        'role': role,
+      }),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateUserRole(int userId, String role, {String? name}) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/saas/users/$userId'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'role': role,
+        if (name != null) 'name': name,
+      }),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateUserPermissions(int userId, Map<String, dynamic> permissions) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/saas/users/$userId/permissions'),
+      headers: _getHeaders(),
+      body: jsonEncode({'permissions': permissions}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateUserStatus(int userId, String status) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/saas/users/$userId/status'),
+      headers: _getHeaders(),
+      body: jsonEncode({'status': status}),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> removeUser(int userId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/saas/users/$userId'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<List<RoleDefinition>> getRoles() async {
+    final response = await http.get(Uri.parse('$baseUrl/saas/roles'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => RoleDefinition.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load roles: ${response.statusCode}');
   }
 }

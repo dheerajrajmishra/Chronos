@@ -14,6 +14,7 @@ import { parseMarkdownFiles } from './utils/markdownParser';
 import { scanRepositoryGraph, getCachedRepositoryGraph } from './codeGraph/graphEngine';
 import { initDB, query, FACTORY_DEFAULT_PROMPTS } from './db';
 import authRoutes from './routes/authRoutes';
+import tenantRoutes from './routes/tenantRoutes';
 import { requireAuth, AuthRequest } from './middleware/auth';
 import { ipRestrictionMiddleware } from './middleware/ipWhitelist';
 
@@ -35,6 +36,7 @@ app.use('/api', (req, res, next) => {
   });
 });
 app.use('/api/saas', saasRoutes);
+app.use('/api/admin', tenantRoutes);
 app.use('/api', projectRoutes);
 
 
@@ -146,17 +148,14 @@ app.post('/api/gateway/mask', async (req: any, res: Response) => {
 // LLM Config endpoints
 app.get('/api/settings/llm-config', async (req: any, res: Response) => {
   try {
-    const tenantId = req.user?.tenant_id;
-    let result = tenantId
-      ? await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'llm_config'", [tenantId])
-      : { rows: [] };
-    if (result.rows.length === 0) {
-      result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
-    }
+    const tenantId = req.user?.tenant_id || 1;
+    const result = await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'llm_config'", [tenantId]);
     if (result.rows.length > 0) {
       res.json(result.rows[0].value);
     } else {
-      res.json({});
+      // Fallback to tenant 1 config
+      const fallback = await query("SELECT value FROM tenant_settings WHERE tenant_id = 1 AND key = 'llm_config'");
+      res.json(fallback.rows.length > 0 ? fallback.rows[0].value : {});
     }
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to fetch llm_config', details: err.message });
@@ -166,21 +165,13 @@ app.get('/api/settings/llm-config', async (req: any, res: Response) => {
 app.post('/api/settings/llm-config', async (req: any, res: Response) => {
   try {
     const llmConfig = req.body;
-    const tenantId = req.user?.tenant_id;
-    if (tenantId) {
-      await query(`
-        INSERT INTO tenant_settings (tenant_id, key, value)
-        VALUES ($1, 'llm_config', $2::jsonb)
-        ON CONFLICT (tenant_id, key) DO UPDATE
-        SET value = $2::jsonb;
-      `, [tenantId, JSON.stringify(llmConfig)]);
-    }
+    const tenantId = req.user?.tenant_id || 1;
     await query(`
-      INSERT INTO global_settings (key, value)
-      VALUES ('llm_config', $1::jsonb)
-      ON CONFLICT (key) DO UPDATE
-      SET value = $1::jsonb;
-    `, [JSON.stringify(llmConfig)]);
+      INSERT INTO tenant_settings (tenant_id, key, value)
+      VALUES ($1, 'llm_config', $2::jsonb)
+      ON CONFLICT (tenant_id, key) DO UPDATE
+      SET value = $2::jsonb;
+    `, [tenantId, JSON.stringify(llmConfig)]);
     res.json({ success: true, message: 'LLM Config saved.' });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to save llm_config', details: err.message });
@@ -190,7 +181,7 @@ app.post('/api/settings/llm-config', async (req: any, res: Response) => {
 // LLM Engine Status
 app.get('/api/llm/status', async (req: Request, res: Response) => {
   try {
-    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
+    const result = await query("SELECT value FROM tenant_settings WHERE tenant_id = 1 AND key = 'llm_config'");
     if (result.rows.length > 0 && result.rows[0].value) {
       const config = result.rows[0].value;
       const isCloud = config.provider !== 'local';
@@ -426,7 +417,7 @@ app.post('/api/agents/synthesize', async (req: any, res: Response) => {
       codeGraph = await scanRepositoryGraph(targetPath, projectId);
     }
 
-    // Check tenant_settings or global_settings for configured default prompts if any prompt was omitted
+    // Check tenant_settings for configured default prompts if any prompt was omitted
     let activeBrdPrompt = brdPrompt;
     let activeDesignPrompt = designPrompt;
     let activeTechDocPrompt = techDocPrompt;
@@ -437,13 +428,8 @@ app.post('/api/agents/synthesize', async (req: any, res: Response) => {
     let activeDeployPrompt = deployPrompt;
 
     try {
-      const tenantId = req.user?.tenant_id;
-      let settingsRes = tenantId
-        ? await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'default_prompts'", [tenantId])
-        : { rows: [] };
-      if (settingsRes.rows.length === 0) {
-        settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
-      }
+      const tenantId = req.user?.tenant_id || 1;
+      const settingsRes = await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'default_prompts'", [tenantId]);
       if (settingsRes.rows.length > 0) {
         const defaults = settingsRes.rows[0].value;
         if (!activeBrdPrompt) activeBrdPrompt = defaults.brdPrompt;

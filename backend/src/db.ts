@@ -277,38 +277,74 @@ export const initDB = async () => {
     const client = await pool.connect();
     console.log('[DB] Connected to PostgreSQL successfully.');
     
-    // Create Tenants Table
+    // Create Tenants Table (SaaS-ready with slug, status, plan)
     await client.query(`
       CREATE TABLE IF NOT EXISTS tenants (
         id SERIAL PRIMARY KEY,
         name VARCHAR(255) NOT NULL,
+        slug VARCHAR(100) UNIQUE,
+        status VARCHAR(20) DEFAULT 'active',
+        plan VARCHAR(50) DEFAULT 'free',
+        max_users INTEGER DEFAULT 10,
         deployment_mode VARCHAR(50) DEFAULT 'on_premise',
         git_provider VARCHAR(50),
         git_access_token TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Migrate existing tenants table with new columns
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS slug VARCHAR(100) UNIQUE;`).catch(() => {});
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`).catch(() => {});
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS plan VARCHAR(50) DEFAULT 'free';`).catch(() => {});
+    await client.query(`ALTER TABLE tenants ADD COLUMN IF NOT EXISTS max_users INTEGER DEFAULT 10;`).catch(() => {});
 
-    // Create Users Table
+    // Create Users Table (Enhanced with name, status, last_login)
     await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         id SERIAL PRIMARY KEY,
         email VARCHAR(255) UNIQUE NOT NULL,
+        name VARCHAR(255) DEFAULT '',
         password_hash VARCHAR(255) NOT NULL,
         is_system_admin BOOLEAN DEFAULT FALSE,
+        status VARCHAR(20) DEFAULT 'active',
+        last_login TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Migrate existing users table with new columns
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS name VARCHAR(255) DEFAULT '';`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`).catch(() => {});
+    await client.query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login TIMESTAMP;`).catch(() => {});
 
-    // Create Tenant Users (RBAC) Table
+    // Create Tenant Users (RBAC) Table (Enhanced with permissions JSONB)
     await client.query(`
       CREATE TABLE IF NOT EXISTS tenant_users (
         id SERIAL PRIMARY KEY,
         tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
         user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
         role VARCHAR(50) DEFAULT 'viewer',
+        permissions JSONB DEFAULT '{}',
+        status VARCHAR(20) DEFAULT 'active',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         UNIQUE(tenant_id, user_id)
+      );
+    `);
+    // Migrate existing tenant_users table with new columns
+    await client.query(`ALTER TABLE tenant_users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}';`).catch(() => {});
+    await client.query(`ALTER TABLE tenant_users ADD COLUMN IF NOT EXISTS status VARCHAR(20) DEFAULT 'active';`).catch(() => {});
+
+    // Create Audit Logs Table (tracks admin actions for compliance)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE SET NULL,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        action VARCHAR(100) NOT NULL,
+        entity_type VARCHAR(50),
+        entity_id INTEGER,
+        details JSONB DEFAULT '{}',
+        ip_address VARCHAR(50),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
 
@@ -325,9 +361,9 @@ export const initDB = async () => {
 
     // Ensure a default tenant exists for backwards compatibility
     await client.query(`
-      INSERT INTO tenants (id, name, deployment_mode)
-      VALUES (1, 'Default Enterprise Tenant', 'on_premise')
-      ON CONFLICT (id) DO NOTHING;
+      INSERT INTO tenants (id, name, slug, status, plan, deployment_mode)
+      VALUES (1, 'Chronos Admin', 'chronos-admin', 'active', 'enterprise', 'on_premise')
+      ON CONFLICT (id) DO UPDATE SET slug = COALESCE(tenants.slug, 'chronos-admin');
     `);
 
     // Create Projects Table (Added tenant_id)
@@ -388,10 +424,7 @@ export const initDB = async () => {
       );
     `);
 
-    // Create Global Settings Table (Now Tenant-Specific)
-    // To support existing schemas without breaking, we'll recreate or alter it
-    // But since it might have existing data with key as primary key, we should add tenant_id and make (tenant_id, key) the PK.
-    // However, altering a primary key in PG is tricky. Let's just create a new table \`tenant_settings\` instead to avoid conflicts.
+    // Create Tenant Settings Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS tenant_settings (
         tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
@@ -441,17 +474,15 @@ export const initDB = async () => {
     `, [JSON.stringify(defaultLlmConfig)]);
 
     // Seed default admin user for Tenant 1
-    // Password is 'admin' hashed with bcrypt (saltRounds=10)
-    const adminPasswordHash = '$2b$10$EP03R6v8rV9pI2E3P2LgMuXwHOn1jP3m3XbM68V6mE68V6mE68V6m'; // Note: I should use a real hash
     await client.query(`
-      INSERT INTO users (id, email, password_hash, is_system_admin)
-      VALUES (1, 'admin@zerotrust.com', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true)
-      ON CONFLICT (email) DO NOTHING;
+      INSERT INTO users (id, email, name, password_hash, is_system_admin, status)
+      VALUES (1, 'admin@chronos.dev', 'System Administrator', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true, 'active')
+      ON CONFLICT (email) DO UPDATE SET name = COALESCE(NULLIF(users.name, ''), 'System Administrator');
     `);
 
     await client.query(`
-      INSERT INTO tenant_users (tenant_id, user_id, role)
-      VALUES (1, 1, 'org_admin')
+      INSERT INTO tenant_users (tenant_id, user_id, role, permissions, status)
+      VALUES (1, 1, 'org_admin', '{"all": true}'::jsonb, 'active')
       ON CONFLICT (tenant_id, user_id) DO NOTHING;
     `);
 
@@ -460,6 +491,28 @@ export const initDB = async () => {
   } catch (err) {
     console.error('[DB] Failed to initialize database:', err);
   }
+};
+
+// Default permission sets for each role
+export const ROLE_PERMISSIONS: Record<string, Record<string, boolean>> = {
+  system_admin: {
+    manage_tenants: true, manage_all_users: true, view_all_tenants: true,
+    manage_projects: true, manage_features: true, manage_settings: true,
+    manage_users: true, view_projects: true, view_features: true,
+    generate_deliverables: true, manage_workflows: true, view_audit_logs: true,
+  },
+  org_admin: {
+    manage_users: true, manage_projects: true, manage_features: true,
+    manage_settings: true, view_projects: true, view_features: true,
+    generate_deliverables: true, manage_workflows: true, view_audit_logs: true,
+  },
+  editor: {
+    manage_projects: true, manage_features: true, view_projects: true,
+    view_features: true, generate_deliverables: true, manage_workflows: true,
+  },
+  viewer: {
+    view_projects: true, view_features: true,
+  },
 };
 
 export const query = (text: string, params?: any[]) => pool.query(text, params);

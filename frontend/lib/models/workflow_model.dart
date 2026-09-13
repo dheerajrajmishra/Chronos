@@ -10,6 +10,8 @@ enum SDLCStageType {
   stage7TestingResult,    // Testing and Result
   stage8Deploy,   // Deployment
   settings,       // Global Settings & Prompt Configuration
+  tenantAdmin,    // System Admin: Tenant Management
+  userManagement, // Org Admin: User & Permission Management
 }
 
 enum EntityCategory {

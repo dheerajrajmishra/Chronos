@@ -121,6 +121,44 @@ class EnterpriseSidebar extends StatelessWidget {
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
                           ),
+
+                          // ─── Administration Section (Role-Based) ───
+                          Builder(builder: (_) {
+                            final authCtrl = Get.find<AuthController>();
+                            final isSystemAdmin = authCtrl.isSystemAdmin;
+                            final isOrgAdmin = authCtrl.isOrgAdmin;
+                            if (!isSystemAdmin && !isOrgAdmin) return const SizedBox.shrink();
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (!effectiveCollapsed) ...[
+                                  const SizedBox(height: 12),
+                                  _sectionLabel('Administration', textMutedColor),
+                                ],
+                                if (isSystemAdmin)
+                                  _WorkspaceNavItem(
+                                    controller: controller,
+                                    stage: SDLCStageType.tenantAdmin,
+                                    title: 'Tenant Management',
+                                    icon: Icons.domain_rounded,
+                                    badge: 'ADMIN',
+                                    isCollapsed: effectiveCollapsed,
+                                    isDark: isDark,
+                                  ),
+                                if (isOrgAdmin)
+                                  _WorkspaceNavItem(
+                                    controller: controller,
+                                    stage: SDLCStageType.userManagement,
+                                    title: 'User Management',
+                                    icon: Icons.manage_accounts_rounded,
+                                    badge: 'USERS',
+                                    isCollapsed: effectiveCollapsed,
+                                    isDark: isDark,
+                                  ),
+                              ],
+                            );
+                          }),
+
                           _LogoutNavItem(
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
