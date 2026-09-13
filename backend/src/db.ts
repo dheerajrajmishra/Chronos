@@ -478,18 +478,19 @@ export const initDB = async () => {
     await client.query(`SELECT setval('tenants_id_seq', COALESCE((SELECT MAX(id) FROM tenants), 1), true);`).catch(() => {});
     await client.query(`SELECT setval('tenant_users_id_seq', COALESCE((SELECT MAX(id) FROM tenant_users), 1), true);`).catch(() => {});
 
-    // Seed/update default admin users safely
+    // Seed/update default admin users safely with password 'admin'
+    const adminPasswordHash = '$2b$10$LrXH/porXoxN0Jy5bbJpDeUWEI0Fa1ddfxkhdCVwgzlH.1qv6WOKa'; // 'admin'
     await client.query(`
       UPDATE users 
-      SET is_system_admin = true, status = 'active', name = COALESCE(NULLIF(name, ''), 'System Administrator')
+      SET is_system_admin = true, status = 'active', password_hash = $1, name = COALESCE(NULLIF(name, ''), 'System Administrator')
       WHERE id = 1;
-    `);
+    `, [adminPasswordHash]);
 
     await client.query(`
       INSERT INTO users (email, name, password_hash, is_system_admin, status)
-      VALUES ('admin@chronos.dev', 'Chronos Admin', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true, 'active')
-      ON CONFLICT (email) DO UPDATE SET is_system_admin = true, status = 'active';
-    `);
+      VALUES ('admin@chronos.dev', 'Chronos Admin', $1, true, 'active')
+      ON CONFLICT (email) DO UPDATE SET is_system_admin = true, status = 'active', password_hash = $1;
+    `, [adminPasswordHash]);
 
     // Re-sync users_id_seq after insert
     await client.query(`SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);`).catch(() => {});

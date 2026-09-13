@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'dart:math' as math;
 import '../../controllers/auth_controller.dart';
 import '../../controllers/enterprise_sdlc_controller.dart';
 import '../../theme/enterprise_theme.dart';
@@ -14,9 +13,9 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin {
   final AuthController authController = Get.find<AuthController>();
   final EnterpriseSDLCController themeController = Get.find<EnterpriseSDLCController>();
-  final TextEditingController orgController = TextEditingController();
-  final TextEditingController emailController = TextEditingController();
-  final TextEditingController passwordController = TextEditingController();
+  final TextEditingController orgController = TextEditingController(text: 'chronos-admin');
+  final TextEditingController emailController = TextEditingController(text: 'admin@chronos.dev');
+  final TextEditingController passwordController = TextEditingController(text: 'admin');
   final RxBool isLoading = false.obs;
   final RxBool showPassword = false.obs;
   final RxBool isHoveringSignIn = false.obs;
@@ -386,7 +385,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
               ],
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 20),
+
+            // ─── Chronos Admin Quick Login Banner ───────────────
+            _buildQuickAdminBanner(isDark),
 
             // ─── Organization Field ─────────────────────────────
             _buildFieldLabel(isDark, 'Organization'),
@@ -694,5 +696,89 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
       );
     }
+  }
+
+  Widget _buildQuickAdminBanner(bool isDark) {
+    final primaryAccent = EnterpriseTheme.getPrimaryAccent(isDark);
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: primaryAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryAccent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.vpn_key_rounded, size: 18, color: primaryAccent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Chronos Admin Credentials',
+                      style: GoogleFonts.inter(
+                        color: EnterpriseTheme.getTextPrimary(isDark),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                      decoration: BoxDecoration(
+                        color: EnterpriseTheme.emerald.withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        'PRE-FILLED',
+                        style: GoogleFonts.jetBrainsMono(
+                          color: EnterpriseTheme.emerald,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'admin@chronos.dev  •  Password: admin',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: EnterpriseTheme.getTextMuted(isDark),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Obx(
+            () => ElevatedButton.icon(
+              onPressed: isLoading.value ? null : _handleSignIn,
+              icon: const Icon(Icons.bolt_rounded, size: 15),
+              label: const Text('1-Click Login'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
