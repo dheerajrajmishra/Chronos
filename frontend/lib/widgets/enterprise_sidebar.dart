@@ -53,242 +53,247 @@ class EnterpriseSidebar extends StatelessWidget {
           color: surfaceColor,
           border: Border(right: BorderSide(color: borderColor, width: 1)),
         ),
-        child: ClipRect(
-          child: Column(
-            children: [
-              // ─── Brand Header ──────────────────────────────────
-              _buildBrandHeader(controller, isCollapsed, isDark, primaryAccent, textSecColor, borderColor),
-
-            // ─── Back to Workspaces (Moved up) ─────────────────
-            if (showPipelineStages)
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 6 : 10, vertical: 4),
-                child: _WorkspaceNavItem(
-                  controller: controller,
-                  stage: SDLCStageType.projectHub,
-                  title: 'Back to Workspaces',
-                  icon: Icons.arrow_back_rounded,
-                  badge: 'EXIT',
-                  isCollapsed: isCollapsed,
-                  isDark: isDark,
-                ),
-              ),
-
-            // ─── Active Project Switcher ───────────────────────
-            if (!isCollapsed && activePrj != null)
-              _buildProjectSwitcher(controller, activePrj, projects, isDark, inputBg, primaryAccent, textColor, textSecColor, textMutedColor),
-
-            // ─── Overall Pipeline Progress Indicator ──────────
-            if (!isCollapsed && activeFeature != null && showPipelineStages)
-              _buildProgressOverview(
-                isDark: isDark,
-                featureName: activeFeature.name,
-                completedCount: completedCount,
-                percent: progressPercent,
-                primaryAccent: primaryAccent,
-                borderColor: borderColor,
-              ),
-
-            // ─── Stage AI Prompts Trigger Card ────────────────
-            if (activeFeature != null && showPipelineStages)
-              _buildPromptsTriggerCard(context, activeFeature, isCollapsed, isDark, primaryAccent, borderColor),
-
-            // ─── Navigation & Stages Stepper ───────────────────
-            Expanded(
-              child: ListView(
-                padding: EdgeInsets.symmetric(vertical: 6, horizontal: isCollapsed ? 6 : 10),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final effectiveCollapsed = isCollapsed || constraints.maxWidth < 200;
+            return ClipRect(
+              child: Column(
                 children: [
-                  if (!showPipelineStages) ...[
-                    if (!isCollapsed) _sectionLabel('Workspaces', textMutedColor),
-                    _WorkspaceNavItem(
-                      controller: controller,
-                      stage: SDLCStageType.projectHub,
-                      title: 'Projects & Access',
-                      icon: Icons.grid_view_rounded,
-                      badge: 'HUB',
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                    ),
-                    _WorkspaceNavItem(
-                      controller: controller,
-                      stage: SDLCStageType.settings,
-                      title: 'Settings & Prompts',
-                      icon: Icons.tune_rounded,
-                      badge: 'CONFIG',
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                    ),
-                    _LogoutNavItem(
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                    ),
-                  ],
+                  // ─── Brand Header ──────────────────────────────────
+                  _buildBrandHeader(controller, effectiveCollapsed, isDark, primaryAccent, textSecColor, borderColor),
 
-                  if (showPipelineStages) ...[
-                    if (!isCollapsed) ...[
-                      const SizedBox(height: 12),
-                      Row(
-                        children: [
-                          _sectionLabel('SDLC Pipeline Stages', textMutedColor),
-                          const Spacer(),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: primaryAccent.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: Text(
-                              '$completedCount/9 READY',
-                              style: GoogleFonts.jetBrainsMono(
-                                color: primaryAccent,
-                                fontSize: 9,
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                        ],
+                  // ─── Back to Workspaces (Moved up) ─────────────────
+                  if (showPipelineStages)
+                    Padding(
+                      padding: EdgeInsets.symmetric(horizontal: effectiveCollapsed ? 6 : 10, vertical: 4),
+                      child: _WorkspaceNavItem(
+                        controller: controller,
+                        stage: SDLCStageType.projectHub,
+                        title: 'Back to Workspaces',
+                        icon: Icons.arrow_back_rounded,
+                        badge: 'EXIT',
+                        isCollapsed: effectiveCollapsed,
+                        isDark: isDark,
                       ),
-                      const SizedBox(height: 4),
-                    ],
-
-                    // Stage 0: Feature Setup
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage0'),
-                      controller: controller,
-                      stage: SDLCStageType.stage0Setup,
-                      stageIndex: 0,
-                      title: 'Feature Setup',
-                      icon: Icons.settings_applications_outlined,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null,
-                      isWfActive: activeFeature != null && currentWfStage == 0,
                     ),
 
-                    // Stage 1: BRD
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage1'),
-                      controller: controller,
-                      stage: SDLCStageType.stage1Brd,
-                      stageIndex: 1,
-                      title: 'BRD',
-                      icon: Icons.article_outlined,
-                      isCollapsed: isCollapsed,
+                  // ─── Active Project Switcher ───────────────────────
+                  if (!effectiveCollapsed && activePrj != null)
+                    _buildProjectSwitcher(controller, activePrj, projects, isDark, inputBg, primaryAccent, textColor, textSecColor, textMutedColor),
+
+                  // ─── Overall Pipeline Progress Indicator ──────────
+                  if (!effectiveCollapsed && activeFeature != null && showPipelineStages)
+                    _buildProgressOverview(
                       isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 1,
-                      isWfActive: activeFeature != null && currentWfStage == 1,
+                      featureName: activeFeature.name,
+                      completedCount: completedCount,
+                      percent: progressPercent,
+                      primaryAccent: primaryAccent,
+                      borderColor: borderColor,
                     ),
 
-                    // Stage 2: Design Document
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage2'),
-                      controller: controller,
-                      stage: SDLCStageType.stage2Design,
-                      stageIndex: 2,
-                      title: 'Design Document',
-                      icon: Icons.architecture_outlined,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 2,
-                      isWfActive: activeFeature != null && currentWfStage == 2,
-                    ),
+                  // ─── Stage AI Prompts Trigger Card ────────────────
+                  if (activeFeature != null && showPipelineStages)
+                    _buildPromptsTriggerCard(context, activeFeature, effectiveCollapsed, isDark, primaryAccent, borderColor),
 
-                    // Stage 3: Technical Document
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage3'),
-                      controller: controller,
-                      stage: SDLCStageType.stage3TechDoc,
-                      stageIndex: 3,
-                      title: 'Technical Document',
-                      icon: Icons.terminal_rounded,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 3,
-                      isWfActive: activeFeature != null && currentWfStage == 3,
-                    ),
+                  // ─── Navigation & Stages Stepper ───────────────────
+                  Expanded(
+                    child: ListView(
+                      padding: EdgeInsets.symmetric(vertical: 6, horizontal: effectiveCollapsed ? 6 : 10),
+                      children: [
+                        if (!showPipelineStages) ...[
+                          if (!effectiveCollapsed) _sectionLabel('Workspaces', textMutedColor),
+                          _WorkspaceNavItem(
+                            controller: controller,
+                            stage: SDLCStageType.projectHub,
+                            title: 'Projects & Access',
+                            icon: Icons.grid_view_rounded,
+                            badge: 'HUB',
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                          ),
+                          _WorkspaceNavItem(
+                            controller: controller,
+                            stage: SDLCStageType.settings,
+                            title: 'Settings & Prompts',
+                            icon: Icons.tune_rounded,
+                            badge: 'CONFIG',
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                          ),
+                          _LogoutNavItem(
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                          ),
+                        ],
 
-                    // Stage 4: Code
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage4'),
-                      controller: controller,
-                      stage: SDLCStageType.stage4Code,
-                      stageIndex: 4,
-                      title: 'Code',
-                      icon: Icons.code_rounded,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 4,
-                      isWfActive: activeFeature != null && currentWfStage == 4,
-                    ),
+                        if (showPipelineStages) ...[
+                          if (!effectiveCollapsed) ...[
+                            const SizedBox(height: 12),
+                            Row(
+                              children: [
+                                _sectionLabel('SDLC Pipeline Stages', textMutedColor),
+                                const Spacer(),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: primaryAccent.withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(4),
+                                  ),
+                                  child: Text(
+                                    '$completedCount/9 READY',
+                                    style: GoogleFonts.jetBrainsMono(
+                                      color: primaryAccent,
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                              ],
+                            ),
+                            const SizedBox(height: 4),
+                          ],
 
-                    // Stage 5: Test Case Creation
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage5'),
-                      controller: controller,
-                      stage: SDLCStageType.stage5TestCaseCreation,
-                      stageIndex: 5,
-                      title: 'Test Cases',
-                      icon: Icons.checklist_rounded,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 5,
-                      isWfActive: activeFeature != null && currentWfStage == 5,
-                    ),
+                          // Stage 0: Feature Setup
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage0'),
+                            controller: controller,
+                            stage: SDLCStageType.stage0Setup,
+                            stageIndex: 0,
+                            title: 'Feature Setup',
+                            icon: Icons.settings_applications_outlined,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null,
+                            isWfActive: activeFeature != null && currentWfStage == 0,
+                          ),
 
-                    // Stage 6: Test Automation Script
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage6'),
-                      controller: controller,
-                      stage: SDLCStageType.stage6TestAutomation,
-                      stageIndex: 6,
-                      title: 'Automation Script',
-                      icon: Icons.integration_instructions_rounded,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 6,
-                      isWfActive: activeFeature != null && currentWfStage == 6,
-                    ),
+                          // Stage 1: BRD
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage1'),
+                            controller: controller,
+                            stage: SDLCStageType.stage1Brd,
+                            stageIndex: 1,
+                            title: 'BRD',
+                            icon: Icons.article_outlined,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 1,
+                            isWfActive: activeFeature != null && currentWfStage == 1,
+                          ),
 
-                    // Stage 7: Testing & Result
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage7'),
-                      controller: controller,
-                      stage: SDLCStageType.stage7TestingResult,
-                      stageIndex: 7,
-                      title: 'Testing & Result',
-                      icon: Icons.fact_check_outlined,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: activeFeature != null && currentWfStage > 7,
-                      isWfActive: activeFeature != null && currentWfStage == 7,
-                    ),
+                          // Stage 2: Design Document
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage2'),
+                            controller: controller,
+                            stage: SDLCStageType.stage2Design,
+                            stageIndex: 2,
+                            title: 'Design Document',
+                            icon: Icons.architecture_outlined,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 2,
+                            isWfActive: activeFeature != null && currentWfStage == 2,
+                          ),
 
-                    // Stage 8: Deployment
-                    _PipelineStageNavItem(
-                      key: const ValueKey('stage8'),
-                      controller: controller,
-                      stage: SDLCStageType.stage8Deploy,
-                      stageIndex: 8,
-                      title: 'Deployment',
-                      icon: Icons.rocket_launch_rounded,
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                      isDone: isCompleted,
-                      isWfActive: activeFeature != null && currentWfStage == 8 && !isCompleted,
+                          // Stage 3: Technical Document
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage3'),
+                            controller: controller,
+                            stage: SDLCStageType.stage3TechDoc,
+                            stageIndex: 3,
+                            title: 'Technical Document',
+                            icon: Icons.terminal_rounded,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 3,
+                            isWfActive: activeFeature != null && currentWfStage == 3,
+                          ),
+
+                          // Stage 4: Code
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage4'),
+                            controller: controller,
+                            stage: SDLCStageType.stage4Code,
+                            stageIndex: 4,
+                            title: 'Code',
+                            icon: Icons.code_rounded,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 4,
+                            isWfActive: activeFeature != null && currentWfStage == 4,
+                          ),
+
+                          // Stage 5: Test Case Creation
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage5'),
+                            controller: controller,
+                            stage: SDLCStageType.stage5TestCaseCreation,
+                            stageIndex: 5,
+                            title: 'Test Cases',
+                            icon: Icons.checklist_rounded,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 5,
+                            isWfActive: activeFeature != null && currentWfStage == 5,
+                          ),
+
+                          // Stage 6: Test Automation Script
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage6'),
+                            controller: controller,
+                            stage: SDLCStageType.stage6TestAutomation,
+                            stageIndex: 6,
+                            title: 'Automation Script',
+                            icon: Icons.integration_instructions_rounded,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 6,
+                            isWfActive: activeFeature != null && currentWfStage == 6,
+                          ),
+
+                          // Stage 7: Testing & Result
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage7'),
+                            controller: controller,
+                            stage: SDLCStageType.stage7TestingResult,
+                            stageIndex: 7,
+                            title: 'Testing & Result',
+                            icon: Icons.fact_check_outlined,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: activeFeature != null && currentWfStage > 7,
+                            isWfActive: activeFeature != null && currentWfStage == 7,
+                          ),
+
+                          // Stage 8: Deployment
+                          _PipelineStageNavItem(
+                            key: const ValueKey('stage8'),
+                            controller: controller,
+                            stage: SDLCStageType.stage8Deploy,
+                            stageIndex: 8,
+                            title: 'Deployment',
+                            icon: Icons.rocket_launch_rounded,
+                            isCollapsed: effectiveCollapsed,
+                            isDark: isDark,
+                            isDone: isCompleted,
+                            isWfActive: activeFeature != null && currentWfStage == 8 && !isCompleted,
+                          ),
+                        ],
+                      ],
                     ),
-                  ],
+                  ),
+
+                  // ─── User / Security Footer ───────────────────────
+                  _buildFooter(controller, effectiveCollapsed, isDark, borderColor, primaryAccent, textColor, textSecColor, textMutedColor, inputBg),
                 ],
               ),
-            ),
-
-            // ─── User / Security Footer ───────────────────────
-            _buildFooter(controller, isCollapsed, isDark, borderColor, primaryAccent, textColor, textSecColor, textMutedColor, inputBg),
-          ],
+            );
+          },
         ),
-      ),
-    );
-  });
+      );
+    });
   }
 
   // ─── Stage AI Prompts Trigger Button / Card ─────────────────────────
@@ -533,57 +538,64 @@ class EnterpriseSidebar extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: BoxDecoration(
-              gradient: EnterpriseTheme.brandGradient,
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: const Center(
-              child: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                ShaderMask(
-                  shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
-                  child: Text(
-                    'Chronos',
-                    style: GoogleFonts.inter(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 17,
-                      letterSpacing: -0.3,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        child: SizedBox(
+          width: 248,
+          child: Row(
+            children: [
+              Container(
+                width: 34,
+                height: 34,
+                decoration: BoxDecoration(
+                  gradient: EnterpriseTheme.brandGradient,
+                  borderRadius: BorderRadius.circular(9),
+                ),
+                child: const Center(
+                  child: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    ShaderMask(
+                      shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
+                      child: Text(
+                        'Chronos',
+                        style: GoogleFonts.inter(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 17,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
                     ),
-                  ),
+                    Text(
+                      'Zero-Trust SDLC',
+                      style: GoogleFonts.inter(
+                        color: textSecColor.withValues(alpha: 0.7),
+                        fontWeight: FontWeight.w500,
+                        fontSize: 10,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ],
                 ),
-                Text(
-                  'Zero-Trust SDLC',
-                  style: GoogleFonts.inter(
-                    color: textSecColor.withValues(alpha: 0.7),
-                    fontWeight: FontWeight.w500,
-                    fontSize: 10,
-                    letterSpacing: 0.3,
-                  ),
-                ),
-              ],
-            ),
+              ),
+              _hoverIcon(
+                icon: Icons.chevron_left_rounded,
+                color: textSecColor,
+                onTap: () => controller.isSidebarCollapsed.toggle(),
+                isDark: isDark,
+                size: 18,
+              ),
+            ],
           ),
-          _hoverIcon(
-            icon: Icons.chevron_left_rounded,
-            color: textSecColor,
-            onTap: () => controller.isSidebarCollapsed.toggle(),
-            isDark: isDark,
-            size: 18,
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -728,72 +740,79 @@ class EnterpriseSidebar extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isCollapsed) ...[
-            Row(
-              children: [
-                Container(
-                  width: 30,
-                  height: 30,
-                  decoration: BoxDecoration(
-                    gradient: EnterpriseTheme.primaryGradient,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Center(
-                    child: Text(
-                      controller.userRole.value.substring(0, 1),
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w700,
-                        fontSize: 13,
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              physics: const NeverScrollableScrollPhysics(),
+              child: SizedBox(
+                width: 250,
+                child: Row(
+                  children: [
+                    Container(
+                      width: 30,
+                      height: 30,
+                      decoration: BoxDecoration(
+                        gradient: EnterpriseTheme.primaryGradient,
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Center(
+                        child: Text(
+                          controller.userRole.value.substring(0, 1),
+                          style: GoogleFonts.inter(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                          ),
+                        ),
                       ),
                     ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        controller.userRole.value.split(' ').take(2).join(' '),
-                        style: GoogleFonts.inter(
-                          color: textColor,
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Row(
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Container(
-                            width: 6,
-                            height: 6,
-                            decoration: const BoxDecoration(
-                              color: EnterpriseTheme.emerald,
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 4),
                           Text(
-                            'Online',
+                            controller.userRole.value.split(' ').take(2).join(' '),
                             style: GoogleFonts.inter(
-                              color: EnterpriseTheme.emerald,
-                              fontSize: 10,
-                              fontWeight: FontWeight.w500,
+                              color: textColor,
+                              fontSize: 11,
+                              fontWeight: FontWeight.w600,
                             ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Row(
+                            children: [
+                              Container(
+                                width: 6,
+                                height: 6,
+                                decoration: const BoxDecoration(
+                                  color: EnterpriseTheme.emerald,
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 4),
+                              Text(
+                                'Online',
+                                style: GoogleFonts.inter(
+                                  color: EnterpriseTheme.emerald,
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
+                    ),
+                    _hoverIcon(
+                      icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
+                      color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
+                      onTap: controller.toggleTheme,
+                      isDark: isDark,
+                      size: 16,
+                    ),
+                  ],
                 ),
-                _hoverIcon(
-                  icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
-                  color: isDark ? const Color(0xFFFBBF24) : const Color(0xFF6366F1),
-                  onTap: controller.toggleTheme,
-                  isDark: isDark,
-                  size: 16,
-                ),
-              ],
+              ),
             ),
           ] else ...[
             Center(
@@ -903,54 +922,61 @@ class _WorkspaceNavItemState extends State<_WorkspaceNavItem> {
                         ),
                       ),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        AnimatedContainer(
-                          duration: const Duration(milliseconds: 200),
-                          width: 3.5,
-                          height: isSelected ? 18 : 0,
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: isSelected ? primaryAccent : Colors.transparent,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                        Icon(
-                          widget.icon,
-                          color: isSelected ? primaryAccent : (_isHovered ? textColor : textSecColor),
-                          size: 18,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            style: GoogleFonts.inter(
-                              color: isSelected ? textColor : (_isHovered ? textColor : textSecColor),
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: 240,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              width: 3.5,
+                              height: isSelected ? 18 : 0,
+                              margin: const EdgeInsets.only(right: 8),
+                              decoration: BoxDecoration(
+                                color: isSelected ? primaryAccent : Colors.transparent,
+                                borderRadius: BorderRadius.circular(2),
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? primaryAccent.withValues(alpha: 0.2)
-                                : EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5),
-                            borderRadius: BorderRadius.circular(5),
-                          ),
-                          child: Text(
-                            widget.badge,
-                            style: GoogleFonts.jetBrainsMono(
-                              color: isSelected ? primaryAccent : EnterpriseTheme.getTextMuted(isDark),
-                              fontSize: 9,
-                              fontWeight: FontWeight.w700,
+                            Icon(
+                              widget.icon,
+                              color: isSelected ? primaryAccent : (_isHovered ? textColor : textSecColor),
+                              size: 18,
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: GoogleFonts.inter(
+                                  color: isSelected ? textColor : (_isHovered ? textColor : textSecColor),
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? primaryAccent.withValues(alpha: 0.2)
+                                    : EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5),
+                                borderRadius: BorderRadius.circular(5),
+                              ),
+                              child: Text(
+                                widget.badge,
+                                style: GoogleFonts.jetBrainsMono(
+                                  color: isSelected ? primaryAccent : EnterpriseTheme.getTextMuted(isDark),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
                     ),
             ),
           ),
@@ -1060,36 +1086,43 @@ class _PipelineStageNavItemState extends State<_PipelineStageNavItem> {
                         ),
                       ),
                     )
-                  : Row(
-                      mainAxisAlignment: MainAxisAlignment.start,
-                      children: [
-                        _buildStepperIndicator(isSelected, isDark, primaryAccent),
-                        const SizedBox(width: 8),
-                        Icon(
-                          widget.icon,
-                          color: isSelected
-                              ? primaryAccent
-                              : (widget.isDone
-                                  ? EnterpriseTheme.emerald
-                                  : (_isHovered ? textColor : textSecColor)),
-                          size: 17,
-                        ),
-                        const SizedBox(width: 9),
-                        Expanded(
-                          child: Text(
-                            widget.title,
-                            style: GoogleFonts.inter(
+                  : SingleChildScrollView(
+                      scrollDirection: Axis.horizontal,
+                      physics: const NeverScrollableScrollPhysics(),
+                      child: SizedBox(
+                        width: 240,
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
+                          children: [
+                            _buildStepperIndicator(isSelected, isDark, primaryAccent),
+                            const SizedBox(width: 8),
+                            Icon(
+                              widget.icon,
                               color: isSelected
-                                  ? textColor
-                                  : (_isHovered ? textColor : textSecColor),
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                  ? primaryAccent
+                                  : (widget.isDone
+                                      ? EnterpriseTheme.emerald
+                                      : (_isHovered ? textColor : textSecColor)),
+                              size: 17,
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                            const SizedBox(width: 9),
+                            Expanded(
+                              child: Text(
+                                widget.title,
+                                style: GoogleFonts.inter(
+                                  color: isSelected
+                                      ? textColor
+                                      : (_isHovered ? textColor : textSecColor),
+                                  fontSize: 12,
+                                  fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            _buildStatusPill(isSelected, isDark, primaryAccent, textMutedColor),
+                          ],
                         ),
-                        _buildStatusPill(isSelected, isDark, primaryAccent, textMutedColor),
-                      ],
+                      ),
                     ),
             ),
           ),
