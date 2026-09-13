@@ -102,6 +102,13 @@ class ApiService {
     throw Exception('Failed to update feature');
   }
 
+  static Future<void> deleteFeature(int featureId) async {
+    final response = await http.delete(Uri.parse('$baseUrl/features/$featureId'));
+    if (response.statusCode != 200) {
+      throw Exception('Failed to delete feature');
+    }
+  }
+
   static Future<Feature> updateFeaturePrompts(
     int featureId, {
     String? brdPrompt,

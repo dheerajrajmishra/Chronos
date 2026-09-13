@@ -459,6 +459,19 @@ app.put('/api/features/:id', async (req: Request, res: Response) => {
   }
 });
 
+// Delete feature
+app.delete('/api/features/:id', async (req: Request, res: Response) => {
+  try {
+    const featureId = req.params.id;
+    // Delete associated workflows first to avoid foreign key constraints
+    await query('DELETE FROM workflows WHERE feature_id = $1', [featureId]);
+    await query('DELETE FROM features WHERE id = $1', [featureId]);
+    res.json({ success: true, message: 'Feature deleted successfully' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Database error', details: err.message });
+  }
+});
+
 // Update feature prompts for all stages
 app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
   try {

@@ -47,7 +47,14 @@ class _Stage1BrdState extends State<Stage1Brd> {
       // AI instruction is by default blank! If the user previously saved custom instructions, preserve them.
       _promptCtrl.text = (feature.brdPrompt.isNotEmpty && !feature.brdPrompt.contains('Focus strictly on the FUNCTIONAL requirements'))
           ? feature.brdPrompt
-          : '';
+          : 'Generate a comprehensive, industry-standard Business Requirements Document (BRD).\n'
+            'Ensure the document includes:\n'
+            '1. Executive Summary and Project Goals\n'
+            '2. In-Scope and Out-of-Scope Definitions\n'
+            '3. Detailed Functional Requirements (User Stories & Acceptance Criteria)\n'
+            '4. Non-Functional Requirements (Performance, Security, Scalability, Compliance)\n'
+            '5. External Dependencies and Assumptions\n'
+            'Use standard Markdown headers and lists for maximum readability.';
     }
   }
 
@@ -782,6 +789,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(

@@ -122,6 +122,9 @@ class _Stage8DeployState extends State<Stage8Deploy> {
                 ],
               ),
             ),
+          if (controller.isProcessing.value)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
             // Content Area
             Expanded(

@@ -57,6 +57,21 @@ class EnterpriseSidebar extends StatelessWidget {
             // ─── Brand Header ──────────────────────────────────
             _buildBrandHeader(controller, isCollapsed, isDark, primaryAccent, textSecColor, borderColor),
 
+            // ─── Back to Workspaces (Moved up) ─────────────────
+            if (showPipelineStages)
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 6 : 10, vertical: 4),
+                child: _WorkspaceNavItem(
+                  controller: controller,
+                  stage: SDLCStageType.projectHub,
+                  title: 'Back to Workspaces',
+                  icon: Icons.arrow_back_rounded,
+                  badge: 'EXIT',
+                  isCollapsed: isCollapsed,
+                  isDark: isDark,
+                ),
+              ),
+
             // ─── Active Project Switcher ───────────────────────
             if (!isCollapsed && activePrj != null)
               _buildProjectSwitcher(controller, activePrj, projects, isDark, inputBg, primaryAccent, textColor, textSecColor, textMutedColor),
@@ -104,16 +119,6 @@ class EnterpriseSidebar extends StatelessWidget {
                   ],
 
                   if (showPipelineStages) ...[
-                    if (!isCollapsed) _sectionLabel('Exit Feature', textMutedColor),
-                    _WorkspaceNavItem(
-                      controller: controller,
-                      stage: SDLCStageType.projectHub,
-                      title: 'Back to Workspaces',
-                      icon: Icons.arrow_back_rounded,
-                      badge: 'EXIT',
-                      isCollapsed: isCollapsed,
-                      isDark: isDark,
-                    ),
                     if (!isCollapsed) ...[
                       const SizedBox(height: 12),
                       Row(

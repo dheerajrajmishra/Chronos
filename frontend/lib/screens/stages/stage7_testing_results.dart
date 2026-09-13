@@ -541,6 +541,9 @@ class _Stage7TestingResultsState extends State<Stage7TestingResults> {
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(

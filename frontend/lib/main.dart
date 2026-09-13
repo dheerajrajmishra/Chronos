@@ -19,7 +19,7 @@ class ZeroTrustApp extends StatelessWidget {
 
     return Obx(() {
       return GetMaterialApp(
-        title: 'Zero-Trust AI SDLC Enterprise Portal',
+        title: 'Chronos',
         debugShowCheckedModeBanner: false,
         theme: EnterpriseTheme.lightTheme,
         darkTheme: EnterpriseTheme.darkTheme,

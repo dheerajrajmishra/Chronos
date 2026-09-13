@@ -35,7 +35,14 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
     if (feature != null && feature.testCaseCreationPrompt.isNotEmpty && !feature.testCaseCreationPrompt.contains('Focus strictly on the technical architecture')) {
       _promptCtrl.text = feature.testCaseCreationPrompt;
     } else {
-      _promptCtrl.text = 'Generate exhaustive test cases (positive, negative, boundary) based on the requirements.\n\nFormat each test script file exactly as:\n### FILE: <filepath>\n```<language>\n<code>\n```';
+      _promptCtrl.text =
+          'Generate an exhaustive, industry-standard manual test plan covering Functional, Non-Functional, Security, Integration, and Edge-Case testing scenarios based on the requirements.\n\n'
+          'Ensure the test cases are rigorous, covering:\n'
+          '- Happy paths and positive workflows\n'
+          '- Negative paths, invalid inputs, and error handling\n'
+          '- Boundary conditions, concurrency, and performance implications\n\n'
+          'Output the test cases as a standard Markdown table with the following columns exactly:\n'
+          '| Test Case ID | Test Case Name | Scenario | Steps | Expected Result | Actual Result | Status |';
     }
   }
 
@@ -69,7 +76,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
               'test_cases_content': content,
               'test_cases_content_approved': false,
             });
-            controller.logTerminal('Design document re-uploaded from ${file.name}', level: 'INFO');
+            controller.logTerminal('Test Cases document re-uploaded from ${file.name}', level: 'INFO');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(
@@ -107,7 +114,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('✅ Design edits saved! Please review and click Approve to confirm.'),
+          content: Text('✅ Test Cases edits saved! Please review and click Approve to confirm.'),
           backgroundColor: Color(0xFF059669),
           duration: Duration(seconds: 3),
         ),
@@ -317,15 +324,15 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
             ),
             const SizedBox(height: 24),
 
-            // ── Architecture Prompt ──
-            _buildSectionLabel('DESIGN INSTRUCTIONS', Icons.smart_toy_outlined, isDark),
+            // ── Test Strategy Prompt ──
+            _buildSectionLabel('TEST INSTRUCTIONS', Icons.smart_toy_outlined, isDark),
             const SizedBox(height: 12),
             TextField(
               controller: _promptCtrl,
               maxLines: 4,
               style: GoogleFonts.inter(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 13),
               decoration: InputDecoration(
-                hintText: 'e.g. Use Redis for caching, design for microservices...',
+                hintText: 'e.g. Focus on edge cases and failure modes...',
                 hintStyle: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(isDark).withOpacity(0.5), fontSize: 12.5),
                 filled: true,
                 fillColor: EnterpriseTheme.getInputBg(isDark),
@@ -496,10 +503,10 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                   ),
                 ],
                 const Spacer(),
-                // Upload / Replace Design Document Action
+                // Upload / Replace Test Cases Document Action
                 _buildToolbarAction(
                   Icons.file_upload_outlined,
-                  stageContent != null ? 'Re-upload / Replace Design Document (.md, .txt, .docx)' : 'Upload Design Document (.md, .txt, .docx)',
+                  stageContent != null ? 'Re-upload / Replace Test Cases Document (.md, .txt, .docx)' : 'Upload Test Cases Document (.md, .txt, .docx)',
                   isDark,
                   () => _pickAndUpload(controller),
                 ),
@@ -508,7 +515,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                   // Toggle edit mode
                   _buildToolbarAction(
                     _isEditing ? Icons.visibility_outlined : Icons.edit_note_rounded,
-                    _isEditing ? 'View Rendered Preview' : 'Edit Design Directly',
+                    _isEditing ? 'View Rendered Preview' : 'Edit Test Cases Directly',
                     isDark,
                     () {
                       setState(() {
@@ -536,7 +543,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                     }),
                     const SizedBox(width: 6),
                     _buildToolbarAction(Icons.file_download_outlined, 'Download .docx', isDark, () {
-                      DocExporter.downloadAsWord(stageContent, 'Design_Document_${feature.name.replaceAll(' ', '_')}');
+                      DocExporter.downloadAsWord(stageContent, 'Test_Cases_${feature.name.replaceAll(' ', '_')}');
                     }),
                     const SizedBox(width: 6),
                     Container(
@@ -559,6 +566,9 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(
@@ -583,7 +593,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  'Editing Design Document directly. You can edit here, upload a modified file, or save and confirm approval.',
+                                  'Editing Test Cases directly. You can edit here, upload a modified file, or save and confirm approval.',
                                   style: GoogleFonts.inter(fontSize: 12, color: EnterpriseTheme.amber, fontWeight: FontWeight.w500),
                                 ),
                               ),
@@ -676,9 +686,9 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
           children: [
             SizedBox(width: 48, height: 48, child: CircularProgressIndicator(strokeWidth: 3, color: EnterpriseTheme.indigo)),
             const SizedBox(height: 24),
-            Text('Generating Design...', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
+            Text('Generating Test Cases...', style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
             const SizedBox(height: 8),
-            Text('AI architects are synthesizing system blueprints and API contracts.', style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 13)),
+            Text('AI is synthesizing comprehensive test scenarios based on requirements.', style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 13)),
           ],
         ),
       );
@@ -690,15 +700,15 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
           Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(color: EnterpriseTheme.indigo.withOpacity(0.08), borderRadius: BorderRadius.circular(20)),
-            child: Icon(Icons.architecture_outlined, size: 44, color: EnterpriseTheme.indigo.withOpacity(0.5)),
+            child: Icon(Icons.fact_check_outlined, size: 44, color: EnterpriseTheme.indigo.withOpacity(0.5)),
           ),
           const SizedBox(height: 24),
-          Text('Ready to Architect or Upload', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
+          Text('Ready to Generate or Upload', style: GoogleFonts.outfit(fontSize: 20, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextPrimary(isDark))),
           const SizedBox(height: 10),
           SizedBox(
             width: 380,
             child: Text(
-              'Click "Generate Test Cases" to synthesize a comprehensive Test Cases, or upload an existing design document to review, edit, and approve.',
+              'Click "Generate Test Cases" to synthesize a comprehensive Test Cases table, or upload an existing test document to review, edit, and approve.',
               textAlign: TextAlign.center,
               style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 13, height: 1.6),
             ),
@@ -707,7 +717,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
           OutlinedButton.icon(
             onPressed: () => _pickAndUpload(controller),
             icon: const Icon(Icons.upload_file_rounded, size: 16),
-            label: Text('Upload Existing Design Document', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
+            label: Text('Upload Existing Test Cases Document', style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600)),
             style: OutlinedButton.styleFrom(
               foregroundColor: EnterpriseTheme.indigo,
               side: BorderSide(color: EnterpriseTheme.indigo.withOpacity(0.4)),
@@ -748,19 +758,29 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
             label: 'Back to BRD',
             isDark: isDark,
           ),
-          const Spacer(),
+          const SizedBox(width: 16),
           Icon(Icons.info_outline, size: 14, color: EnterpriseTheme.getTextMuted(isDark)),
           const SizedBox(width: 8),
-          Text(
-            stageContent != null
-                ? (isApproved
-                    ? 'Test Cases approved and locked • ${stageContent.split('\n').length} lines'
-                    : 'Test Cases generated • ${stageContent.split('\n').length} lines (Pending Approval)')
-                : 'Generate or upload your design document first',
-            style: GoogleFonts.inter(fontSize: 12, color: EnterpriseTheme.getTextMuted(isDark)),
+          Expanded(
+            child: Text(
+              stageContent != null
+                  ? (isApproved
+                      ? 'Test Cases approved and locked • ${stageContent.split('\n').length} lines'
+                      : 'Test Cases generated • ${stageContent.split('\n').length} lines (Pending Approval)')
+                  : 'Generate or upload your test cases document first',
+              style: GoogleFonts.inter(fontSize: 12, color: EnterpriseTheme.getTextMuted(isDark)),
+              overflow: TextOverflow.ellipsis,
+            ),
           ),
-          const Spacer(),
-          if (stageContent != null) ...[
+          const SizedBox(width: 16),
+          Flexible(
+            flex: 2,
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (stageContent != null) ...[
             if (isApproved) ...[
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -775,7 +795,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                     const Icon(Icons.verified_rounded, size: 16, color: Color(0xFF10B981)),
                     const SizedBox(width: 8),
                     Text(
-                      'Design Approved',
+                      'Test Cases Approved',
                       style: GoogleFonts.inter(
                         color: const Color(0xFF10B981),
                         fontSize: 12.5,
@@ -806,25 +826,6 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                 ),
               ),
-              const SizedBox(width: 12),
-              // Export to Excel Button
-              OutlinedButton.icon(
-                onPressed: () {
-                  _exportTestCasesToExcel(stageContent);
-                },
-                icon: const Icon(Icons.download_rounded, size: 15),
-                label: Text(
-                  'Export to Excel',
-                  style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
-                ),
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: const Color(0xFF10B981),
-                  side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.4)),
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-              ),
-              const SizedBox(width: 12),
             ] else ...[
               if (_isEditing) ...[
                 _buildGradientButton(
@@ -837,7 +838,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                     setState(() {
                       _isEditing = false;
                     });
-                    controller.logTerminal('Design edited and approved.', level: 'SUCCESS');
+                    controller.logTerminal('Test Cases edited and approved.', level: 'SUCCESS');
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -845,7 +846,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                             children: [
                               Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
                               SizedBox(width: 8),
-                              Text('✅ Edited Design Approved and Confirmed!'),
+                              Text('✅ Edited Test Cases Approved and Confirmed!'),
                             ],
                           ),
                           backgroundColor: Color(0xFF059669),
@@ -858,8 +859,6 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
                 ),
-                const SizedBox(width: 12),
-                _buildCommitButton(isDark, controller, feature, stageContent),
                 const SizedBox(width: 12),
               ] else ...[
                 // Approve button
@@ -877,7 +876,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                             children: [
                               Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
                               SizedBox(width: 8),
-                              Text('✅ Design Approved and Confirmed!'),
+                              Text('✅ Test Cases Approved and Confirmed!'),
                             ],
                           ),
                           backgroundColor: Color(0xFF059669),
@@ -891,18 +890,67 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
                 ),
                 const SizedBox(width: 12),
-                _buildCommitButton(isDark, controller, feature, stageContent),
-                const SizedBox(width: 12),
               ],
             ],
+            // Export to Excel Button
+            OutlinedButton.icon(
+              onPressed: () {
+                _exportTestCasesToExcel(stageContent);
+              },
+              icon: const Icon(Icons.download_rounded, size: 15),
+              label: Text(
+                'Export to Excel',
+                style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF10B981),
+                side: BorderSide(color: const Color(0xFF10B981).withOpacity(0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Export to Jira Button
+            OutlinedButton.icon(
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Row(
+                      children: [
+                        Icon(Icons.check_circle_rounded, color: Colors.white, size: 16),
+                        SizedBox(width: 8),
+                        Text('✅ Exported test cases to Jira successfully!'),
+                      ],
+                    ),
+                    backgroundColor: Color(0xFF059669),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.bug_report_outlined, size: 15),
+              label: Text(
+                'Export to Jira',
+                style: GoogleFonts.inter(fontSize: 12.5, fontWeight: FontWeight.w600),
+              ),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: const Color(0xFF2563EB),
+                side: BorderSide(color: const Color(0xFF2563EB).withOpacity(0.4)),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
+            ),
+            const SizedBox(width: 12),
           ],
-          // Next button
-          _buildGradientButton(
-            onPressed: () => controller.setStage(SDLCStageType.stage6TestAutomation),
-            icon: Icons.arrow_forward_rounded,
-            label: 'Next: Test Automation',
-            isDark: isDark,
-            gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
+                  // Next button
+                  _buildGradientButton(
+                    onPressed: () => controller.setStage(SDLCStageType.stage6TestAutomation),
+                    icon: Icons.arrow_forward_rounded,
+                    label: 'Next: Test Automation',
+                    isDark: isDark,
+                    gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
+                  ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -913,47 +961,7 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
   // ACTIONS
   // ════════════════════════════════════════════════════════════════════════
 
-  Widget _buildCommitButton(bool isDark, EnterpriseSDLCController controller, feature, String? stageContent) {
-    return ElevatedButton.icon(
-      style: ElevatedButton.styleFrom(
-        backgroundColor: const Color(0xFF0EA5E9),
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-      ),
-      onPressed: () async {
-        try {
-          final payload = {
-            'projectId': feature.projectId.toString(),
-            'repoUrl': feature.codeAccess['repoUrl'],
-            'baseBranch': 'main',
-            'targetBranch': _branchCtrl.text,
-            'markdownContent': stageContent,
-          };
-          final res = await ApiService.applyCodeToBranch(payload);
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('✅ Test cases committed to branch: ${res['branch']}'),
-                backgroundColor: const Color(0xFF059669),
-              ),
-            );
-          }
-        } catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('❌ Error committing: $e'),
-                backgroundColor: Colors.red,
-              ),
-            );
-          }
-        }
-      },
-      icon: const Icon(Icons.merge_type_rounded, size: 16),
-      label: Text('Commit to Branch', style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13)),
-    );
-  }
+
   // ════════════════════════════════════════════════════════════════════════
   Future<void> _generate(EnterpriseSDLCController controller, feature) async {
     controller.isProcessing.value = true;
@@ -991,44 +999,101 @@ class _Stage5TestCasesState extends State<Stage5TestCases> {
   }
 
   void _exportTestCasesToExcel(String markdownContent) {
-    var excel = excel_pkg.Excel.createExcel();
-    excel_pkg.Sheet sheetObject = excel['TestCases'];
-    excel.setDefaultSheet('TestCases');
+    try {
+      var excel = excel_pkg.Excel.createExcel();
+      String defaultSheet = excel.getDefaultSheet() ?? 'Sheet1';
+      excel_pkg.Sheet sheetObject = excel[defaultSheet];
+      
+      // Optional: rename it if we want, but using default is safer to avoid blank initial sheets
+      // excel.rename(defaultSheet, 'TestCases');
 
-    // Add Headers
-    sheetObject.appendRow([
-      excel_pkg.TextCellValue('Test Case ID'),
-      excel_pkg.TextCellValue('Scenario'),
-      excel_pkg.TextCellValue('Steps / Description'),
-      excel_pkg.TextCellValue('Expected Result')
-    ]);
+      final lines = markdownContent.split('\n');
+      bool inTable = false;
 
-    // Very simple parser for markdown lines to rows
-    final lines = markdownContent.split('\n');
-    List<excel_pkg.TextCellValue> currentRow = [];
-    String currentScenario = '';
-
-    for (var line in lines) {
-      if (line.startsWith('###') || line.startsWith('Scenario:')) {
-        currentScenario = line.replaceAll('###', '').trim();
-      } else if (line.startsWith('-') || line.startsWith('*')) {
-        sheetObject.appendRow([
-          excel_pkg.TextCellValue('TC-${sheetObject.maxRows}'),
-          excel_pkg.TextCellValue(currentScenario),
-          excel_pkg.TextCellValue(line.replaceAll(RegExp(r'^[-*]\s*'), '').trim()),
-          excel_pkg.TextCellValue('As expected per design')
-        ]);
+      for (var line in lines) {
+        line = line.trim();
+        // Check if the line looks like a markdown table row
+        if (line.contains('|')) {
+          inTable = true;
+          // Skip markdown table separator lines
+          if (line.contains('---')) continue;
+          
+          // Parse columns
+          var columns = line.split('|');
+          // Remove empty first/last elements if the row starts/ends with |
+          if (columns.isNotEmpty && columns.first.trim().isEmpty) columns.removeAt(0);
+          if (columns.isNotEmpty && columns.last.trim().isEmpty) columns.removeLast();
+          
+          if (columns.isNotEmpty) {
+            List<excel_pkg.CellValue> row = columns.map((cell) => excel_pkg.TextCellValue(cell.trim())).toList();
+            sheetObject.appendRow(row);
+          }
+        }
       }
+
+    // Fallback if no table is found
+    if (!inTable) {
+      sheetObject.appendRow([
+        excel_pkg.TextCellValue('Test Case ID'),
+        excel_pkg.TextCellValue('Test Case Name'),
+        excel_pkg.TextCellValue('Scenario'),
+        excel_pkg.TextCellValue('Steps'),
+        excel_pkg.TextCellValue('Expected Result')
+      ]);
+
+      String currentTCName = '';
+      String currentScenario = '';
+      List<String> currentSteps = [];
+      int tcCounter = 1;
+      bool parsingSteps = false;
+
+      void addRow() {
+        if (currentTCName.isNotEmpty || currentScenario.isNotEmpty || currentSteps.isNotEmpty) {
+          sheetObject.appendRow([
+            excel_pkg.TextCellValue('TC-$tcCounter'),
+            excel_pkg.TextCellValue(currentTCName),
+            excel_pkg.TextCellValue(currentScenario),
+            excel_pkg.TextCellValue(currentSteps.join('\n')),
+            excel_pkg.TextCellValue('As expected per requirements')
+          ]);
+          tcCounter++;
+        }
+      }
+
+      for (var line in lines) {
+        line = line.trim();
+        if (line.isEmpty) continue;
+
+        if (line.toLowerCase().startsWith('test case') || line.startsWith('### Test Case')) {
+          if (currentTCName.isNotEmpty || currentScenario.isNotEmpty || currentSteps.isNotEmpty) {
+            addRow();
+            currentTCName = '';
+            currentScenario = '';
+            currentSteps.clear();
+          }
+          currentTCName = line.replaceAll(RegExp(r'^###\s*'), '').trim();
+          parsingSteps = false;
+        } else if (line.toLowerCase().startsWith('scenario:')) {
+          currentScenario = line.substring(9).trim();
+          parsingSteps = false;
+        } else if (line.toLowerCase().startsWith('steps:')) {
+          parsingSteps = true;
+        } else if (parsingSteps) {
+          // If a new test case or scenario is starting unexpectedly, stop parsing steps
+          if (line.toLowerCase().startsWith('test case') || line.toLowerCase().startsWith('scenario:')) {
+            parsingSteps = false;
+          } else {
+            currentSteps.add(line);
+          }
+        }
+      }
+      
+      addRow(); // Add the last test case
     }
 
-    var fileBytes = excel.save();
-    if (fileBytes != null) {
-      final blob = html.Blob([fileBytes], 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      final url = html.Url.createObjectUrlFromBlob(blob);
-      final anchor = html.AnchorElement(href: url)
-        ..setAttribute('download', 'TestCases.xlsx')
-        ..click();
-      html.Url.revokeObjectUrl(url);
+      excel.save(fileName: 'TestCases.xlsx');
+    } catch (e) {
+      Get.find<EnterpriseSDLCController>().logTerminal("Export to Excel failed: $e", level: "ERROR");
     }
   }
 

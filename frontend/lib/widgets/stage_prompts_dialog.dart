@@ -94,17 +94,14 @@ Extract:
         icon: Icons.article_outlined,
         color: EnterpriseTheme.brandBlue,
         initialValue: f.brdPrompt,
-        defaultPrompt: getStageDefault('brdPrompt', '''Focus strictly on the FUNCTIONAL requirements and business aspects. Do NOT include technical implementation details, file names, or codebase file impact matrices in the BRD. Technical design will be handled separately.
-
-Include the following sections with exhaustive depth:
-1. Executive Summary & Problem Definition
-2. Target Business Objectives & OKRs
-3. Target Personas / User Roles
-4. In-Scope and Out-of-Scope boundaries
-5. Functional Requirements
-6. Epics and Detailed User Stories (US-1.1, US-1.2, etc.)
-7. Acceptance Criteria in Gherkin (Given-When-Then) format
-8. Non-Functional Requirements & Security Controls (Functional perspective)'''),
+        defaultPrompt: getStageDefault('brdPrompt', '''Generate a comprehensive, industry-standard Business Requirements Document (BRD).
+Ensure the document includes:
+1. Executive Summary and Project Goals
+2. In-Scope and Out-of-Scope Definitions
+3. Detailed Functional Requirements (User Stories & Acceptance Criteria)
+4. Non-Functional Requirements (Performance, Security, Scalability, Compliance)
+5. External Dependencies and Assumptions
+Use standard Markdown headers and lists for maximum readability.'''),
       ),
       _StagePromptConfig(
         stageIndex: 2,
@@ -136,13 +133,14 @@ Include the following sections with comprehensive functional depth:
         icon: Icons.terminal_rounded,
         color: EnterpriseTheme.cyan,
         initialValue: f.techDocPrompt,
-        defaultPrompt: getStageDefault('techDocPrompt', '''Provide exact, implementation-ready technical specifications:
-1. Low-Level Module Architecture & Execution Flow
-2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
-3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
+        defaultPrompt: getStageDefault('techDocPrompt', '''Provide exhaustive, industry-standard technical specifications encompassing:
+1. Low-Level Component Architecture & Execution Flow
+2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Error Codes, Authentication)
+3. Database DDL & Schema Definitions (Tables, fields, types, indexes, migrations, and caching strategies)
 4. Data Contracts & State Transition Models
-5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
-6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)'''),
+5. Cryptographic & Security Boundaries (mTLS, PII Gateway Tokenization, Secrets Management)
+6. Error Handling, Resilience & Retry Matrix (Circuit breakers, fallback patterns, rate limiting)
+Ensure all technical choices align with industry best practices for highly available, distributed systems.'''),
       ),
       _StagePromptConfig(
         stageIndex: 4,
@@ -152,15 +150,11 @@ Include the following sections with comprehensive functional depth:
         icon: Icons.code_rounded,
         color: const Color(0xFF6366F1),
         initialValue: f.codePrompt,
-        defaultPrompt: getStageDefault('codePrompt', '''Generate clean, modular, and type-safe implementation code strictly adhering to the API contracts and database DDL schema defined in the Technical Document.
-
-Include the following:
-1. Project scaffolding with proper directory structure and module boundaries
-2. REST/gRPC endpoint handlers with full request validation and error handling
-3. Database repository layer with parameterized queries (no raw SQL injection vectors)
-4. Presidio DLP client wrappers for dynamic PII masking on sensitive fields
-5. Authentication & authorization middleware (JWT/mTLS token verification)
-6. Environment-aware configuration (dev, staging, production) with secrets vault integration'''),
+        defaultPrompt: getStageDefault('codePrompt', '''Generate a detailed implementation plan that adheres strictly to the existing code architecture and repository patterns.
+1. Do not introduce new architectural patterns, frameworks, or dependencies unless explicitly requested; follow the conventions already established in the codebase.
+2. Plan out file modifications, creations, and deletions with exact paths and logic conforming to the current project structure.
+3. Provide a step-by-step breakdown of how the feature will be integrated into the existing endpoints, services, UI components, and state management.
+4. Focus on backward compatibility and safe integration within the constraints of the current architecture.'''),
       ),
       _StagePromptConfig(
         stageIndex: 5,
@@ -170,11 +164,15 @@ Include the following:
         icon: Icons.checklist_rounded,
         color: EnterpriseTheme.emerald,
         initialValue: f.testCaseCreationPrompt,
-        defaultPrompt: getStageDefault('testCaseCreationPrompt', '''Generate comprehensive test cases covering functional, security, and edge-case scenarios.
-1. Outline test objectives mapped to BRD requirements.
-2. Define precondition states and necessary test data.
-3. Detail step-by-step test execution sequences.
-4. Specify expected outcomes and acceptance criteria.'''),
+        defaultPrompt: getStageDefault('testCaseCreationPrompt', '''Generate an exhaustive, industry-standard manual test plan covering Functional, Non-Functional, Security, Integration, and Edge-Case testing scenarios based on the requirements.
+
+Ensure the test cases are rigorous, covering:
+- Happy paths and positive workflows
+- Negative paths, invalid inputs, and error handling
+- Boundary conditions, concurrency, and performance implications
+
+Output the test cases as a standard Markdown table with the following columns exactly:
+| Test Case ID | Test Case Name | Scenario | Steps | Expected Result | Actual Result | Status |'''),
       ),
       _StagePromptConfig(
         stageIndex: 6,
@@ -184,10 +182,14 @@ Include the following:
         icon: Icons.integration_instructions_rounded,
         color: EnterpriseTheme.rose,
         initialValue: f.testAutomationPrompt,
-        defaultPrompt: getStageDefault('testAutomationPrompt', '''Generate code-level test automation scripts using established testing frameworks.
-1. Implement test cases using appropriate assertions.
-2. Provide necessary mocks or stubs for external dependencies.
-3. Structure scripts for execution in a CI/CD pipeline.'''),
+        defaultPrompt: getStageDefault('testAutomationPrompt', '''Generate comprehensive, industry-standard automated test scripts for the approved test cases.
+Use modern frameworks (e.g., Playwright, Cypress for E2E; Jest, Mocha for unit/integration).
+Ensure the scripts include:
+1. Proper test setup, teardown, and fixture management
+2. Robust element locators (e.g. data-testid attributes)
+3. Clear assertions for both happy paths and error states
+4. Mocking/stubbing strategies for external dependencies
+5. CI/CD ready reporting and failure screenshots where applicable.'''),
       ),
       _StagePromptConfig(
         stageIndex: 7,
@@ -547,9 +549,12 @@ Include the following:
                             children: [
                               Icon(Icons.info_outline, size: 13, color: EnterpriseTheme.getTextMuted(isDark)),
                               const SizedBox(width: 6),
-                              Text(
-                                'This prompt will be injected into AI agents whenever "${_currentStage.title}" is generated or regenerated.',
-                                style: GoogleFonts.inter(fontSize: 11, color: EnterpriseTheme.getTextMuted(isDark)),
+                              Expanded(
+                                child: Text(
+                                  'This prompt will be injected into AI agents whenever "${_currentStage.title}" is generated or regenerated.',
+                                  style: GoogleFonts.inter(fontSize: 11, color: EnterpriseTheme.getTextMuted(isDark)),
+                                  overflow: TextOverflow.ellipsis,
+                                ),
                               ),
                               const Spacer(),
                               ValueListenableBuilder(
@@ -586,15 +591,17 @@ Include the following:
                 children: [
                   Icon(Icons.storage_rounded, size: 16, color: EnterpriseTheme.emerald),
                   const SizedBox(width: 8),
-                  Text(
-                    'Prompts are persisted in PostgreSQL for feature: "${widget.feature.name}"',
-                    style: GoogleFonts.inter(
-                      color: EnterpriseTheme.getTextSecondary(isDark),
-                      fontSize: 12,
-                      fontWeight: FontWeight.w500,
+                  Expanded(
+                    child: Text(
+                      'Prompts are persisted in PostgreSQL for feature: "${widget.feature.name}"',
+                      style: GoogleFonts.inter(
+                        color: EnterpriseTheme.getTextSecondary(isDark),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
-                  const Spacer(),
                   TextButton(
                     onPressed: () => Navigator.of(context).pop(),
                     child: Text(

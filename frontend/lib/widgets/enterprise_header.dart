@@ -162,15 +162,6 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
               activeAccent: primaryAccent,
             ),
 
-            const SizedBox(width: 8),
-
-            // ─── New Pipeline CTA ────────────────────────────
-            _ActionButton(
-              label: 'New Pipeline',
-              icon: Icons.add_rounded,
-              onTap: () => controller.setStage(SDLCStageType.projectHub),
-              isDark: isDark,
-            ),
           ],
         ),
       );

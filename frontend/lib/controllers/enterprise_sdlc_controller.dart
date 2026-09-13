@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../models/sdlc_models.dart';
@@ -43,7 +44,44 @@ class EnterpriseSDLCController extends GetxController {
   void onInit() {
     super.onInit();
     loadGlobalSettings();
-    fetchProjects();
+    _initSession();
+  }
+
+  Future<void> _initSession() async {
+    await fetchProjects();
+    await _restoreState();
+  }
+
+  Future<void> _restoreState() async {
+    final savedProjectId = html.window.localStorage['activeProjectId'];
+    if (savedProjectId != null) {
+      try {
+        final pid = int.parse(savedProjectId);
+        final project = projectList.firstWhere((p) => p.id == pid);
+        activeProject.value = project;
+        await fetchFeaturesForProject(pid);
+
+        final savedFeatureId = html.window.localStorage['activeFeatureId'];
+        if (savedFeatureId != null) {
+          final fid = int.parse(savedFeatureId);
+          final feature = activeProjectFeatures.firstWhere((f) => f.id == fid);
+          activeFeature.value = feature;
+          await fetchWorkflowForFeature(fid);
+          
+          final savedStage = html.window.localStorage['currentStage'];
+          if (savedStage != null) {
+            currentStage.value = SDLCStageType.values.firstWhere(
+              (e) => e.name == savedStage, 
+              orElse: () => SDLCStageType.stage1Brd
+            );
+          } else {
+             currentStage.value = SDLCStageType.stage1Brd;
+          }
+        }
+      } catch (e) {
+        logTerminal("Could not restore full session state: $e", level: "WARN");
+      }
+    }
   }
 
   Future<void> loadGlobalSettings() async {
@@ -129,6 +167,14 @@ class EnterpriseSDLCController extends GetxController {
 
   void setStage(SDLCStageType stage) {
     currentStage.value = stage;
+    html.window.localStorage['currentStage'] = stage.name;
+    
+    if (stage == SDLCStageType.projectHub) {
+      activeFeature.value = null;
+      activeWorkflow.value = null;
+      html.window.localStorage.remove('activeFeatureId');
+    }
+    
     logTerminal("Navigated to: ${stage.name.toUpperCase()}", level: "NAV");
   }
 
@@ -164,6 +210,8 @@ class EnterpriseSDLCController extends GetxController {
     activeProject.value = project;
     activeFeature.value = null;
     activeWorkflow.value = null;
+    html.window.localStorage['activeProjectId'] = project.id.toString();
+    html.window.localStorage.remove('activeFeatureId');
     logTerminal("Selected Project: ${project.name}", level: "PROJECT");
     await fetchFeaturesForProject(project.id);
   }
@@ -210,11 +258,30 @@ class EnterpriseSDLCController extends GetxController {
     }
   }
 
+  Future<void> deleteFeature(Feature feature) async {
+    try {
+      await ApiService.deleteFeature(feature.id);
+      activeProjectFeatures.removeWhere((f) => f.id == feature.id);
+      if (activeFeature.value?.id == feature.id) {
+        activeFeature.value = null;
+        activeWorkflow.value = null;
+      }
+      logTerminal("Feature Deleted: ${feature.name}", level: "FEATURE");
+    } catch (e) {
+      logTerminal("Error deleting feature: $e", level: "ERROR");
+    }
+  }
+
   Future<void> selectFeature(Feature feature) async {
     activeFeature.value = feature;
+    html.window.localStorage['activeFeatureId'] = feature.id.toString();
     logTerminal("Selected Feature: ${feature.name}", level: "FEATURE");
     await fetchWorkflowForFeature(feature.id);
-    setStage(SDLCStageType.stage1Brd); // Jump to Stage 1
+    
+    // If we're selecting a feature directly (e.g. from the hub), we should jump to BRD or preserve the state?
+    // Let's just always set to Stage 1 when a feature is manually selected. 
+    // setStage will update localStorage.
+    setStage(SDLCStageType.stage1Brd);
   }
 
   Future<void> fetchWorkflowForFeature(int featureId) async {

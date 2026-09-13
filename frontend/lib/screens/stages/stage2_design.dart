@@ -553,6 +553,9 @@ Include the following sections with comprehensive functional depth:
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(

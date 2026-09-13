@@ -34,13 +34,14 @@ class _Stage3TechDocState extends State<Stage3TechDoc> {
     if (feature != null && feature.techDocPrompt.isNotEmpty) {
       _promptCtrl.text = feature.techDocPrompt;
     } else {
-      _promptCtrl.text = '''Provide exact, implementation-ready technical specifications:
-1. Low-Level Module Architecture & Execution Flow
-2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Header authentication)
-3. Database DDL & Schema Definitions (PostgreSQL tables, fields, types, indexes, and tokenized vault references)
+      _promptCtrl.text = '''Provide exhaustive, industry-standard technical specifications encompassing:
+1. Low-Level Component Architecture & Execution Flow
+2. Concrete REST / gRPC API Endpoint Specifications (Paths, Methods, Request & Response JSON schemas, Error Codes, Authentication)
+3. Database DDL & Schema Definitions (Tables, fields, types, indexes, migrations, and caching strategies)
 4. Data Contracts & State Transition Models
-5. Cryptographic & Security Boundaries (mTLS 1.3, Presidio PII Gateway Tokenization, Vault Token lifecycle)
-6. Error Handling, Resilience & Retry Matrix (HTTP status codes, circuit breakers, fallback patterns)''';
+5. Cryptographic & Security Boundaries (mTLS, PII Gateway Tokenization, Secrets Management)
+6. Error Handling, Resilience & Retry Matrix (Circuit breakers, fallback patterns, rate limiting)
+Ensure all technical choices align with industry best practices for highly available, distributed systems.''';
     }
   }
 
@@ -574,6 +575,9 @@ class _Stage3TechDocState extends State<Stage3TechDoc> {
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(

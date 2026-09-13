@@ -393,56 +393,62 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          width: 280,
-          padding: const EdgeInsets.all(16),
+          width: 220,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
           decoration: BoxDecoration(
             color: isSelected 
                 ? primaryColor.withOpacity(0.05) 
                 : (_isHovered ? EnterpriseTheme.getSubtleBg(widget.isDark) : EnterpriseTheme.getSurface(widget.isDark)),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: isSelected ? primaryColor : (_isHovered ? primaryColor.withOpacity(0.5) : EnterpriseTheme.getCardBorder(widget.isDark)),
-              width: isSelected ? 2 : 1,
+              width: isSelected ? 1.5 : 1,
             ),
-            boxShadow: _isHovered ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 20, offset: const Offset(0, 10))] : [],
+            boxShadow: _isHovered ? [BoxShadow(color: Colors.black.withOpacity(0.08), blurRadius: 14, offset: const Offset(0, 6))] : [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
             children: [
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: isSelected ? primaryColor.withOpacity(0.15) : EnterpriseTheme.getSubtleBg(widget.isDark),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: Icon(Icons.folder_shared_outlined, color: isSelected ? primaryColor : EnterpriseTheme.getTextSecondary(widget.isDark), size: 20),
+                    child: Icon(Icons.folder_shared_outlined, color: isSelected ? primaryColor : EnterpriseTheme.getTextSecondary(widget.isDark), size: 16),
                   ),
                   if (isSelected)
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
-                      child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 10, fontWeight: FontWeight.bold)),
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                      child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 9, fontWeight: FontWeight.bold)),
                     )
                 ],
               ),
-              const SizedBox(height: 12),
-              Text(widget.project.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 20, fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               Text(
-                widget.project.description,
-                style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 14, height: 1.4),
+                widget.project.name, 
+                style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 16, fontWeight: FontWeight.bold),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                widget.project.description.isEmpty ? 'No description' : widget.project.description,
+                style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 12, height: 1.3),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 10),
               Row(
                 children: [
-                  Icon(Icons.timeline_outlined, size: 14, color: EnterpriseTheme.getTextMuted(widget.isDark)),
-                  const SizedBox(width: 6),
-                  Text('PRJ-${widget.project.id}', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 12, fontWeight: FontWeight.w500)),
+                  Icon(Icons.timeline_outlined, size: 12, color: EnterpriseTheme.getTextMuted(widget.isDark)),
+                  const SizedBox(width: 4),
+                  Text('PRJ-${widget.project.id}', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 11, fontWeight: FontWeight.w500)),
                 ],
               )
             ],
@@ -478,15 +484,15 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 250),
           curve: Curves.easeOutCubic,
-          width: 280,
-          padding: const EdgeInsets.all(16),
+          width: 240,
+          padding: const EdgeInsets.all(12),
           decoration: BoxDecoration(
             color: _isHovered ? EnterpriseTheme.getSubtleBg(widget.isDark) : EnterpriseTheme.getSurface(widget.isDark),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color: _isHovered ? EnterpriseTheme.purple.withOpacity(0.5) : EnterpriseTheme.getCardBorder(widget.isDark),
             ),
-            boxShadow: _isHovered ? [BoxShadow(color: EnterpriseTheme.purple.withOpacity(0.05), blurRadius: 20, offset: const Offset(0, 10))] : [],
+            boxShadow: _isHovered ? [BoxShadow(color: EnterpriseTheme.purple.withOpacity(0.05), blurRadius: 14, offset: const Offset(0, 6))] : [],
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -494,41 +500,50 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
                       color: EnterpriseTheme.purple.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(6),
                     ),
-                    child: const Icon(Icons.rocket_launch_outlined, color: EnterpriseTheme.purple, size: 20),
+                    child: const Icon(Icons.rocket_launch_outlined, color: EnterpriseTheme.purple, size: 16),
                   ),
-                  const SizedBox(width: 12),
+                  const SizedBox(width: 10),
                   Expanded(
-                    child: Text(widget.feature.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 18, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                    child: Text(widget.feature.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
+                  ),
+                  IconButton(
+                    icon: Icon(Icons.delete_outline, color: EnterpriseTheme.getTextMuted(widget.isDark), size: 18),
+                    onPressed: () {
+                      _showDeleteConfirmationDialog(context);
+                    },
+                    padding: EdgeInsets.zero,
+                    constraints: const BoxConstraints(),
+                    splashRadius: 18,
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
                   color: EnterpriseTheme.getInputBg(widget.isDark).withOpacity(0.5),
-                  borderRadius: BorderRadius.circular(8),
+                  borderRadius: BorderRadius.circular(6),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('REQUIREMENT', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                    const SizedBox(height: 4),
+                    Text('REQUIREMENT', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                    const SizedBox(height: 2),
                     Text(
-                      widget.feature.baseRequirement,
-                      style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 13, height: 1.4),
+                      widget.feature.baseRequirement.isEmpty ? 'No requirement specified' : widget.feature.baseRequirement,
+                      style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 11, height: 1.3),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -546,6 +561,78 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showDeleteConfirmationDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withOpacity(0.6),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 400,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(
+                color: EnterpriseTheme.getSurface(widget.isDark).withOpacity(0.85),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.redAccent.withOpacity(0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.2), blurRadius: 40)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(color: Colors.redAccent.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                        child: const Icon(Icons.warning_amber_rounded, color: Colors.redAccent),
+                      ),
+                      const SizedBox(width: 16),
+                      Text('Delete Feature', style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 22, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'Are you sure you want to delete "${widget.feature.name}"? This action cannot be undone and will permanently erase all associated workflows and data.',
+                    style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 14, height: 1.5),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Get.back(),
+                        style: TextButton.styleFrom(foregroundColor: EnterpriseTheme.getTextSecondary(widget.isDark)),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          widget.controller.deleteFeature(widget.feature);
+                          Get.back();
+                        },
+                        icon: const Icon(Icons.delete_forever, size: 18),
+                        label: const Text('Delete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  )
+                ],
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

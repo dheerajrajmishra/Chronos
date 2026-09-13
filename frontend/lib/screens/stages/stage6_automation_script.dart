@@ -33,7 +33,15 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
     if (feature != null && feature.testAutomationPrompt.isNotEmpty && !feature.testAutomationPrompt.contains('Focus strictly on the technical architecture')) {
       _promptCtrl.text = feature.testAutomationPrompt;
     } else {
-      _promptCtrl.text = 'Generate automation scripts using modern frameworks (e.g. Playwright, Cypress, or Jest) for the test cases.';
+      _promptCtrl.text =
+          'Generate comprehensive, industry-standard automated test scripts for the approved test cases.\n'
+          'Use modern frameworks (e.g., Playwright, Cypress for E2E; Jest, Mocha for unit/integration).\n'
+          'Ensure the scripts include:\n'
+          '1. Proper test setup, teardown, and fixture management\n'
+          '2. Robust element locators (e.g. data-testid attributes)\n'
+          '3. Clear assertions for both happy paths and error states\n'
+          '4. Mocking/stubbing strategies for external dependencies\n'
+          '5. CI/CD ready reporting and failure screenshots where applicable.';
     }
   }
 
@@ -541,6 +549,9 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
               ],
             ),
           ),
+          if (isGenerating)
+            LinearProgressIndicator(color: EnterpriseTheme.getPrimaryAccent(isDark), backgroundColor: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.1), minHeight: 3),
+          
 
           // Content
           Expanded(
