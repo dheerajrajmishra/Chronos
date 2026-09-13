@@ -379,6 +379,17 @@ export const initDB = async () => {
     // Ensure existing projects belong to tenant 1
     await client.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE DEFAULT 1;`);
 
+    // Create Project Users Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS project_users (
+        project_id INTEGER REFERENCES projects(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        role VARCHAR(50) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (project_id, user_id)
+      );
+    `);
+
     // Create Features Table
     await client.query(`
       CREATE TABLE IF NOT EXISTS features (
@@ -506,6 +517,26 @@ export const initDB = async () => {
       SELECT 1, id, 'system_admin', '{"all": true}'::jsonb, 'active'
       FROM users WHERE email = 'admin@chronos.dev'
       ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'system_admin', status = 'active';
+    `);
+
+    // SDS Tenant Seed
+    await client.query(`
+      INSERT INTO tenants (id, name, slug, status, plan, deployment_mode)
+      VALUES (2, 'SDS Tenant', 'sds-tenant', 'active', 'enterprise', 'on_premise')
+      ON CONFLICT (id) DO NOTHING;
+    `);
+    
+    await client.query(`
+      INSERT INTO users (email, name, password_hash, is_system_admin, status)
+      VALUES ('dhiraj.k3@samsung.com', 'Dhiraj Kumar', $1, false, 'active')
+      ON CONFLICT (email) DO UPDATE SET status = 'active', password_hash = $1;
+    `, [adminPasswordHash]);
+
+    await client.query(`
+      INSERT INTO tenant_users (tenant_id, user_id, role, permissions, status)
+      SELECT 2, id, 'org_admin', '{}'::jsonb, 'active'
+      FROM users WHERE email = 'dhiraj.k3@samsung.com'
+      ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'org_admin', status = 'active';
     `);
 
     client.release();

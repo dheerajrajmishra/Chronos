@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
 import '../models/workflow_model.dart';
 import '../theme/enterprise_theme.dart';
+import '../controllers/auth_controller.dart';
 
 class EnterpriseHeader extends StatefulWidget {
   final VoidCallback onToggleTerminal;
@@ -56,6 +57,12 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
               onTap: () => controller.setStage(SDLCStageType.projectHub),
             ),
             _breadcrumbSeparator(textMutedColor),
+            _breadcrumbItem(
+              Get.find<AuthController>().currentTenantName,
+              textColor,
+              textMutedColor,
+            ),
+            _breadcrumbSeparator(textMutedColor),
             if (prj != null) ...[
               _breadcrumbItem(prj.name, textColor, textMutedColor),
               _breadcrumbSeparator(textMutedColor),
@@ -77,56 +84,16 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
 
             const Spacer(),
 
-            // ─── System Health Indicator ─────────────────────
-            MouseRegion(
-              onEnter: (_) => setState(() => _showHealth = true),
-              onExit: (_) => setState(() => _showHealth = false),
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                padding: EdgeInsets.symmetric(
-                  horizontal: _showHealth ? 12 : 8,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: EnterpriseTheme.getSubtleBg(isDark),
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: borderColor),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 7,
-                      height: 7,
-                      decoration: const BoxDecoration(
-                        color: EnterpriseTheme.emerald,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Systems Online',
-                      style: GoogleFonts.inter(
-                        color: EnterpriseTheme.emerald,
-                        fontSize: 10,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    if (_showHealth) ...[
-                      const SizedBox(width: 10),
-                      _healthStat('Vault', '${telemetry['redisTokensCount']}', EnterpriseTheme.purple, textMutedColor),
-                      const SizedBox(width: 8),
-                      _healthStat('Latency', '${telemetry['gatewayLatencyMs']}ms', primaryAccent, textMutedColor),
-                      const SizedBox(width: 8),
-                      _healthStat('Trust', telemetry['zeroTrustScore'] ?? '99.4%', EnterpriseTheme.emerald, textMutedColor),
-                    ],
-                  ],
-                ),
-              ),
+
+            // ─── Logout Button ───────────────────────────────
+            _headerIconButton(
+              icon: Icons.logout_rounded,
+              color: const Color(0xFFEF4444), // Red for logout
+              tooltip: 'Logout',
+              onTap: () => _confirmLogout(context, isDark, textColor, textSecColor),
+              isDark: isDark,
             ),
-
             const SizedBox(width: 10),
-
             // ─── Theme Toggle ────────────────────────────────
             _headerIconButton(
               icon: isDark ? Icons.light_mode_outlined : Icons.dark_mode_outlined,
@@ -152,15 +119,16 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
             const SizedBox(width: 4),
 
             // ─── Settings Button ─────────────────────────────
-            _headerIconButton(
-              icon: Icons.tune_rounded,
-              color: controller.currentStage.value == SDLCStageType.settings ? primaryAccent : textSecColor,
-              tooltip: 'Settings & Prompts Configuration',
-              onTap: () => controller.setStage(SDLCStageType.settings),
-              isDark: isDark,
-              isActive: controller.currentStage.value == SDLCStageType.settings,
-              activeAccent: primaryAccent,
-            ),
+            if (Get.find<AuthController>().hasPermission('manage_settings') || Get.find<AuthController>().isOrgAdmin)
+              _headerIconButton(
+                icon: Icons.tune_rounded,
+                color: controller.currentStage.value == SDLCStageType.settings ? primaryAccent : textSecColor,
+                tooltip: 'Settings & Prompts Configuration',
+                onTap: () => controller.setStage(SDLCStageType.settings),
+                isDark: isDark,
+                isActive: controller.currentStage.value == SDLCStageType.settings,
+                activeAccent: primaryAccent,
+              ),
 
           ],
         ),
@@ -201,7 +169,7 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
       color = EnterpriseTheme.amber;
     } else if (status.contains('APPROVED') || status.contains('COMPLETED')) {
       color = EnterpriseTheme.emerald;
-    } else if (status.contains('REJECTED')) {
+    } else if (status.contains('REJECTED') || status.contains('FAILED')) {
       color = EnterpriseTheme.rose;
     }
 
@@ -216,23 +184,6 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
         status.replaceAll('_', ' '),
         style: GoogleFonts.inter(color: color, fontSize: 10, fontWeight: FontWeight.w600),
       ),
-    );
-  }
-
-  // ─── Health Stat ──────────────────────────────────────────────
-  Widget _healthStat(String label, String value, Color color, Color mutedColor) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(
-          '$label ',
-          style: GoogleFonts.inter(color: mutedColor, fontSize: 9, fontWeight: FontWeight.w500),
-        ),
-        Text(
-          value,
-          style: GoogleFonts.inter(color: color, fontSize: 9, fontWeight: FontWeight.w700),
-        ),
-      ],
     );
   }
 
@@ -299,6 +250,37 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
       case SDLCStageType.userManagement:
         return 'User & Permission Management';
     }
+  }
+
+  void _confirmLogout(BuildContext context, bool isDark, Color textColor, Color textSecColor) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: EnterpriseTheme.getSurface(isDark),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Logout', style: GoogleFonts.inter(fontSize: 16, fontWeight: FontWeight.w700, color: textColor)),
+        content: Text('Are you sure you want to log out?', style: GoogleFonts.inter(fontSize: 13, color: textSecColor)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.inter(color: textSecColor)),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(ctx);
+              Get.find<AuthController>().logout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              elevation: 0,
+            ),
+            child: Text('Logout', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+          ),
+        ],
+      ),
+    );
   }
 }
 

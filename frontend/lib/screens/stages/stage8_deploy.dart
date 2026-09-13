@@ -14,6 +14,7 @@ class Stage8Deploy extends StatefulWidget {
 }
 
 class _Stage8DeployState extends State<Stage8Deploy> {
+  bool _isApproving = false;
   String _targetCloud = 'Microsoft Azure (Zero-Trust VPC)';
   String _rolloutStrategy = 'Canary 10% -> 50% -> 100%';
 

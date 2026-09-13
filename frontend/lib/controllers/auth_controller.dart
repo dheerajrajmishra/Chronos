@@ -19,6 +19,10 @@ class AuthController extends GetxController {
   String get currentRole => currentUser['role'] ?? 'viewer';
   int get currentTenantId => currentUser['tenant_id'] ?? 1;
   String get currentTenantName => currentUser['tenant_name'] ?? 'Unknown';
+  String get currentTenantSlug {
+    final tenant = availableTenants.firstWhereOrNull((t) => t.tenantId == currentTenantId);
+    return tenant?.tenantSlug.isNotEmpty == true ? tenant!.tenantSlug : 'portal';
+  }
   String get currentUserName => currentUser['name'] ?? currentUser['email'] ?? 'User';
   Map<String, dynamic> get currentPermissions => 
     currentUser['permissions'] is Map ? Map<String, dynamic>.from(currentUser['permissions']) : {};
@@ -120,7 +124,9 @@ class AuthController extends GetxController {
         
         // Reload projects for new tenant context
         if (Get.isRegistered<EnterpriseSDLCController>()) {
-          Get.find<EnterpriseSDLCController>().fetchProjects();
+          final sdlcCtrl = Get.find<EnterpriseSDLCController>();
+          sdlcCtrl.clearSession();
+          await sdlcCtrl.fetchProjects();
         }
         return true;
       }
@@ -148,6 +154,10 @@ class AuthController extends GetxController {
   }
 
   Future<void> logout() async {
+    if (Get.isRegistered<EnterpriseSDLCController>()) {
+      Get.find<EnterpriseSDLCController>().clearSession();
+    }
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('auth_token');
     await prefs.remove('auth_user');

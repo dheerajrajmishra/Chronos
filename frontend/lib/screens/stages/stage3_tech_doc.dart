@@ -20,6 +20,7 @@ class Stage3TechDoc extends StatefulWidget {
 }
 
 class _Stage3TechDocState extends State<Stage3TechDoc> {
+  bool _isApproving = false;
   final _promptCtrl = TextEditingController();
   final _techDocEditCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
@@ -858,6 +859,7 @@ Ensure all technical choices align with industry best practices for highly avail
                     }
                   },
                   icon: Icons.check_circle_outline,
+                  isLoading: _isApproving,
                   label: 'Save & Approve',
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
@@ -918,6 +920,7 @@ Ensure all technical choices align with industry best practices for highly avail
 
     try {
       final payload = {
+        'targetStage': 3,
         'requirement': feature.baseRequirement,
         'projectId': feature.id.toString(),
         'repoUrl': feature.codeAccess['repoUrl'],
@@ -1063,6 +1066,7 @@ CREATE TABLE IF NOT EXISTS feature_${feature.id}_records (
     required String label,
     required bool isDark,
     Gradient? gradient,
+    bool isLoading = false,
   }) {
     return Container(
       decoration: BoxDecoration(
@@ -1071,8 +1075,10 @@ CREATE TABLE IF NOT EXISTS feature_${feature.id}_records (
         boxShadow: [BoxShadow(color: (gradient?.colors.first ?? EnterpriseTheme.getPrimaryAccent(isDark)).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: Colors.white),
+        onPressed: isLoading ? () {} : onPressed,
+        icon: isLoading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Icon(icon, size: 16, color: Colors.white),
         label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.transparent,

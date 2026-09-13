@@ -112,15 +112,21 @@ class EnterpriseSidebar extends StatelessWidget {
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
                           ),
-                          _WorkspaceNavItem(
-                            controller: controller,
-                            stage: SDLCStageType.settings,
-                            title: 'Settings & Prompts',
-                            icon: Icons.tune_rounded,
-                            badge: 'CONFIG',
-                            isCollapsed: effectiveCollapsed,
-                            isDark: isDark,
-                          ),
+                          Obx(() {
+                            final authCtrl = Get.find<AuthController>();
+                            if (!authCtrl.hasPermission('manage_settings') && !authCtrl.isOrgAdmin) {
+                              return const SizedBox.shrink();
+                            }
+                            return _WorkspaceNavItem(
+                              controller: controller,
+                              stage: SDLCStageType.settings,
+                              title: 'Settings & Prompts',
+                              icon: Icons.tune_rounded,
+                              badge: 'CONFIG',
+                              isCollapsed: effectiveCollapsed,
+                              isDark: isDark,
+                            );
+                          }),
 
                           // ─── Administration Section (Role-Based) ───
                           Obx(() {
@@ -769,6 +775,8 @@ class EnterpriseSidebar extends StatelessWidget {
     Color textMutedColor,
     Color inputBg,
   ) {
+    final authCtrl = Get.find<AuthController>();
+
     return Container(
       padding: EdgeInsets.all(isCollapsed ? 8 : 12),
       decoration: BoxDecoration(
@@ -794,7 +802,7 @@ class EnterpriseSidebar extends StatelessWidget {
                       ),
                       child: Center(
                         child: Text(
-                          controller.userRole.value.substring(0, 1),
+                          authCtrl.currentUserName.isNotEmpty ? authCtrl.currentUserName.substring(0, 1).toUpperCase() : 'U',
                           style: GoogleFonts.inter(
                             color: Colors.white,
                             fontWeight: FontWeight.w700,
@@ -809,11 +817,20 @@ class EnterpriseSidebar extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            controller.userRole.value.split(' ').take(2).join(' '),
+                            authCtrl.currentUserName,
                             style: GoogleFonts.inter(
                               color: textColor,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          Text(
+                            authCtrl.currentTenantName,
+                            style: GoogleFonts.inter(
+                              color: textSecColor,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w500,
                             ),
                             overflow: TextOverflow.ellipsis,
                           ),

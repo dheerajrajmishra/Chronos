@@ -183,3 +183,29 @@ class Permissions {
     {'key': 'view_audit_logs', 'label': 'View Audit Logs', 'desc': 'View admin action history'},
   ];
 }
+
+class IpWhitelist {
+  final int id;
+  final int tenantId;
+  final String ipCidr;
+  final String description;
+  final String createdAt;
+
+  IpWhitelist({
+    required this.id,
+    required this.tenantId,
+    required this.ipCidr,
+    required this.description,
+    required this.createdAt,
+  });
+
+  factory IpWhitelist.fromJson(Map<String, dynamic> json) {
+    return IpWhitelist(
+      id: json['id'],
+      tenantId: json['tenant_id'],
+      ipCidr: json['ip_cidr'] ?? '',
+      description: json['description'] ?? '',
+      createdAt: json['created_at'] ?? '',
+    );
+  }
+}

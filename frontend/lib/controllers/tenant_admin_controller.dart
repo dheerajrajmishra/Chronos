@@ -7,6 +7,7 @@ class TenantAdminController extends GetxController {
   final RxList<Tenant> tenants = <Tenant>[].obs;
   final Rxn<Tenant> selectedTenant = Rxn<Tenant>();
   final RxList<TenantUser> selectedTenantUsers = <TenantUser>[].obs;
+  final RxList<IpWhitelist> selectedTenantIps = <IpWhitelist>[].obs;
   final Rxn<AdminStats> stats = Rxn<AdminStats>();
   final RxBool isLoading = false.obs;
   final RxString searchQuery = ''.obs;
@@ -105,9 +106,27 @@ class TenantAdminController extends GetxController {
     }
   }
 
+  Future<bool> deleteTenant(int id) async {
+    try {
+      final success = await ApiService.deleteTenant(id);
+      if (success) {
+        tenants.removeWhere((t) => t.id == id);
+        if (selectedTenant.value?.id == id) {
+          selectedTenant.value = null;
+        }
+        await loadStats();
+      }
+      return success;
+    } catch (e) {
+      print('Failed to delete tenant: $e');
+      return false;
+    }
+  }
+
   Future<void> selectTenant(Tenant tenant) async {
     selectedTenant.value = tenant;
     await loadTenantUsers(tenant.id);
+    await loadTenantIps(tenant.id);
   }
 
   Future<void> loadTenantUsers(int tenantId) async {
@@ -149,6 +168,36 @@ class TenantAdminController extends GetxController {
       return success;
     } catch (e) {
       print('Failed to remove user: $e');
+      return false;
+    }
+  }
+
+  Future<void> loadTenantIps(int tenantId) async {
+    try {
+      selectedTenantIps.value = await ApiService.getTenantIps(tenantId);
+    } catch (e) {
+      print('Failed to load tenant IPs: $e');
+    }
+  }
+
+  Future<bool> addTenantIp(int tenantId, String ipCidr, String description) async {
+    try {
+      await ApiService.addTenantIp(tenantId, ipCidr, description);
+      await loadTenantIps(tenantId);
+      return true;
+    } catch (e) {
+      print('Failed to add tenant IP: $e');
+      return false;
+    }
+  }
+
+  Future<bool> removeTenantIp(int tenantId, int ipId) async {
+    try {
+      await ApiService.removeTenantIp(tenantId, ipId);
+      await loadTenantIps(tenantId);
+      return true;
+    } catch (e) {
+      print('Failed to remove tenant IP: $e');
       return false;
     }
   }

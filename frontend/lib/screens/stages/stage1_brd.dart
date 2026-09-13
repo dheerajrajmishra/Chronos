@@ -20,6 +20,7 @@ class Stage1Brd extends StatefulWidget {
 }
 
 class _Stage1BrdState extends State<Stage1Brd> {
+  bool _isApproving = false;
   final _reqCtrl = TextEditingController();
   final _promptCtrl = TextEditingController();
   final _brdEditCtrl = TextEditingController();
@@ -214,7 +215,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
               _brdEditCtrl.text = content;
               _isEditingBrd = false;
             });
-            await controller.updateWorkflowStage(1, 'pending', {'brd_content': content});
+            setState(() => _isApproving = true);
+                    await controller.updateWorkflowStage(1, 'pending', {'brd_content': content});
+                    setState(() => _isApproving = false);
             controller.logTerminal('BRD document re-uploaded from ${file.name}', level: 'INFO');
             if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(
@@ -243,7 +246,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
 
   Future<void> _saveBrdEdits(EnterpriseSDLCController controller) async {
     final text = _brdEditCtrl.text;
-    await controller.updateWorkflowStage(1, 'pending', {'brd_content': text});
+    setState(() => _isApproving = true);
+                    await controller.updateWorkflowStage(1, 'pending', {'brd_content': text});
+                    setState(() => _isApproving = false);
     setState(() {
       _isEditingBrd = false;
     });
@@ -553,6 +558,7 @@ class _Stage1BrdState extends State<Stage1Brd> {
               child: _buildGradientButton(
                 onPressed: isGenerating ? () {} : () => _generateBrd(controller, feature),
                 icon: isGenerating ? Icons.hourglass_empty : Icons.auto_awesome_rounded,
+                isLoading: isGenerating,
                 label: isGenerating ? 'Generating...' : (brdText == null ? 'Generate BRD' : 'Regenerate BRD'),
                 isDark: isDark,
                 gradient: isGenerating
@@ -1045,7 +1051,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
                 _buildGradientButton(
                   onPressed: () async {
                     final content = _brdEditCtrl.text;
+                    setState(() => _isApproving = true);
                     await controller.updateWorkflowStage(1, 'approved', {'brd_content': content});
+                    setState(() => _isApproving = false);
                     setState(() {
                       _isEditingBrd = false;
                     });
@@ -1066,6 +1074,7 @@ class _Stage1BrdState extends State<Stage1Brd> {
                     }
                   },
                   icon: Icons.check_circle_outline,
+                  isLoading: _isApproving,
                   label: 'Save & Approve',
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
@@ -1075,7 +1084,9 @@ class _Stage1BrdState extends State<Stage1Brd> {
                 // Approve button
                 _buildGradientButton(
                   onPressed: () async {
+                    setState(() => _isApproving = true);
                     await controller.updateWorkflowStage(1, 'approved', {'brd_content': brdText});
+                    setState(() => _isApproving = false);
                     controller.logTerminal('BRD approved and confirmed.', level: 'SUCCESS');
                     if (mounted) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -1093,6 +1104,7 @@ class _Stage1BrdState extends State<Stage1Brd> {
                     }
                   },
                   icon: Icons.check_circle_outline,
+                  isLoading: _isApproving,
                   label: 'Approve & Confirm',
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
@@ -1160,6 +1172,7 @@ Include the following sections with exhaustive depth:
           : baseBrdPrompt;
 
       final payload = {
+        'targetStage': 1,
         'requirement': _reqCtrl.text,
         'projectId': feature.id.toString(),
         'repoUrl': feature.codeAccess['repoUrl'],
@@ -1176,10 +1189,14 @@ Include the following sections with exhaustive depth:
         brdContent = res['deliverables'][0]['markdownContent'];
       }
 
-      await controller.updateWorkflowStage(1, 'pending', {'brd_content': brdContent});
+      setState(() => _isApproving = true);
+                    await controller.updateWorkflowStage(1, 'pending', {'brd_content': brdContent});
+                    setState(() => _isApproving = false);
     } catch (e) {
       controller.logTerminal("Synthesis failed: $e", level: "ERROR");
-      await controller.updateWorkflowStage(1, 'error', {'brd_content': 'Error generating BRD: $e'});
+      setState(() => _isApproving = true);
+                    await controller.updateWorkflowStage(1, 'error', {'brd_content': 'Error generating BRD: $e'});
+                    setState(() => _isApproving = false);
     } finally {
       controller.isProcessing.value = false;
     }
@@ -1217,7 +1234,7 @@ Include the following sections with exhaustive depth:
     );
   }
 
-  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient}) {
+  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient, bool isLoading = false}) {
     return Container(
       decoration: BoxDecoration(
         gradient: gradient ?? EnterpriseTheme.brandGradient,
@@ -1225,8 +1242,10 @@ Include the following sections with exhaustive depth:
         boxShadow: [BoxShadow(color: (gradient?.colors.first ?? EnterpriseTheme.getPrimaryAccent(isDark)).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: Colors.white),
+        onPressed: isLoading ? () {} : onPressed,
+        icon: isLoading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Icon(icon, size: 16, color: Colors.white),
         label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
       ),

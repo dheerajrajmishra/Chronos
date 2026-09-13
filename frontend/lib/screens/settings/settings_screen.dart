@@ -936,12 +936,13 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                 Row(
                   children: [
                     Icon(Icons.info_outline, size: 14, color: EnterpriseTheme.getTextMuted(isDark)),
-                    const SizedBox(width: 6),
-                    Text(
-                      'Changes saved here will serve as the system-wide baseline for newly created features & AI prompts.',
-                      style: GoogleFonts.inter(fontSize: 11.5, color: EnterpriseTheme.getTextMuted(isDark)),
+                    Expanded(
+                      child: Text(
+                        'Changes saved here will serve as the system-wide baseline for newly created features & AI prompts.',
+                        style: GoogleFonts.inter(fontSize: 11.5, color: EnterpriseTheme.getTextMuted(isDark)),
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     ValueListenableBuilder(
                       valueListenable: activeController,
                       builder: (context, value, child) {

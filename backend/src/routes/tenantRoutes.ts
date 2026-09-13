@@ -148,6 +148,32 @@ router.delete('/tenants/:id', async (req: AuthRequest, res) => {
   }
 });
 
+// DELETE /api/admin/tenants/:id/force — Hard delete tenant
+router.delete('/tenants/:id/force', async (req: AuthRequest, res) => {
+  try {
+    // Don't allow deleting the default Chronos Admin tenant
+    if (req.params.id === '1') {
+      return res.status(403).json({ error: 'Cannot delete the primary Chronos Admin tenant' });
+    }
+
+    const result = await query(
+      `DELETE FROM tenants WHERE id = $1 RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Tenant not found' });
+
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
+       VALUES (1, $1, 'delete_tenant', 'tenant', $2, $3)`,
+      [req.user!.id, req.params.id, JSON.stringify({ deleted_name: result.rows[0].name })]
+    );
+
+    res.json({ success: true, message: 'Tenant deleted permanently' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to delete tenant', details: err.message });
+  }
+});
+
 // --- TENANT USER MANAGEMENT (cross-tenant, system admin only) ---
 
 // GET /api/admin/tenants/:id/users — List users in a tenant
@@ -224,7 +250,7 @@ router.post('/tenants/:id/users', async (req: AuthRequest, res) => {
 router.delete('/tenants/:id/users/:userId', async (req: AuthRequest, res) => {
   try {
     await query(
-      `UPDATE tenant_users SET status = 'inactive' WHERE tenant_id = $1 AND user_id = $2`,
+      `DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id = $2`,
       [req.params.id, req.params.userId]
     );
 
@@ -237,6 +263,41 @@ router.delete('/tenants/:id/users/:userId', async (req: AuthRequest, res) => {
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to remove user', details: err.message });
+  }
+});
+
+// PUT /api/admin/tenants/:id/users/:userId — Update user in tenant (role, status)
+router.put('/tenants/:id/users/:userId', async (req: AuthRequest, res) => {
+  const { role, status, permissions } = req.body;
+  try {
+    if (role) {
+      await query(
+        `UPDATE tenant_users SET role = $1 WHERE tenant_id = $2 AND user_id = $3`,
+        [role, req.params.id, req.params.userId]
+      );
+    }
+    if (status) {
+      await query(
+        `UPDATE tenant_users SET status = $1 WHERE tenant_id = $2 AND user_id = $3`,
+        [status, req.params.id, req.params.userId]
+      );
+    }
+    if (permissions !== undefined) {
+      await query(
+        `UPDATE tenant_users SET permissions = $1 WHERE tenant_id = $2 AND user_id = $3`,
+        [JSON.stringify(permissions), req.params.id, req.params.userId]
+      );
+    }
+
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, 'update_tenant_user', 'user', $3, $4)`,
+      [req.params.id, req.user!.id, req.params.userId, JSON.stringify({ role, status, permissions })]
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to update user', details: err.message });
   }
 });
 
@@ -279,6 +340,63 @@ router.put('/tenants/:id/settings', async (req: AuthRequest, res) => {
     res.json({ success: true });
   } catch (err: any) {
     res.status(500).json({ error: 'Failed to update tenant settings', details: err.message });
+  }
+});
+
+// --- IP WHITELISTS (cross-tenant, system admin only) ---
+
+// GET /api/admin/tenants/:id/ips — View tenant IP whitelists
+router.get('/tenants/:id/ips', async (req: AuthRequest, res) => {
+  try {
+    const result = await query('SELECT * FROM ip_whitelists WHERE tenant_id = $1 ORDER BY created_at DESC', [req.params.id]);
+    res.json(result.rows);
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to load IP whitelists', details: err.message });
+  }
+});
+
+// POST /api/admin/tenants/:id/ips — Add tenant IP whitelist
+router.post('/tenants/:id/ips', async (req: AuthRequest, res) => {
+  const { ip_cidr, description } = req.body;
+  if (!ip_cidr) {
+    return res.status(400).json({ error: 'IP CIDR is required' });
+  }
+
+  try {
+    const result = await query(
+      `INSERT INTO ip_whitelists (tenant_id, ip_cidr, description) VALUES ($1, $2, $3) RETURNING *`,
+      [req.params.id, ip_cidr, description || '']
+    );
+
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, 'add_ip_whitelist', 'security', $3, $4)`,
+      [req.params.id, req.user!.id, result.rows[0].id, JSON.stringify({ ip_cidr, description })]
+    );
+
+    res.json(result.rows[0]);
+  } catch (err: any) {
+    if (err.code === '23505') {
+      return res.status(400).json({ error: 'IP already whitelisted for this tenant' });
+    }
+    res.status(500).json({ error: 'Failed to add IP whitelist', details: err.message });
+  }
+});
+
+// DELETE /api/admin/tenants/:id/ips/:ipId — Remove tenant IP whitelist
+router.delete('/tenants/:id/ips/:ipId', async (req: AuthRequest, res) => {
+  try {
+    await query(`DELETE FROM ip_whitelists WHERE tenant_id = $1 AND id = $2`, [req.params.id, req.params.ipId]);
+
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, 'remove_ip_whitelist', 'security', $3, '{}'::jsonb)`,
+      [req.params.id, req.user!.id, req.params.ipId]
+    );
+
+    res.json({ success: true });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to remove IP whitelist', details: err.message });
   }
 });
 

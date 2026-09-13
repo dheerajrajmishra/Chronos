@@ -67,11 +67,55 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('User Management',
-                          style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: text)),
+                        Row(
+                          children: [
+                            Text('User Management',
+                              style: GoogleFonts.inter(fontSize: 24, fontWeight: FontWeight.w700, color: text)),
+                            if (authCtrl.isSystemAdmin) ...[
+                              const SizedBox(width: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 12),
+                                decoration: BoxDecoration(
+                                  color: surface,
+                                  borderRadius: BorderRadius.circular(8),
+                                  border: Border.all(color: border),
+                                ),
+                                child: Row(
+                                  children: [
+                                    Text('Tenant: ', style: GoogleFonts.inter(fontSize: 12, fontWeight: FontWeight.w600, color: textSec)),
+                                    DropdownButtonHideUnderline(
+                                      child: Obx(() {
+                                        if (_userCtrl.tenants.isEmpty || _userCtrl.selectedTenantId.value == null) return const SizedBox.shrink();
+                                        return DropdownButton<int>(
+                                          value: _userCtrl.selectedTenantId.value,
+                                          dropdownColor: surface,
+                                          icon: Icon(Icons.arrow_drop_down_rounded, color: textSec),
+                                          style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: text),
+                                          items: _userCtrl.tenants.map((t) => DropdownMenuItem(
+                                            value: t.id,
+                                            child: Text(t.name),
+                                          )).toList(),
+                                          onChanged: (val) {
+                                            if (val != null) {
+                                              _userCtrl.selectedTenantId.value = val;
+                                              _userCtrl.loadUsers();
+                                            }
+                                          },
+                                        );
+                                      }),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
                         const SizedBox(height: 4),
-                        Text('Manage users, roles, and permissions for ${authCtrl.currentTenantName}',
-                          style: GoogleFonts.inter(fontSize: 13, color: textSec)),
+                        Obx(() {
+                          final currentTenantName = _userCtrl.tenants.where((t) => t.id == _userCtrl.selectedTenantId.value).firstOrNull?.name ?? authCtrl.currentTenantName;
+                          return Text('Manage users, roles, and permissions for $currentTenantName',
+                            style: GoogleFonts.inter(fontSize: 13, color: textSec));
+                        }),
                       ],
                     ),
                   ),
@@ -299,40 +343,24 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
           if (!isSelf) ...[
             Divider(color: border, height: 1),
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 _actionChip('Edit Role', Icons.edit_rounded, primary, () => _showEditRoleDialog(user, isDark, primary, text, surface, border, textSec)),
-                const SizedBox(width: 8),
                 _actionChip('Permissions', Icons.security_rounded, const Color(0xFF7C3AED), () => _showPermissionsDialog(user, isDark, text, surface, border, textSec)),
-                const Spacer(),
                 // Toggle active
-                Tooltip(
-                  message: isActive ? 'Deactivate' : 'Activate',
-                  child: InkWell(
-                    onTap: () => _userCtrl.toggleUserStatus(user.id, !isActive),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(
-                        isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
-                        size: 18,
-                        color: isActive ? const Color(0xFFDC2626).withValues(alpha: 0.6) : const Color(0xFF059669),
-                      ),
-                    ),
-                  ),
+                _actionChip(
+                  isActive ? 'Deactivate' : 'Activate',
+                  isActive ? Icons.block_rounded : Icons.check_circle_outline_rounded,
+                  isActive ? const Color(0xFFDC2626) : const Color(0xFF059669),
+                  () => _userCtrl.toggleUserStatus(user.id, !isActive),
                 ),
-                const SizedBox(width: 4),
-                // Remove
-                Tooltip(
-                  message: 'Remove from organization',
-                  child: InkWell(
-                    onTap: () => _confirmRemoveUser(user, isDark, text, surface, textSec),
-                    borderRadius: BorderRadius.circular(6),
-                    child: Padding(
-                      padding: const EdgeInsets.all(4),
-                      child: Icon(Icons.person_remove_rounded, size: 18, color: const Color(0xFFDC2626).withValues(alpha: 0.5)),
-                    ),
-                  ),
+                _actionChip(
+                  'Remove',
+                  Icons.person_remove_rounded,
+                  const Color(0xFFDC2626),
+                  () => _confirmRemoveUser(user, isDark, text, surface, textSec),
                 ),
               ],
             ),
@@ -356,22 +384,19 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
   }
 
   Widget _actionChip(String label, IconData icon, Color color, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(6),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        decoration: BoxDecoration(
-          border: Border.all(color: color.withValues(alpha: 0.2)),
-          borderRadius: BorderRadius.circular(6),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 12, color: color),
-            const SizedBox(width: 4),
-            Text(label, style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w600, color: color)),
-          ],
+    return Tooltip(
+      message: label,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(6),
+        child: Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: color.withValues(alpha: 0.2)),
+          ),
+          child: Icon(icon, size: 16, color: color),
         ),
       ),
     );
@@ -406,6 +431,8 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
     final passCtrl = TextEditingController();
     final nameCtrl = TextEditingController();
     String role = 'viewer';
+    final authCtrl = Get.find<AuthController>();
+    int targetTenantId = _userCtrl.selectedTenantId.value ?? authCtrl.currentTenantId!;
 
     showDialog(
       context: context,
@@ -434,6 +461,34 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                 const SizedBox(height: 14),
                 _dialogLabel('Password *', textSec),
                 _dialogInput(passCtrl, '••••••••', isDark, border, text, obscure: true),
+                
+                if (authCtrl.isSystemAdmin && _userCtrl.tenants.isNotEmpty) ...[
+                  const SizedBox(height: 14),
+                  _dialogLabel('Tenant', textSec),
+                  Container(
+                    height: 42,
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    decoration: BoxDecoration(
+                      color: isDark ? const Color(0xFF1A1D25) : const Color(0xFFF5F5F5),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: border),
+                    ),
+                    child: DropdownButtonHideUnderline(
+                      child: DropdownButton<int>(
+                        value: targetTenantId,
+                        isExpanded: true,
+                        dropdownColor: surface,
+                        style: GoogleFonts.inter(fontSize: 13, color: text),
+                        items: _userCtrl.tenants.map((t) => DropdownMenuItem(
+                          value: t.id,
+                          child: Text(t.name),
+                        )).toList(),
+                        onChanged: (v) => setDialogState(() => targetTenantId = v!),
+                      ),
+                    ),
+                  ),
+                ],
+
                 const SizedBox(height: 14),
                 _dialogLabel('Role', textSec),
                 Container(
@@ -487,6 +542,7 @@ class _UserManagementScreenState extends State<UserManagementScreen> {
                   password: passCtrl.text,
                   name: nameCtrl.text.trim().isNotEmpty ? nameCtrl.text.trim() : null,
                   role: role,
+                  tenantId: targetTenantId,
                 );
                 if (success) Navigator.pop(ctx);
               },

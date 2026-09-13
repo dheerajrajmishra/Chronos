@@ -203,7 +203,7 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
                   _tableHeader('Users', 1, textMuted),
                   _tableHeader('Projects', 1, textMuted),
                   _tableHeader('Status', 1, textMuted),
-                  _tableHeader('Actions', 1, textMuted),
+                  _tableHeader('Actions', 2, textMuted),
                 ],
               ),
             ),
@@ -238,6 +238,8 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
   Widget _buildTenantRow(Tenant t, bool isDark, Color border, Color text, Color textSec, Color textMuted, Color primary) {
     final isActive = t.status == 'active';
     final statusColor = isActive ? const Color(0xFF059669) : const Color(0xFFDC2626);
+
+    final surface = EnterpriseTheme.getSurface(isDark);
 
     return InkWell(
       onTap: () => _showTenantDetail(t),
@@ -316,11 +318,13 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
             ),
             // Actions
             Expanded(
-              flex: 1,
+              flex: 2,
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
+                  _iconAction(Icons.edit_rounded, 'Edit', () => _showEditTenantDialog(t, isDark, primary, text, surface, border, textSec), primary),
                   _iconAction(Icons.people_rounded, 'Users', () => _showTenantDetail(t), primary),
+                  _iconAction(Icons.security_rounded, 'IP Whitelist', () => _showTenantIpsDialog(t), primary),
                   if (t.id != 1)
                     _iconAction(
                       isActive ? Icons.pause_circle_outline : Icons.play_circle_outline,
@@ -328,6 +332,8 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
                       () => _toggleTenantStatus(t),
                       isActive ? const Color(0xFFDC2626) : const Color(0xFF059669),
                     ),
+                  if (t.id != 1)
+                    _iconAction(Icons.delete_forever_rounded, 'Delete permanently', () => _confirmDeleteTenant(t), const Color(0xFFDC2626)),
                 ],
               ),
             ),
@@ -521,6 +527,122 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
     );
   }
 
+  void _showEditTenantDialog(Tenant t, bool isDark, Color primary, Color text, Color surface, Color border, Color textSec) {
+    final nameCtrl = TextEditingController(text: t.name);
+    final slugCtrl = TextEditingController(text: t.slug);
+    String plan = t.plan;
+    int maxUsers = t.maxUsers;
+
+    showDialog(
+      context: context,
+      builder: (ctx) => StatefulBuilder(builder: (ctx, setDialogState) {
+        return AlertDialog(
+          backgroundColor: surface,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: Row(
+            children: [
+              Icon(Icons.edit_rounded, color: primary, size: 24),
+              const SizedBox(width: 10),
+              Text('Edit Tenant', style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: text)),
+            ],
+          ),
+          content: SizedBox(
+            width: 480,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _dialogLabel('Organization Name *', textSec),
+                  _dialogInput(nameCtrl, 'e.g., Acme Corporation', isDark, border, text),
+                  const SizedBox(height: 14),
+                  _dialogLabel('URL Slug', textSec),
+                  _dialogInput(slugCtrl, 'e.g., acme-corp', isDark, border, text),
+                  const SizedBox(height: 14),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _dialogLabel('Plan', textSec),
+                            Container(
+                              height: 42,
+                              padding: const EdgeInsets.symmetric(horizontal: 12),
+                              decoration: BoxDecoration(
+                                color: isDark ? const Color(0xFF1A1D25) : const Color(0xFFF5F5F5),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: border),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: plan,
+                                  isExpanded: true,
+                                  dropdownColor: surface,
+                                  style: GoogleFonts.inter(fontSize: 13, color: text),
+                                  items: ['free', 'pro', 'enterprise'].map((p) =>
+                                    DropdownMenuItem(value: p, child: Text(p.toUpperCase()))
+                                  ).toList(),
+                                  onChanged: (v) => setDialogState(() => plan = v!),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _dialogLabel('Max Users', textSec),
+                            _dialogInput(
+                              TextEditingController(text: '$maxUsers'),
+                              '10',
+                              isDark, border, text,
+                              keyboardType: TextInputType.number,
+                              onChanged: (v) => maxUsers = int.tryParse(v) ?? 10,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: Text('Cancel', style: GoogleFonts.inter(color: textSec)),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                if (nameCtrl.text.trim().isEmpty) return;
+                final success = await _tenantCtrl.updateTenant(
+                  t.id,
+                  name: nameCtrl.text.trim(),
+                  slug: slugCtrl.text.trim().isNotEmpty ? slugCtrl.text.trim() : null,
+                  plan: plan,
+                  maxUsers: maxUsers,
+                );
+                if (success) Navigator.pop(ctx);
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primary,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                elevation: 0,
+              ),
+              child: Text('Save Changes', style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+            ),
+          ],
+        );
+      }),
+    );
+  }
+
   void _showTenantDetail(Tenant t) {
     _tenantCtrl.selectTenant(t);
     final sdlcCtrl = Get.find<EnterpriseSDLCController>();
@@ -613,6 +735,176 @@ class _TenantManagementScreenState extends State<TenantManagementScreen> {
               },
             );
           }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Close', style: GoogleFonts.inter(color: textSec)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteTenant(Tenant t) {
+    final sdlcCtrl = Get.find<EnterpriseSDLCController>();
+    final isDark = sdlcCtrl.isDarkMode.value;
+    final surface = EnterpriseTheme.getSurface(isDark);
+    final text = EnterpriseTheme.getTextPrimary(isDark);
+    final textMuted = EnterpriseTheme.getTextMuted(isDark);
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.warning_amber_rounded, color: Color(0xFFDC2626)),
+            const SizedBox(width: 8),
+            Text('Delete Tenant', style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: text)),
+          ],
+        ),
+        content: Text('Are you sure you want to permanently delete "${t.name}"? This will delete all associated users, projects, features, and settings. This action cannot be undone.', style: GoogleFonts.inter(color: textMuted)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: GoogleFonts.inter(color: textMuted)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final success = await _tenantCtrl.deleteTenant(t.id);
+              if (success && mounted) {
+                Navigator.pop(ctx);
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFDC2626)),
+            child: Text('Delete', style: GoogleFonts.inter(color: Colors.white)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showTenantIpsDialog(Tenant t) {
+    _tenantCtrl.selectTenant(t);
+    final sdlcCtrl = Get.find<EnterpriseSDLCController>();
+    final isDark = sdlcCtrl.isDarkMode.value;
+    final surface = EnterpriseTheme.getSurface(isDark);
+    final border = EnterpriseTheme.getCardBorder(isDark);
+    final text = EnterpriseTheme.getTextPrimary(isDark);
+    final textSec = EnterpriseTheme.getTextSecondary(isDark);
+    final textMuted = EnterpriseTheme.getTextMuted(isDark);
+    final primary = EnterpriseTheme.getPrimaryAccent(isDark);
+
+    final ipCtrl = TextEditingController();
+    final descCtrl = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.security_rounded, color: primary, size: 24),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text('${t.name} — IP Whitelist',
+                style: GoogleFonts.inter(fontSize: 18, fontWeight: FontWeight.w700, color: text),
+                overflow: TextOverflow.ellipsis),
+            ),
+          ],
+        ),
+        content: SizedBox(
+          width: 500,
+          height: 400,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: _dialogInput(ipCtrl, 'IP CIDR (e.g. 192.168.1.1/32)', isDark, border, text),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    flex: 3,
+                    child: _dialogInput(descCtrl, 'Description', isDark, border, text),
+                  ),
+                  const SizedBox(width: 8),
+                  ElevatedButton(
+                    onPressed: () async {
+                      if (ipCtrl.text.trim().isEmpty) return;
+                      final success = await _tenantCtrl.addTenantIp(t.id, ipCtrl.text.trim(), descCtrl.text.trim());
+                      if (success) {
+                        ipCtrl.clear();
+                        descCtrl.clear();
+                      }
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primary,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    child: const Icon(Icons.add_rounded, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              Divider(color: border),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Obx(() {
+                  final ips = _tenantCtrl.selectedTenantIps;
+                  if (ips.isEmpty) {
+                    return Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.shield_outlined, size: 48, color: textMuted.withValues(alpha: 0.3)),
+                          const SizedBox(height: 12),
+                          Text('No IP whitelists configured.', style: GoogleFonts.inter(fontSize: 14, color: textMuted)),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    itemCount: ips.length,
+                    separatorBuilder: (_, __) => Divider(color: border, height: 1),
+                    itemBuilder: (_, i) {
+                      final ip = ips[i];
+                      return ListTile(
+                        leading: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: primary.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Icon(Icons.router_rounded, size: 18, color: primary),
+                        ),
+                        title: Text(ip.ipCidr,
+                          style: GoogleFonts.jetBrainsMono(fontSize: 13, fontWeight: FontWeight.w600, color: text)),
+                        subtitle: Text(ip.description.isNotEmpty ? ip.description : 'No description',
+                          style: GoogleFonts.inter(fontSize: 11, color: textMuted)),
+                        trailing: IconButton(
+                          icon: Icon(Icons.delete_outline_rounded, size: 18, color: const Color(0xFFDC2626).withValues(alpha: 0.7)),
+                          onPressed: () {
+                            _tenantCtrl.removeTenantIp(t.id, ip.id);
+                          },
+                          tooltip: 'Remove IP',
+                        ),
+                      );
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
         ),
         actions: [
           TextButton(

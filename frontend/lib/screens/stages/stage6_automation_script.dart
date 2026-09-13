@@ -20,6 +20,7 @@ class Stage6AutomationScript extends StatefulWidget {
 }
 
 class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
+  bool _isApproving = false;
   final _promptCtrl = TextEditingController();
   final _editCtrl = TextEditingController();
   bool _showRaw = false;
@@ -333,6 +334,7 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
               child: _buildGradientButton(
                 onPressed: isGenerating ? () {} : () => _generate(controller, feature),
                 icon: isGenerating ? Icons.hourglass_empty : Icons.auto_awesome_rounded,
+                isLoading: isGenerating,
                 label: isGenerating ? 'Generating...' : (stageContent == null ? 'Generate Automation Script' : 'Regenerate Test Automation Script'),
                 isDark: isDark,
                 gradient: isGenerating
@@ -829,6 +831,7 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
                     }
                   },
                   icon: Icons.check_circle_outline,
+                  isLoading: _isApproving,
                   label: 'Save & Approve',
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
@@ -859,6 +862,7 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
                     }
                   },
                   icon: Icons.check_circle_outline,
+                  isLoading: _isApproving,
                   label: 'Approve & Confirm',
                   isDark: isDark,
                   gradient: const LinearGradient(colors: [Color(0xFF10B981), Color(0xFF059669)]),
@@ -912,7 +916,9 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
       });
     } catch (e) {
       controller.logTerminal("Design synthesis failed: $e", level: "ERROR");
-      await controller.updateWorkflowStage(2, 'error', {'test_automation_content': 'Error generating Design: $e'});
+      setState(() => _isApproving = true);
+                    await controller.updateWorkflowStage(2, 'error', {'test_automation_content': 'Error generating Design: $e'});
+                    setState(() => _isApproving = false);
     } finally {
       controller.isProcessing.value = false;
     }
@@ -950,7 +956,7 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
     );
   }
 
-  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient}) {
+  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient, bool isLoading = false}) {
     return Container(
       decoration: BoxDecoration(
         gradient: gradient ?? EnterpriseTheme.brandGradient,
@@ -958,8 +964,10 @@ class _Stage6AutomationScriptState extends State<Stage6AutomationScript> {
         boxShadow: [BoxShadow(color: (gradient?.colors.first ?? EnterpriseTheme.getPrimaryAccent(isDark)).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: Colors.white),
+        onPressed: isLoading ? () {} : onPressed,
+        icon: isLoading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Icon(icon, size: 16, color: Colors.white),
         label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
       ),

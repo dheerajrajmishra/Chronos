@@ -25,21 +25,35 @@ class ZeroTrustApp extends StatelessWidget {
     final controller = Get.find<EnterpriseSDLCController>();
     final authController = Get.find<AuthController>();
 
+    return GetMaterialApp(
+      title: 'Chronos',
+      debugShowCheckedModeBanner: false,
+      theme: EnterpriseTheme.lightTheme,
+      darkTheme: EnterpriseTheme.darkTheme,
+      themeMode: controller.isDarkMode.value ? ThemeMode.dark : ThemeMode.light,
+      home: const Root(),
+      unknownRoute: GetPage(name: '/notfound', page: () => const Root()),
+      getPages: [
+        GetPage(name: '/login', page: () => LoginScreen()),
+        GetPage(name: '/portal', page: () => const EnterprisePortalScreen()),
+        GetPage(name: '/org/:tenantSlug/portal', page: () => const EnterprisePortalScreen()),
+        GetPage(name: '/dashboard', page: () => const EnterprisePortalScreen()),
+      ],
+    );
+  }
+}
+
+class Root extends StatelessWidget {
+  const Root({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final authController = Get.find<AuthController>();
     return Obx(() {
-      final isAuth = authController.isAuthenticated.value;
-      return GetMaterialApp(
-        title: 'Chronos',
-        debugShowCheckedModeBanner: false,
-        theme: EnterpriseTheme.lightTheme,
-        darkTheme: EnterpriseTheme.darkTheme,
-        themeMode: controller.isDarkMode.value ? ThemeMode.dark : ThemeMode.light,
-        home: isAuth ? const EnterprisePortalScreen() : LoginScreen(),
-        getPages: [
-          GetPage(name: '/login', page: () => LoginScreen()),
-          GetPage(name: '/portal', page: () => const EnterprisePortalScreen()),
-          GetPage(name: '/dashboard', page: () => const EnterprisePortalScreen()),
-        ],
-      );
+      if (authController.isAuthenticated.value) {
+        return const EnterprisePortalScreen();
+      }
+      return LoginScreen();
     });
   }
 }

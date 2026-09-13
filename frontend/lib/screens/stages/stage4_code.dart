@@ -20,6 +20,7 @@ class Stage4Code extends StatefulWidget {
 }
 
 class _Stage4CodeState extends State<Stage4Code> {
+  bool _isApproving = false;
   final _branchCtrl = TextEditingController(text: 'feature/zero-trust-impl');
   final _promptCtrl = TextEditingController();
   final _editCtrl = TextEditingController();
@@ -914,6 +915,7 @@ class _Stage4CodeState extends State<Stage4Code> {
                 onPressed: () async {
                   try {
                     final payload = {
+        'targetStage': 4,
                       'projectId': feature.projectId.toString(),
                       'repoUrl': feature.codeAccess['repoUrl'],
                       'baseBranch': 'main',
@@ -1103,7 +1105,7 @@ class _Stage4CodeState extends State<Stage4Code> {
     );
   }
 
-  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient}) {
+  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient, bool isLoading = false}) {
     return Container(
       decoration: BoxDecoration(
         gradient: gradient ?? EnterpriseTheme.brandGradient,
@@ -1111,8 +1113,10 @@ class _Stage4CodeState extends State<Stage4Code> {
         boxShadow: [BoxShadow(color: (gradient?.colors.first ?? EnterpriseTheme.getPrimaryAccent(isDark)).withOpacity(0.25), blurRadius: 10, offset: const Offset(0, 3))],
       ),
       child: ElevatedButton.icon(
-        onPressed: onPressed,
-        icon: Icon(icon, size: 16, color: Colors.white),
+        onPressed: isLoading ? () {} : onPressed,
+        icon: isLoading
+            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+            : Icon(icon, size: 16, color: Colors.white),
         label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white, fontSize: 13)),
         style: ElevatedButton.styleFrom(backgroundColor: Colors.transparent, shadowColor: Colors.transparent, padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10))),
       ),

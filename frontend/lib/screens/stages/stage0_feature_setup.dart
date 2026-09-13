@@ -460,10 +460,11 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
 
   Widget _buildEmptyContextState(bool isDark, EnterpriseSDLCController controller, feature) {
     return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(40),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(40),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Container(
               padding: const EdgeInsets.all(20),
@@ -517,6 +518,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
             ),
           ],
         ),
+      ),
       ),
     );
   }
@@ -661,7 +663,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
     );
   }
 
-  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient}) {
+  Widget _buildGradientButton({required VoidCallback onPressed, required IconData icon, required String label, required bool isDark, Gradient? gradient, bool isLoading = false}) {
     return Container(
       decoration: BoxDecoration(
         gradient: gradient ?? EnterpriseTheme.brandGradient,
@@ -675,7 +677,7 @@ class _Stage0FeatureSetupState extends State<Stage0FeatureSetup> with SingleTick
         ],
       ),
       child: ElevatedButton.icon(
-        onPressed: onPressed,
+        onPressed: isLoading ? () {} : onPressed,
         icon: Icon(icon, size: 18, color: Colors.white),
         label: Text(label, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: Colors.white)),
         style: ElevatedButton.styleFrom(

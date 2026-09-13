@@ -2,14 +2,39 @@ class Project {
   final int id;
   final String name;
   final String description;
+  final String? userRole;
 
-  Project({required this.id, required this.name, required this.description});
+  Project({required this.id, required this.name, required this.description, this.userRole});
 
   factory Project.fromJson(Map<String, dynamic> json) {
     return Project(
       id: json['id'],
       name: json['name'],
       description: json['description'] ?? '',
+      userRole: json['user_role'],
+    );
+  }
+}
+
+class ProjectUser {
+  final int userId;
+  final String email;
+  final String name;
+  final String role;
+
+  ProjectUser({
+    required this.userId,
+    required this.email,
+    required this.name,
+    required this.role,
+  });
+
+  factory ProjectUser.fromJson(Map<String, dynamic> json) {
+    return ProjectUser(
+      userId: json['user_id'] is int ? json['user_id'] : (int.tryParse(json['user_id']?.toString() ?? '0') ?? 0),
+      email: json['email']?.toString() ?? '',
+      name: json['name']?.toString() ?? '',
+      role: json['role']?.toString() ?? 'viewer',
     );
   }
 }

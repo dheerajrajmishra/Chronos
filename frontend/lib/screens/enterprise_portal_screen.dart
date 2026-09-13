@@ -60,6 +60,18 @@ class _EnterprisePortalScreenState extends State<EnterprisePortalScreen> {
                   // Active Stage Body Viewport
                   Expanded(
                     child: Obx(() {
+                      if (controller.isLoadingStage.value) {
+                        return Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const CircularProgressIndicator(color: EnterpriseTheme.purple),
+                              const SizedBox(height: 16),
+                              Text('Loading Workspace...', style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark))),
+                            ],
+                          ),
+                        );
+                      }
                       final stage = controller.currentStage.value;
                       switch (stage) {
                         case SDLCStageType.projectHub:

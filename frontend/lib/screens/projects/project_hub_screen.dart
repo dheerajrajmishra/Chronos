@@ -5,6 +5,8 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../controllers/enterprise_sdlc_controller.dart';
 import '../../models/sdlc_models.dart';
 import '../../theme/enterprise_theme.dart';
+import '../../controllers/auth_controller.dart';
+import 'project_permissions_dialog.dart';
 
 class ProjectHubScreen extends StatelessWidget {
   const ProjectHubScreen({super.key});
@@ -93,13 +95,37 @@ class ProjectHubScreen extends StatelessWidget {
                         Text('FEATURES IN ${activePrj.name.toUpperCase()}', style: GoogleFonts.inter(color: textSecColor, fontSize: 12, fontWeight: FontWeight.w700, letterSpacing: 1.2)),
                       ],
                     ),
-                    _buildGradientButton(
-                      onPressed: () => _showCreateFeatureDialog(context, controller, activePrj, isDark),
-                      icon: Icons.rocket_launch_outlined,
-                      label: 'New Feature',
-                      isDark: isDark,
-                      gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
-                    )
+                    Builder(
+                      builder: (context) {
+                        final authCtrl = Get.find<AuthController>();
+                        final canManageActive = authCtrl.isOrgAdmin || authCtrl.isSystemAdmin || activePrj.userRole == 'contributor';
+                        if (!canManageActive) return const SizedBox.shrink();
+                        return Row(
+                          children: [
+                            _buildGradientButton(
+                              onPressed: () {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => ProjectPermissionsDialog(project: activePrj, isDark: isDark),
+                                );
+                              },
+                              icon: Icons.security,
+                              label: 'Permissions',
+                              isDark: isDark,
+                              gradient: const LinearGradient(colors: [Color(0xFF52525B), Color(0xFF3F3F46)]),
+                            ),
+                            const SizedBox(width: 12),
+                            _buildGradientButton(
+                              onPressed: () => _showCreateFeatureDialog(context, controller, activePrj, isDark),
+                              icon: Icons.rocket_launch_outlined,
+                              label: 'New Feature',
+                              isDark: isDark,
+                              gradient: const LinearGradient(colors: [Color(0xFF8B5CF6), Color(0xFF6366F1)]),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -431,27 +457,62 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
                           decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
                           child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 9, fontWeight: FontWeight.bold)),
                         ),
-                      PopupMenuButton<String>(
-                        icon: Icon(Icons.more_vert, size: 16, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
-                        padding: EdgeInsets.zero,
-                        tooltip: 'Options',
-                        onSelected: (val) {
-                          if (val == 'edit') {
-                            _showEditProjectDialog(context, widget.controller, widget.project, widget.isDark);
-                          } else if (val == 'delete') {
-                            _showDeleteProjectDialog(context, widget.controller, widget.project, widget.isDark);
-                          }
+                      Builder(
+                        builder: (context) {
+                          final authCtrl = Get.find<AuthController>();
+                          final canManage = authCtrl.isOrgAdmin || authCtrl.isSystemAdmin || widget.project.userRole == 'contributor';
+                          if (!canManage) return const SizedBox.shrink();
+
+                          return PopupMenuButton<String>(
+                            icon: Icon(Icons.more_vert, size: 18, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
+                            padding: EdgeInsets.zero,
+                            tooltip: 'Workspace Options',
+                            onSelected: (val) {
+                              if (val == 'permissions') {
+                                showDialog(
+                                  context: context,
+                                  builder: (ctx) => ProjectPermissionsDialog(project: widget.project, isDark: widget.isDark),
+                                );
+                              } else if (val == 'edit') {
+                                _showEditProjectDialog(context, widget.controller, widget.project, widget.isDark);
+                              } else if (val == 'delete') {
+                                _showDeleteProjectDialog(context, widget.controller, widget.project, widget.isDark);
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              PopupMenuItem(
+                                value: 'permissions',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.security, size: 18, color: EnterpriseTheme.emerald),
+                                    const SizedBox(width: 8),
+                                    const Text('Permissions'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'edit',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined, size: 18, color: EnterpriseTheme.brandBlue),
+                                    const SizedBox(width: 8),
+                                    const Text('Edit'),
+                                  ],
+                                ),
+                              ),
+                              PopupMenuItem(
+                                value: 'delete',
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose),
+                                    const SizedBox(width: 8),
+                                    Text('Delete', style: TextStyle(color: EnterpriseTheme.rose)),
+                                  ],
+                                ),
+                              ),
+                            ],
+                          );
                         },
-                        itemBuilder: (context) => [
-                          PopupMenuItem(
-                            value: 'edit',
-                            child: Row(children: [Icon(Icons.edit_outlined, size: 18), const SizedBox(width: 8), const Text('Edit')]),
-                          ),
-                          PopupMenuItem(
-                            value: 'delete',
-                            child: Row(children: [Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose), const SizedBox(width: 8), Text('Delete', style: TextStyle(color: EnterpriseTheme.rose))]),
-                          ),
-                        ],
                       ),
                     ],
                   )
@@ -734,28 +795,29 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                   Expanded(
                     child: Text(widget.feature.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                   ),
-                  PopupMenuButton<String>(
-                    icon: Icon(Icons.more_vert, size: 16, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
-                    padding: EdgeInsets.zero,
-                    tooltip: 'Options',
-                    onSelected: (val) {
-                      if (val == 'edit') {
-                        // _showEditFeatureDialog(context); // Optional: add an edit feature dialog here
-                      } else if (val == 'delete') {
-                        _showDeleteConfirmationDialog(context);
-                      }
-                    },
-                    itemBuilder: (context) => [
-                      PopupMenuItem(
-                        value: 'edit',
-                        child: Row(children: [Icon(Icons.edit_outlined, size: 18), const SizedBox(width: 8), const Text('Edit')]),
-                      ),
-                      PopupMenuItem(
-                        value: 'delete',
-                        child: Row(children: [Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose), const SizedBox(width: 8), Text('Delete', style: TextStyle(color: EnterpriseTheme.rose))]),
-                      ),
-                    ],
-                  ),
+                  if (widget.controller.activeProject.value?.userRole == 'contributor')
+                    PopupMenuButton<String>(
+                      icon: Icon(Icons.more_vert, size: 16, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
+                      padding: EdgeInsets.zero,
+                      tooltip: 'Options',
+                      onSelected: (val) {
+                        if (val == 'edit') {
+                          // _showEditFeatureDialog(context); // Optional: add an edit feature dialog here
+                        } else if (val == 'delete') {
+                          _showDeleteConfirmationDialog(context);
+                        }
+                      },
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: Row(children: [Icon(Icons.edit_outlined, size: 18), const SizedBox(width: 8), const Text('Edit')]),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: Row(children: [Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose), const SizedBox(width: 8), Text('Delete', style: TextStyle(color: EnterpriseTheme.rose))]),
+                        ),
+                      ],
+                    ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -784,13 +846,18 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text('FTR-${widget.feature.id}', style: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark), fontSize: 12, fontWeight: FontWeight.w500)),
-                  Row(
-                    children: [
-                      Text('Open Workflow', style: GoogleFonts.inter(color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 13, fontWeight: FontWeight.w600)),
-                      const SizedBox(width: 4),
-                      Icon(Icons.arrow_forward_rounded, size: 16, color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark)),
-                    ],
-                  )
+                  Obx(() {
+                    final isLoading = widget.controller.isProcessing.value && widget.controller.activeFeature.value?.id == widget.feature.id;
+                    return Row(
+                      children: [
+                        Text(isLoading ? 'Opening...' : 'Open Workflow', style: GoogleFonts.inter(color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark), fontSize: 13, fontWeight: FontWeight.w600)),
+                        const SizedBox(width: 4),
+                        isLoading 
+                          ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: EnterpriseTheme.purple))
+                          : Icon(Icons.arrow_forward_rounded, size: 16, color: _isHovered ? EnterpriseTheme.purple : EnterpriseTheme.getTextSecondary(widget.isDark)),
+                      ],
+                    );
+                  })
                 ],
               )
             ],

@@ -192,13 +192,15 @@ ${req.memoryMd}
         return typeof res.content === 'string' ? res.content : JSON.stringify(res.content);
       };
 
-      if (!req.targetStage || req.targetStage === 1) brdMarkdown = await generateBRD();
-      if (!req.targetStage || req.targetStage === 2) ddMarkdown = await generateDesign();
-      if (!req.targetStage || req.targetStage === 3) techDocMarkdown = await generateTechDoc();
-      if (!req.targetStage || req.targetStage === 4) codeMarkdown = await generateCode();
-      if (!req.targetStage || req.targetStage === 5) testCasesMarkdown = await generateTestCases();
-      if (!req.targetStage || req.targetStage === 6) testAutomationMarkdown = await generateTestAutomation();
-      if (!req.targetStage || req.targetStage === 7) testingResultMarkdown = await generateTestingResult();
+      const tasks = [];
+      if (!req.targetStage || req.targetStage === 1) tasks.push(generateBRD().then(res => brdMarkdown = res));
+      if (!req.targetStage || req.targetStage === 2) tasks.push(generateDesign().then(res => ddMarkdown = res));
+      if (!req.targetStage || req.targetStage === 3) tasks.push(generateTechDoc().then(res => techDocMarkdown = res));
+      if (!req.targetStage || req.targetStage === 4) tasks.push(generateCode().then(res => codeMarkdown = res));
+      if (!req.targetStage || req.targetStage === 5) tasks.push(generateTestCases().then(res => testCasesMarkdown = res));
+      if (!req.targetStage || req.targetStage === 6) tasks.push(generateTestAutomation().then(res => testAutomationMarkdown = res));
+      if (!req.targetStage || req.targetStage === 7) tasks.push(generateTestingResult().then(res => testingResultMarkdown = res));
+      await Promise.all(tasks);
 
       return {
         workflowId,

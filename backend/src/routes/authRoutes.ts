@@ -47,8 +47,15 @@ router.post('/login', async (req, res) => {
       return res.status(403).json({ error: 'User does not belong to any active organization' });
     }
 
-    // Use the first active tenant as default (or the one specified by the client)
-    const tenantUser = tenantsRes.rows[0];
+    let tenantUser = tenantsRes.rows[0];
+    const orgId = req.body.orgId;
+    if (orgId) {
+      const requestedTenant = tenantsRes.rows.find((t: any) => t.tenant_slug === orgId || t.tenant_id.toString() === orgId);
+      if (requestedTenant) {
+        tenantUser = requestedTenant;
+      }
+    }
+    
     const permissions = getEffectivePermissions(tenantUser.role, tenantUser.permissions || {});
     
     const token = generateToken(user, tenantUser.tenant_id, tenantUser.role, permissions);

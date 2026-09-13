@@ -58,25 +58,29 @@ class EnterpriseSDLCController extends GetxController {
     if (savedProjectId != null) {
       try {
         final pid = int.parse(savedProjectId);
-        final project = projectList.firstWhere((p) => p.id == pid);
-        activeProject.value = project;
-        await fetchFeaturesForProject(pid);
+        final project = projectList.firstWhereOrNull((p) => p.id == pid);
+        if (project != null) {
+          activeProject.value = project;
+          await fetchFeaturesForProject(pid);
 
-        final savedFeatureId = html.window.localStorage['activeFeatureId'];
-        if (savedFeatureId != null) {
-          final fid = int.parse(savedFeatureId);
-          final feature = activeProjectFeatures.firstWhere((f) => f.id == fid);
-          activeFeature.value = feature;
-          await fetchWorkflowForFeature(fid);
-          
-          final savedStage = html.window.localStorage['currentStage'];
-          if (savedStage != null) {
-            currentStage.value = SDLCStageType.values.firstWhere(
-              (e) => e.name == savedStage, 
-              orElse: () => SDLCStageType.stage1Brd
-            );
-          } else {
-             currentStage.value = SDLCStageType.stage1Brd;
+          final savedFeatureId = html.window.localStorage['activeFeatureId'];
+          if (savedFeatureId != null) {
+            final fid = int.parse(savedFeatureId);
+            final feature = activeProjectFeatures.firstWhereOrNull((f) => f.id == fid);
+            if (feature != null) {
+              activeFeature.value = feature;
+              await fetchWorkflowForFeature(fid);
+              
+              final savedStage = html.window.localStorage['currentStage'];
+              if (savedStage != null) {
+                currentStage.value = SDLCStageType.values.firstWhere(
+                  (e) => e.name == savedStage, 
+                  orElse: () => SDLCStageType.stage1Brd
+                );
+              } else {
+                 currentStage.value = SDLCStageType.stage1Brd;
+              }
+            }
           }
         }
       } catch (e) {
@@ -171,7 +175,14 @@ class EnterpriseSDLCController extends GetxController {
     }
   }
 
-  void setStage(SDLCStageType stage) {
+  final RxBool isLoadingStage = false.obs;
+
+  Future<void> setStage(SDLCStageType stage) async {
+    if (currentStage.value == stage) return;
+    
+    isLoadingStage.value = true;
+    await Future.delayed(const Duration(milliseconds: 100)); // Allow UI to paint loader
+    
     currentStage.value = stage;
     html.window.localStorage['currentStage'] = stage.name;
     
@@ -182,6 +193,10 @@ class EnterpriseSDLCController extends GetxController {
     }
     
     logTerminal("Navigated to: ${stage.name.toUpperCase()}", level: "NAV");
+    
+    // Give it a tiny moment to render the new stage before hiding the loader
+    await Future.delayed(const Duration(milliseconds: 50));
+    isLoadingStage.value = false;
   }
 
   void setUserRole(String role) {
@@ -191,10 +206,33 @@ class EnterpriseSDLCController extends GetxController {
 
   // --- API Integrations ---
 
+  void clearSession() {
+    activeProject.value = null;
+    activeFeature.value = null;
+    activeWorkflow.value = null;
+    activeProjectFeatures.clear();
+    projectList.clear();
+    html.window.localStorage.remove('activeProjectId');
+    html.window.localStorage.remove('activeFeatureId');
+    html.window.localStorage.remove('currentStage');
+  }
+
   Future<void> fetchProjects() async {
     try {
       final list = await ApiService.getProjects();
       projectList.value = list;
+
+      final currentInList = activeProject.value != null
+          ? list.firstWhereOrNull((p) => p.id == activeProject.value!.id)
+          : null;
+
+      if (currentInList != null) {
+        activeProject.value = currentInList;
+      } else if (list.isNotEmpty) {
+        await selectProject(list.first);
+      } else {
+        clearSession();
+      }
     } catch (e) {
       logTerminal("Failed to fetch projects: $e", level: "ERROR");
     }
@@ -316,11 +354,13 @@ class EnterpriseSDLCController extends GetxController {
   }
 
   Future<void> selectFeature(Feature feature) async {
+    isProcessing.value = true;
     activeFeature.value = feature;
     html.window.localStorage['activeFeatureId'] = feature.id.toString();
     logTerminal("Selected Feature: ${feature.name}", level: "FEATURE");
     await fetchWorkflowForFeature(feature.id);
-    setStage(SDLCStageType.stage1Brd);
+    setStage(SDLCStageType.stage0Setup);
+    isProcessing.value = false;
   }
 
   Future<void> fetchWorkflowForFeature(int featureId) async {

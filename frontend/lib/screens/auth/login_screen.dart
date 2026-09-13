@@ -390,8 +390,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
             const SizedBox(height: 20),
 
-            // ─── Chronos Admin Quick Login Banner ───────────────
+            // ─── Quick Login Banners ───────────────
             _buildQuickAdminBanner(isDark),
+            _buildQuickSDSBanner(isDark),
+            _buildQuickSDSViewerBanner(isDark),
 
             // ─── Organization Field ─────────────────────────────
             _buildFieldLabel(isDark, 'Organization'),
@@ -685,8 +687,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
     if (success) {
       final sdlcController = Get.find<EnterpriseSDLCController>();
+      sdlcController.clearSession();
       await sdlcController.fetchProjects();
-      Get.offAllNamed('/portal');
+      Get.offAllNamed('/org/${authController.currentTenantSlug}/portal');
     } else {
       Get.snackbar(
         'Authentication Failed',
@@ -715,8 +718,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
       if (success) {
         final sdlcController = Get.find<EnterpriseSDLCController>();
+        sdlcController.clearSession();
         await sdlcController.fetchProjects();
-        Get.offAllNamed('/portal');
+        Get.offAllNamed('/org/${authController.currentTenantSlug}/portal');
       } else {
         Get.snackbar(
           'Login Failed',
@@ -739,6 +743,218 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
     } finally {
       isLoading.value = false;
     }
+  }
+
+  Future<void> _handleQuickSDSLogin() async {
+    orgController.text = 'sds-tenant';
+    emailController.text = 'dhiraj.k3@samsung.com';
+    passwordController.text = 'admin';
+
+    isLoading.value = true;
+    try {
+      bool success = await authController.login('dhiraj.k3@samsung.com', 'admin', 'sds-tenant');
+
+      if (success) {
+        final sdlcController = Get.find<EnterpriseSDLCController>();
+        sdlcController.clearSession();
+        await sdlcController.fetchProjects();
+        Get.offAllNamed('/org/${authController.currentTenantSlug}/portal');
+      } else {
+        Get.snackbar(
+          'Login Failed',
+          'Could not authenticate. Please ensure backend is running.',
+          backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 10,
+          icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Login Error',
+        e.toString(),
+        backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Future<void> _handleQuickSDSViewerLogin() async {
+    orgController.text = 'sds-tenant';
+    emailController.text = 'sanjay.dhar@samsung.com';
+    passwordController.text = 'admin';
+
+    isLoading.value = true;
+    try {
+      bool success = await authController.login('sanjay.dhar@samsung.com', 'admin', 'sds-tenant');
+
+      if (success) {
+        final sdlcController = Get.find<EnterpriseSDLCController>();
+        sdlcController.clearSession();
+        await sdlcController.fetchProjects();
+        Get.offAllNamed('/org/${authController.currentTenantSlug}/portal');
+      } else {
+        Get.snackbar(
+          'Login Failed',
+          'Could not authenticate. Please ensure backend is running.',
+          backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+          colorText: Colors.white,
+          snackPosition: SnackPosition.TOP,
+          margin: const EdgeInsets.all(16),
+          borderRadius: 10,
+          icon: const Icon(Icons.error_outline_rounded, color: Colors.white),
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Login Error',
+        e.toString(),
+        backgroundColor: EnterpriseTheme.rose.withValues(alpha: 0.9),
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  Widget _buildQuickSDSBanner(bool isDark) {
+    final primaryAccent = EnterpriseTheme.emerald;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: primaryAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryAccent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.person_rounded, size: 18, color: primaryAccent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'SDS Tenant Credentials',
+                      style: GoogleFonts.inter(
+                        color: EnterpriseTheme.getTextPrimary(isDark),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'dhiraj.k3@samsung.com  •  Tenant: sds-tenant',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: EnterpriseTheme.getTextMuted(isDark),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Obx(
+            () => ElevatedButton.icon(
+              onPressed: isLoading.value ? null : _handleQuickSDSLogin,
+              icon: const Icon(Icons.bolt_rounded, size: 15),
+              label: const Text('1-Click Login'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQuickSDSViewerBanner(bool isDark) {
+    final primaryAccent = EnterpriseTheme.purple;
+    return Container(
+      margin: const EdgeInsets.only(bottom: 20),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: primaryAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: primaryAccent.withValues(alpha: 0.25)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: primaryAccent.withValues(alpha: 0.15),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(Icons.visibility_outlined, size: 18, color: primaryAccent),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'SDS Viewer Credentials',
+                      style: GoogleFonts.inter(
+                        color: EnterpriseTheme.getTextPrimary(isDark),
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'sanjay.dhar@samsung.com  •  Tenant: sds-tenant',
+                  style: GoogleFonts.jetBrainsMono(
+                    color: EnterpriseTheme.getTextMuted(isDark),
+                    fontSize: 11,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Obx(
+            () => ElevatedButton.icon(
+              onPressed: isLoading.value ? null : _handleQuickSDSViewerLogin,
+              icon: const Icon(Icons.bolt_rounded, size: 15),
+              label: const Text('1-Click Login'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: primaryAccent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                textStyle: GoogleFonts.inter(fontSize: 11, fontWeight: FontWeight.w700),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   Widget _buildQuickAdminBanner(bool isDark) {

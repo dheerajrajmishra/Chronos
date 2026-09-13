@@ -78,14 +78,20 @@ router.post('/users', requireAuth, requirePermission('manage_users'), async (req
   }
 });
 
-// PUT /api/saas/users/:id — Update user role within tenant
+// PUT /api/saas/users/:id — Update user role/status within tenant
 router.put('/users/:id', requireAuth, requirePermission('manage_users'), async (req: AuthRequest, res) => {
-  const { role, name } = req.body;
+  const { role, name, status } = req.body;
   try {
     if (role) {
       await query(
         `UPDATE tenant_users SET role = $1 WHERE tenant_id = $2 AND user_id = $3`,
         [role, req.user!.tenant_id, req.params.id]
+      );
+    }
+    if (status) {
+      await query(
+        `UPDATE tenant_users SET status = $1 WHERE tenant_id = $2 AND user_id = $3`,
+        [status, req.user!.tenant_id, req.params.id]
       );
     }
     if (name !== undefined) {
@@ -94,13 +100,31 @@ router.put('/users/:id', requireAuth, requirePermission('manage_users'), async (
 
     await query(
       `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
-       VALUES ($1, $2, 'update_user_role', 'user', $3, $4)`,
-      [req.user!.tenant_id, req.user!.id, req.params.id, JSON.stringify({ role, name })]
+       VALUES ($1, $2, 'update_user', 'user', $3, $4)`,
+      [req.user!.tenant_id, req.user!.id, req.params.id, JSON.stringify({ role, name, status })]
     );
 
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ error: 'Failed to update user' });
+  }
+});
+
+// DELETE /api/saas/users/:id — Remove user from current tenant
+router.delete('/users/:id', requireAuth, requirePermission('manage_users'), async (req: AuthRequest, res) => {
+  try {
+    await query(
+      `DELETE FROM tenant_users WHERE tenant_id = $1 AND user_id = $2`,
+      [req.user!.tenant_id, req.params.id]
+    );
+    await query(
+      `INSERT INTO audit_logs (tenant_id, user_id, action, entity_type, entity_id, details)
+       VALUES ($1, $2, 'remove_user', 'user', $3, '{}')`,
+      [req.user!.tenant_id, req.user!.id, req.params.id]
+    );
+    res.json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to remove user' });
   }
 });
 

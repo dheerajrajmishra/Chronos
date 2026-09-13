@@ -79,6 +79,67 @@ class ApiService {
     return response.statusCode == 200;
   }
 
+  // ─── PROJECT USERS ─────────────────────────────────
+
+  static Future<List<ProjectUser>> getProjectUsers(int projectId) async {
+    final response = await http.get(Uri.parse('$baseUrl/projects/$projectId/users'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => ProjectUser.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load project users');
+  }
+
+  static Future<List<TenantUser>> getProjectAvailableUsers(int projectId) async {
+    final response = await http.get(Uri.parse('$baseUrl/projects/$projectId/available-users'), headers: _getHeaders());
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => TenantUser.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load available users for project');
+  }
+
+  static Future<ProjectUser> addProjectUser(int projectId, {int? userId, String? email, required String role}) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/projects/$projectId/users'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        if (userId != null) 'user_id': userId,
+        if (email != null && email.isNotEmpty) 'email': email,
+        'role': role,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return ProjectUser.fromJson(jsonDecode(response.body));
+    }
+    try {
+      final err = jsonDecode(response.body);
+      throw Exception(err['error'] ?? 'Failed to add project user (${response.statusCode})');
+    } catch (e) {
+      throw Exception('Failed to add project user (${response.statusCode})');
+    }
+  }
+
+  static Future<ProjectUser> updateProjectUserRole(int projectId, int userId, String role) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/projects/$projectId/users/$userId'),
+      headers: _getHeaders(),
+      body: jsonEncode({'role': role}),
+    );
+    if (response.statusCode == 200) {
+      return ProjectUser.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to update project user role');
+  }
+
+  static Future<bool> removeProjectUser(int projectId, int userId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/projects/$projectId/users/$userId'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
   // ─── FEATURES ──────────────────────────────────────
 
   static Future<List<Feature>> getFeatures(int projectId) async {
@@ -380,6 +441,49 @@ class ApiService {
     return response.statusCode == 200;
   }
 
+  static Future<bool> deleteTenant(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/admin/tenants/$id/force'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<List<IpWhitelist>> getTenantIps(int tenantId) async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/ips'),
+      headers: _getHeaders(),
+    );
+    if (response.statusCode == 200) {
+      final List data = jsonDecode(response.body);
+      return data.map((json) => IpWhitelist.fromJson(json)).toList();
+    }
+    throw Exception('Failed to load IPs: ${response.statusCode}');
+  }
+
+  static Future<IpWhitelist> addTenantIp(int tenantId, String ipCidr, String description) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/ips'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        'ip_cidr': ipCidr,
+        'description': description,
+      }),
+    );
+    if (response.statusCode == 200) {
+      return IpWhitelist.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to add IP: ${response.body}');
+  }
+
+  static Future<bool> removeTenantIp(int tenantId, int ipId) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/ips/$ipId'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
   static Future<List<TenantUser>> getTenantUsers(int tenantId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/admin/tenants/$tenantId/users'),
@@ -415,6 +519,23 @@ class ApiService {
     final response = await http.delete(
       Uri.parse('$baseUrl/admin/tenants/$tenantId/users/$userId'),
       headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
+  static Future<bool> updateTenantUser(int tenantId, int userId, {
+    String? role,
+    String? status,
+    Map<String, dynamic>? permissions,
+  }) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/admin/tenants/$tenantId/users/$userId'),
+      headers: _getHeaders(),
+      body: jsonEncode({
+        if (role != null) 'role': role,
+        if (status != null) 'status': status,
+        if (permissions != null) 'permissions': permissions,
+      }),
     );
     return response.statusCode == 200;
   }
@@ -482,7 +603,7 @@ class ApiService {
 
   static Future<bool> updateUserStatus(int userId, String status) async {
     final response = await http.put(
-      Uri.parse('$baseUrl/saas/users/$userId/status'),
+      Uri.parse('$baseUrl/saas/users/$userId'),
       headers: _getHeaders(),
       body: jsonEncode({'status': status}),
     );
