@@ -355,6 +355,23 @@ export const initDB = async () => {
       SET value = $1::jsonb || global_settings.value;
     `, [JSON.stringify(FACTORY_DEFAULT_PROMPTS)]);
 
+    // Default LLM Config
+    const defaultLlmConfig = {
+      provider: process.env.AZURE_OPENAI_KEY ? 'azure' : 'openai',
+      apiUrl: process.env.AZURE_OPENAI_INSTANCE ? `https://${process.env.AZURE_OPENAI_INSTANCE}.openai.azure.com` : '',
+      apiKey: process.env.AZURE_OPENAI_KEY || process.env.OPENAI_API_KEY || '',
+      textModel: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
+      imageProvider: 'openai',
+      imageModel: 'dall-e-3',
+      imageApiKey: process.env.OPENAI_API_KEY || ''
+    };
+
+    await client.query(`
+      INSERT INTO global_settings (key, value)
+      VALUES ('llm_config', $1::jsonb)
+      ON CONFLICT (key) DO NOTHING;
+    `, [JSON.stringify(defaultLlmConfig)]);
+
     client.release();
     console.log('[DB] Database schema initialized.');
   } catch (err) {

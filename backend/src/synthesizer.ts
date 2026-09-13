@@ -1,4 +1,5 @@
 import { ChatOpenAI, AzureChatOpenAI } from '@langchain/openai';
+import { getLlmClient } from './llmFactory';
 import { CodebaseGraph } from './codeGraph/graphEngine';
 
 export interface SynthesisRequest {
@@ -116,22 +117,7 @@ export async function synthesizeDeliverables(req: SynthesisRequest): Promise<Syn
   // Try live LLM if key is available
   if (apiKey && apiKey !== 'dummy_key') {
     try {
-      let llm: any;
-      if (process.env.AZURE_OPENAI_KEY || req.llmModel?.includes('Azure')) {
-        llm = new AzureChatOpenAI({
-          azureOpenAIApiKey: apiKey,
-          azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_INSTANCE || 'pitchperfectllmengine2',
-          azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
-          azureOpenAIApiVersion: '2024-02-15-preview',
-          temperature: 0.2,
-        });
-      } else {
-        llm = new ChatOpenAI({
-          openAIApiKey: apiKey,
-          modelName: 'gpt-4o',
-          temperature: 0.2,
-        });
-      }
+      const llm = await getLlmClient(req.llmModel, req.apiKey);
 
       const codeGraphPrompt = req.codeGraph ? `
 Target Application Context: 
@@ -757,22 +743,7 @@ export async function generateLlmProjectMemory(codeGraph: CodebaseGraph, repoUrl
   }
 
   try {
-    let llm: any;
-    if (process.env.AZURE_OPENAI_KEY) {
-      llm = new AzureChatOpenAI({
-        azureOpenAIApiKey: apiKey,
-        azureOpenAIApiInstanceName: process.env.AZURE_OPENAI_INSTANCE || 'pitchperfectllmengine2',
-        azureOpenAIApiDeploymentName: process.env.AZURE_OPENAI_DEPLOYMENT || 'gpt-4o',
-        azureOpenAIApiVersion: '2024-02-15-preview',
-        temperature: 0.2,
-      });
-    } else {
-      llm = new ChatOpenAI({
-        openAIApiKey: apiKey,
-        modelName: 'gpt-4o',
-        temperature: 0.2,
-      });
-    }
+    const llm = await getLlmClient();
 
     const codeGraphPrompt = `
 Target Application Context: 

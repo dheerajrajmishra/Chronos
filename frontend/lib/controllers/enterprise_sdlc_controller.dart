@@ -18,6 +18,7 @@ class EnterpriseSDLCController extends GetxController {
   // Global Configured Prompts & Settings State
   final RxMap<String, String> globalDefaultPrompts = <String, String>{}.obs;
   final RxMap<String, String> factoryDefaultPrompts = <String, String>{}.obs;
+  final RxMap<String, dynamic> llmConfig = <String, dynamic>{}.obs;
   final RxBool isLoadingSettings = false.obs;
 
   // New Project and Feature Models
@@ -97,6 +98,11 @@ class EnterpriseSDLCController extends GetxController {
           isDarkMode.value = false;
           Get.changeThemeMode(ThemeMode.light);
         }
+      }
+
+      final llmCfg = await ApiService.getLlmConfig();
+      if (llmCfg.isNotEmpty) {
+        llmConfig.assignAll(llmCfg);
       }
       if (settings.containsKey('defaultPrompts') && settings['defaultPrompts'] is Map) {
         final Map<String, dynamic> dp = settings['defaultPrompts'];
@@ -348,6 +354,20 @@ class EnterpriseSDLCController extends GetxController {
       return true;
     } catch (e) {
       logTerminal("Failed to save stage prompts: $e", level: "ERROR");
+      return false;
+    }
+  }
+
+  Future<bool> saveLlmConfig(Map<String, dynamic> config) async {
+    try {
+      final success = await ApiService.saveLlmConfig(config);
+      if (success) {
+        llmConfig.assignAll(config);
+        logTerminal("LLM Configuration successfully updated.", level: "INFO");
+      }
+      return success;
+    } catch (e) {
+      logTerminal("Failed to save LLM Configuration: $e", level: "ERROR");
       return false;
     }
   }

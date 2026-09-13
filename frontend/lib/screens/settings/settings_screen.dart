@@ -117,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     final controller = Get.find<EnterpriseSDLCController>();
 
     for (int i = 0; i < _stageDefs.length; i++) {
@@ -384,6 +384,10 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
                     icon: Icon(Icons.psychology_outlined, size: 18),
                     text: 'Default Stage Prompts (Global)',
                   ),
+                  Tab(
+                    icon: Icon(Icons.api_rounded, size: 18),
+                    text: 'AI & LLM Provider',
+                  ),
                 ],
               ),
             ),
@@ -398,6 +402,9 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
 
                   // Tab 2: Prompt Configuration Screen
                   _buildPromptsConfigTab(isDark, controller, surfaceColor, borderColor, textColor, textSecColor, primaryAccent),
+
+                  // Tab 3: LLM Configuration
+                  _buildLlmConfigTab(isDark, controller, surfaceColor, borderColor, textColor, textSecColor, primaryAccent),
                 ],
               ),
             ),
@@ -971,6 +978,354 @@ class _SettingsScreenState extends State<SettingsScreen> with SingleTickerProvid
           ),
         ),
       ],
+    );
+  }
+  // ════════════════════════════════════════════════════════════════════════════
+  // TAB 3: LLM PROVIDER SETUP
+  // ════════════════════════════════════════════════════════════════════════════
+  Widget _buildLlmConfigTab(
+    bool isDark,
+    EnterpriseSDLCController controller,
+    Color surfaceColor,
+    Color borderColor,
+    Color textColor,
+    Color textSecColor,
+    Color primaryAccent,
+  ) {
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(32),
+      child: Center(
+        child: Container(
+          constraints: const BoxConstraints(maxWidth: 800),
+          child: Obx(() {
+            // Read to register GetX dependency
+            final _ = controller.llmConfig.length;
+            final Map<String, dynamic> localConfig = Map<String, dynamic>.from(controller.llmConfig);
+
+            return StatefulBuilder(
+              builder: (context, setState) {
+                String provider = localConfig['provider'] ?? 'openai';
+                String model = localConfig['textModel'] ?? 'gpt-4o';
+                String apiKey = localConfig['apiKey'] ?? '';
+                String apiUrl = localConfig['apiUrl'] ?? '';
+                String imageProvider = localConfig['imageProvider'] ?? 'openai';
+                String imageModel = localConfig['imageModel'] ?? 'dall-e-3';
+                String imageApiKey = localConfig['imageApiKey'] ?? '';
+
+                void updateLocal(String key, String value) {
+                  setState(() {
+                    localConfig[key] = value;
+                  });
+                }
+
+                void saveToDb() {
+                  controller.saveLlmConfig(Map<String, dynamic>.from(localConfig));
+                }
+
+                return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Bring Your Own LLM Configuration',
+                  style: GoogleFonts.outfit(fontSize: 18, fontWeight: FontWeight.w700, color: textColor),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Dynamically switch AI providers or use your own on-premise custom deployment. The Zero-Trust engine integrates securely using the endpoints below.',
+                  style: GoogleFonts.inter(fontSize: 13, color: textSecColor, height: 1.5),
+                ),
+                const SizedBox(height: 30),
+
+                // Text LLM Group
+                _buildSettingsSection(
+                  isDark: isDark,
+                  title: 'Primary Text LLM Generation',
+                  icon: Icons.chat_rounded,
+                  surfaceColor: surfaceColor,
+                  borderColor: borderColor,
+                  textColor: textColor,
+                  children: [
+                    _buildDropdownRow(
+                      label: 'LLM Provider',
+                      value: provider,
+                      items: const [
+                        DropdownMenuItem(value: 'openai', child: Text('OpenAI')),
+                        DropdownMenuItem(value: 'azure', child: Text('Azure OpenAI')),
+                        DropdownMenuItem(value: 'anthropic', child: Text('Anthropic Claude')),
+                        DropdownMenuItem(value: 'gemini', child: Text('Google Gemini')),
+                        DropdownMenuItem(value: 'custom', child: Text('Custom / On-Premise (OpenAI Compatible)')),
+                      ],
+                      onChanged: (val) => updateLocal('provider', val ?? 'openai'),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextFieldRow(
+                      label: 'API Model Name',
+                      value: model,
+                      hint: 'e.g., gpt-4o, claude-3-5-sonnet-20240620',
+                      onChanged: (val) => updateLocal('textModel', val),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextFieldRow(
+                      label: 'API Key (Secure)',
+                      value: apiKey,
+                      hint: 'sk-...',
+                      obscureText: true,
+                      onChanged: (val) => updateLocal('apiKey', val),
+                      isDark: isDark,
+                    ),
+                    if (provider == 'azure' || provider == 'custom') ...[
+                      const SizedBox(height: 16),
+                      _buildTextFieldRow(
+                        label: 'API Base URL / Endpoint',
+                        value: apiUrl,
+                        hint: 'https://your-instance.openai.azure.com',
+                        onChanged: (val) => updateLocal('apiUrl', val),
+                        isDark: isDark,
+                      ),
+                    ]
+                  ],
+                ),
+                const SizedBox(height: 30),
+
+                // Image Service Group
+                _buildSettingsSection(
+                  isDark: isDark,
+                  title: 'Image & Wireframe Generation Services',
+                  icon: Icons.image_rounded,
+                  surfaceColor: surfaceColor,
+                  borderColor: borderColor,
+                  textColor: textColor,
+                  children: [
+                    _buildDropdownRow(
+                      label: 'Image Provider',
+                      value: imageProvider,
+                      items: const [
+                        DropdownMenuItem(value: 'openai', child: Text('OpenAI DALL-E')),
+                        DropdownMenuItem(value: 'custom', child: Text('Custom / On-Premise API')),
+                      ],
+                      onChanged: (val) => updateLocal('imageProvider', val ?? 'openai'),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextFieldRow(
+                      label: 'Image Model',
+                      value: imageModel,
+                      hint: 'e.g., dall-e-3',
+                      onChanged: (val) => updateLocal('imageModel', val),
+                      isDark: isDark,
+                    ),
+                    const SizedBox(height: 16),
+                    _buildTextFieldRow(
+                      label: 'Image API Key',
+                      value: imageApiKey,
+                      hint: 'Leave blank to use Primary API Key',
+                      obscureText: true,
+                      onChanged: (val) => updateLocal('imageApiKey', val),
+                      isDark: isDark,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 40),
+                
+                // Save Button
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: ElevatedButton.icon(
+                    onPressed: saveToDb,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: primaryAccent,
+                      foregroundColor: Colors.white,
+                      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.save_rounded, size: 18),
+                    label: Text(
+                      'Save Configuration',
+                      style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                  ),
+                ),
+              ],
+            );
+              },
+            );
+          }),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSettingsSection({
+    required bool isDark,
+    required String title,
+    required IconData icon,
+    required Color surfaceColor,
+    required Color borderColor,
+    required Color textColor,
+    required List<Widget> children,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: surfaceColor,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: borderColor),
+        boxShadow: [BoxShadow(color: Colors.black.withOpacity(isDark ? 0.2 : 0.03), blurRadius: 16, offset: const Offset(0, 4))],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+            decoration: BoxDecoration(
+              color: EnterpriseTheme.getPrimaryAccent(isDark).withOpacity(0.08),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(15)),
+              border: Border(bottom: BorderSide(color: borderColor)),
+            ),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: EnterpriseTheme.getPrimaryAccent(isDark)),
+                const SizedBox(width: 12),
+                Text(
+                  title,
+                  style: GoogleFonts.outfit(fontSize: 15, fontWeight: FontWeight.w600, color: textColor),
+                ),
+              ],
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              children: children,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDropdownRow({
+    required String label,
+    required String value,
+    required List<DropdownMenuItem<String>> items,
+    required Function(String?) onChanged,
+    required bool isDark,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 200,
+          child: Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextSecondary(isDark))),
+        ),
+        Expanded(
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: EnterpriseTheme.getInputBg(isDark),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: EnterpriseTheme.getCardBorder(isDark)),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: value,
+                isExpanded: true,
+                dropdownColor: EnterpriseTheme.getSurface(isDark),
+                style: GoogleFonts.inter(fontSize: 13, color: EnterpriseTheme.getTextPrimary(isDark)),
+                items: items,
+                onChanged: onChanged,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTextFieldRow({
+    required String label,
+    required String value,
+    required String hint,
+    required Function(String) onChanged,
+    required bool isDark,
+    bool obscureText = false,
+  }) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        SizedBox(
+          width: 200,
+          child: Text(label, style: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w600, color: EnterpriseTheme.getTextSecondary(isDark))),
+        ),
+        Expanded(
+          child: _ObscurableTextField(
+            initialValue: value,
+            hint: hint,
+            obscureText: obscureText,
+            isDark: isDark,
+            onChanged: onChanged,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _ObscurableTextField extends StatefulWidget {
+  final String initialValue;
+  final String hint;
+  final bool obscureText;
+  final bool isDark;
+  final Function(String) onChanged;
+
+  const _ObscurableTextField({
+    required this.initialValue,
+    required this.hint,
+    required this.obscureText,
+    required this.isDark,
+    required this.onChanged,
+  });
+
+  @override
+  State<_ObscurableTextField> createState() => _ObscurableTextFieldState();
+}
+
+class _ObscurableTextFieldState extends State<_ObscurableTextField> {
+  late bool _isObscured;
+
+  @override
+  void initState() {
+    super.initState();
+    _isObscured = widget.obscureText;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextFormField(
+      initialValue: widget.initialValue,
+      obscureText: _isObscured,
+      style: GoogleFonts.firaCode(fontSize: 12, color: EnterpriseTheme.getTextPrimary(widget.isDark)),
+      onChanged: widget.onChanged,
+      decoration: InputDecoration(
+        hintText: widget.hint,
+        hintStyle: GoogleFonts.inter(color: EnterpriseTheme.getTextMuted(widget.isDark).withOpacity(0.5), fontSize: 12),
+        filled: true,
+        fillColor: EnterpriseTheme.getInputBg(widget.isDark),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(widget.isDark))),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(widget.isDark))),
+        focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: EnterpriseTheme.getPrimaryAccent(widget.isDark))),
+        suffixIcon: widget.obscureText ? IconButton(
+          icon: Icon(_isObscured ? Icons.visibility_off : Icons.visibility, color: EnterpriseTheme.getTextMuted(widget.isDark), size: 18),
+          onPressed: () {
+            setState(() {
+              _isObscured = !_isObscured;
+            });
+          },
+        ) : null,
+      ),
     );
   }
 }

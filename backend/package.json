@@ -19,7 +19,9 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@langchain/anthropic": "^1.5.10",
     "@langchain/core": "^1.2.11",
+    "@langchain/google-genai": "^2.3.2",
     "@langchain/openai": "^1.5.13",
     "@temporalio/activity": "^1.23.0",
     "@temporalio/client": "^1.23.0",

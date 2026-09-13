@@ -5,6 +5,23 @@ import '../models/sdlc_models.dart';
 class ApiService {
   static const String baseUrl = 'http://localhost:4000/api';
 
+  static Future<Map<String, dynamic>> getLlmConfig() async {
+    final response = await http.get(Uri.parse('$baseUrl/settings/llm-config'));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body);
+    }
+    return {};
+  }
+
+  static Future<bool> saveLlmConfig(Map<String, dynamic> config) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/settings/llm-config'),
+      headers: {'Content-Type': 'application/json'},
+      body: jsonEncode(config),
+    );
+    return response.statusCode == 200;
+  }
+
   static Future<List<Project>> getProjects() async {
     final response = await http.get(Uri.parse('$baseUrl/projects'));
     if (response.statusCode == 200) {
@@ -13,7 +30,6 @@ class ApiService {
     }
     throw Exception('Failed to load projects');
   }
-
   static Future<Project> createProject(String name, String description) async {
     final response = await http.post(
       Uri.parse('$baseUrl/projects'),
@@ -23,6 +39,7 @@ class ApiService {
     if (response.statusCode == 200) {
       return Project.fromJson(jsonDecode(response.body));
     }
+
     throw Exception('Failed to create project');
   }
 

@@ -1,16 +1,9 @@
 import axios from 'axios';
-import { AzureChatOpenAI } from '@langchain/openai';
+import { getLlmClient } from './llmFactory';
 import { Client } from 'pg';
 import { Context } from '@temporalio/activity';
 
 const GATEWAY_URL = 'http://localhost:8000';
-
-const llm = new AzureChatOpenAI({
-  azureOpenAIApiKey: process.env.AZURE_OPENAI_KEY || 'dummy_key',
-  azureOpenAIApiInstanceName: 'pitchperfectllmengine2',
-  azureOpenAIApiDeploymentName: 'gpt-4o',
-  azureOpenAIApiVersion: '2024-02-15-preview',
-});
 
 async function getDbClient() {
   const client = new Client({
@@ -34,6 +27,7 @@ export async function maskSensitiveData(input: string): Promise<string> {
 }
 
 export async function generateBRD(maskedInput: string): Promise<string> {
+  const llm = await getLlmClient();
   const response = await llm.invoke(`
     You are an AI Business Analyst. Create a detailed Markdown Business Requirements Document (BRD) 
     based on the following requirement:

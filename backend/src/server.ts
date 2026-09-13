@@ -126,8 +126,51 @@ app.post('/api/gateway/mask', async (req: Request, res: Response) => {
   }
 });
 
+// LLM Config endpoints
+app.get('/api/settings/llm-config', async (req: Request, res: Response) => {
+  try {
+    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
+    if (result.rows.length > 0) {
+      res.json(result.rows[0].value);
+    } else {
+      res.json({});
+    }
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch llm_config', details: err.message });
+  }
+});
+
+app.post('/api/settings/llm-config', async (req: Request, res: Response) => {
+  try {
+    const llmConfig = req.body;
+    await query(`
+      INSERT INTO global_settings (key, value)
+      VALUES ('llm_config', $1::jsonb)
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1::jsonb;
+    `, [JSON.stringify(llmConfig)]);
+    res.json({ success: true, message: 'LLM Config saved.' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save llm_config', details: err.message });
+  }
+});
+
 // LLM Engine Status
-app.get('/api/llm/status', (req: Request, res: Response) => {
+app.get('/api/llm/status', async (req: Request, res: Response) => {
+  try {
+    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
+    if (result.rows.length > 0 && result.rows[0].value) {
+      const config = result.rows[0].value;
+      const isCloud = config.provider !== 'local';
+      return res.json({
+        status: isCloud ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
+        hasCloudKey: !!config.apiKey,
+        provider: config.provider,
+        model: config.textModel || 'gpt-4o',
+      });
+    }
+  } catch(e) {}
+  
   const hasAzure = !!process.env.AZURE_OPENAI_KEY && process.env.AZURE_OPENAI_KEY !== 'dummy_key';
   const hasOpenAI = !!process.env.OPENAI_API_KEY;
   res.json({
