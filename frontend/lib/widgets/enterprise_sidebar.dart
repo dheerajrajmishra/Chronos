@@ -123,7 +123,7 @@ class EnterpriseSidebar extends StatelessWidget {
                           ),
 
                           // ─── Administration Section (Role-Based) ───
-                          Builder(builder: (_) {
+                          Obx(() {
                             final authCtrl = Get.find<AuthController>();
                             final isSystemAdmin = authCtrl.isSystemAdmin;
                             final isOrgAdmin = authCtrl.isOrgAdmin;
@@ -203,8 +203,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.settings_applications_outlined,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null,
-                            isWfActive: activeFeature != null && currentWfStage == 0,
+                            isDone: true,
+                            isWfActive: currentWfStage == 0,
                           ),
 
                           // Stage 1: BRD
@@ -217,8 +217,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.article_outlined,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 1,
-                            isWfActive: activeFeature != null && currentWfStage == 1,
+                            isDone: currentWfStage > 1,
+                            isWfActive: currentWfStage == 1,
                           ),
 
                           // Stage 2: Design Document
@@ -231,8 +231,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.architecture_outlined,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 2,
-                            isWfActive: activeFeature != null && currentWfStage == 2,
+                            isDone: currentWfStage > 2,
+                            isWfActive: currentWfStage == 2,
                           ),
 
                           // Stage 3: Technical Document
@@ -245,8 +245,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.terminal_rounded,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 3,
-                            isWfActive: activeFeature != null && currentWfStage == 3,
+                            isDone: currentWfStage > 3,
+                            isWfActive: currentWfStage == 3,
                           ),
 
                           // Stage 4: Code
@@ -259,8 +259,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.code_rounded,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 4,
-                            isWfActive: activeFeature != null && currentWfStage == 4,
+                            isDone: currentWfStage > 4,
+                            isWfActive: currentWfStage == 4,
                           ),
 
                           // Stage 5: Test Case Creation
@@ -273,8 +273,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.checklist_rounded,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 5,
-                            isWfActive: activeFeature != null && currentWfStage == 5,
+                            isDone: currentWfStage > 5,
+                            isWfActive: currentWfStage == 5,
                           ),
 
                           // Stage 6: Test Automation Script
@@ -287,8 +287,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.integration_instructions_rounded,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 6,
-                            isWfActive: activeFeature != null && currentWfStage == 6,
+                            isDone: currentWfStage > 6,
+                            isWfActive: currentWfStage == 6,
                           ),
 
                           // Stage 7: Testing & Result
@@ -301,8 +301,8 @@ class EnterpriseSidebar extends StatelessWidget {
                             icon: Icons.fact_check_outlined,
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
-                            isDone: activeFeature != null && currentWfStage > 7,
-                            isWfActive: activeFeature != null && currentWfStage == 7,
+                            isDone: currentWfStage > 7,
+                            isWfActive: currentWfStage == 7,
                           ),
 
                           // Stage 8: Deployment
@@ -316,7 +316,7 @@ class EnterpriseSidebar extends StatelessWidget {
                             isCollapsed: effectiveCollapsed,
                             isDark: isDark,
                             isDone: isCompleted,
-                            isWfActive: activeFeature != null && currentWfStage == 8 && !isCompleted,
+                            isWfActive: currentWfStage == 8 && !isCompleted,
                           ),
                         ],
                       ],
@@ -1347,25 +1347,32 @@ class _LogoutNavItem extends StatelessWidget {
                       color: Colors.redAccent.withValues(alpha: 0.8),
                     ),
                   )
-                : Row(
-                    children: [
-                      Icon(
-                        Icons.logout_rounded,
-                        size: 20,
-                        color: Colors.redAccent.withValues(alpha: 0.8),
-                      ),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Text(
-                          'Logout',
-                          style: GoogleFonts.inter(
+                : SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    physics: const NeverScrollableScrollPhysics(),
+                    child: SizedBox(
+                      width: 240,
+                      child: Row(
+                        children: [
+                          Icon(
+                            Icons.logout_rounded,
+                            size: 20,
                             color: Colors.redAccent.withValues(alpha: 0.8),
-                            fontSize: 13,
-                            fontWeight: FontWeight.w500,
                           ),
-                        ),
+                          const SizedBox(width: 14),
+                          Expanded(
+                            child: Text(
+                              'Logout',
+                              style: GoogleFonts.inter(
+                                color: Colors.redAccent.withValues(alpha: 0.8),
+                                fontSize: 13,
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                          ),
+                        ],
                       ),
-                    ],
+                    ),
                   ),
           ),
         ),

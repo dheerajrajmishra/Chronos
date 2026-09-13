@@ -473,17 +473,38 @@ export const initDB = async () => {
       ON CONFLICT (tenant_id, key) DO NOTHING;
     `, [JSON.stringify(defaultLlmConfig)]);
 
-    // Seed default admin user for Tenant 1
+    // Ensure serial sequence is synchronized before any inserts
+    await client.query(`SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);`).catch(() => {});
+    await client.query(`SELECT setval('tenants_id_seq', COALESCE((SELECT MAX(id) FROM tenants), 1), true);`).catch(() => {});
+    await client.query(`SELECT setval('tenant_users_id_seq', COALESCE((SELECT MAX(id) FROM tenant_users), 1), true);`).catch(() => {});
+
+    // Seed/update default admin users safely
     await client.query(`
-      INSERT INTO users (id, email, name, password_hash, is_system_admin, status)
-      VALUES (1, 'admin@chronos.dev', 'System Administrator', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true, 'active')
-      ON CONFLICT (email) DO UPDATE SET name = COALESCE(NULLIF(users.name, ''), 'System Administrator');
+      UPDATE users 
+      SET is_system_admin = true, status = 'active', name = COALESCE(NULLIF(name, ''), 'System Administrator')
+      WHERE id = 1;
+    `);
+
+    await client.query(`
+      INSERT INTO users (email, name, password_hash, is_system_admin, status)
+      VALUES ('admin@chronos.dev', 'Chronos Admin', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true, 'active')
+      ON CONFLICT (email) DO UPDATE SET is_system_admin = true, status = 'active';
+    `);
+
+    // Re-sync users_id_seq after insert
+    await client.query(`SELECT setval('users_id_seq', COALESCE((SELECT MAX(id) FROM users), 1), true);`).catch(() => {});
+
+    await client.query(`
+      INSERT INTO tenant_users (tenant_id, user_id, role, permissions, status)
+      VALUES (1, 1, 'system_admin', '{"all": true}'::jsonb, 'active')
+      ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'system_admin', status = 'active';
     `);
 
     await client.query(`
       INSERT INTO tenant_users (tenant_id, user_id, role, permissions, status)
-      VALUES (1, 1, 'org_admin', '{"all": true}'::jsonb, 'active')
-      ON CONFLICT (tenant_id, user_id) DO NOTHING;
+      SELECT 1, id, 'system_admin', '{"all": true}'::jsonb, 'active'
+      FROM users WHERE email = 'admin@chronos.dev'
+      ON CONFLICT (tenant_id, user_id) DO UPDATE SET role = 'system_admin', status = 'active';
     `);
 
     client.release();

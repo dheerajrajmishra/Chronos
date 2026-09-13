@@ -294,6 +294,10 @@ class _EnterpriseHeaderState extends State<EnterpriseHeader> {
         return 'Stage 8: Deployment';
       case SDLCStageType.settings:
         return 'Global Settings & Prompts Configuration';
+      case SDLCStageType.tenantAdmin:
+        return 'Tenant Management (Chronos Admin)';
+      case SDLCStageType.userManagement:
+        return 'User & Permission Management';
     }
   }
 }
