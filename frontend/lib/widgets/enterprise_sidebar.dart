@@ -53,10 +53,11 @@ class EnterpriseSidebar extends StatelessWidget {
           color: surfaceColor,
           border: Border(right: BorderSide(color: borderColor, width: 1)),
         ),
-        child: Column(
-          children: [
-            // ─── Brand Header ──────────────────────────────────
-            _buildBrandHeader(controller, isCollapsed, isDark, primaryAccent, textSecColor, borderColor),
+        child: ClipRect(
+          child: Column(
+            children: [
+              // ─── Brand Header ──────────────────────────────────
+              _buildBrandHeader(controller, isCollapsed, isDark, primaryAccent, textSecColor, borderColor),
 
             // ─── Back to Workspaces (Moved up) ─────────────────
             if (showPipelineStages)
@@ -285,8 +286,9 @@ class EnterpriseSidebar extends StatelessWidget {
             _buildFooter(controller, isCollapsed, isDark, borderColor, primaryAccent, textColor, textSecColor, textMutedColor, inputBg),
           ],
         ),
-      );
-    });
+      ),
+    );
+  });
   }
 
   // ─── Stage AI Prompts Trigger Button / Card ─────────────────────────
@@ -890,58 +892,66 @@ class _WorkspaceNavItemState extends State<_WorkspaceNavItem> {
                   width: 1,
                 ),
               ),
-              child: Row(
-                mainAxisAlignment: widget.isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-                children: [
-                  if (!widget.isCollapsed)
-                    AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      width: 3.5,
-                      height: isSelected ? 18 : 0,
-                      margin: const EdgeInsets.only(right: 8),
-                      decoration: BoxDecoration(
-                        color: isSelected ? primaryAccent : Colors.transparent,
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  Icon(
-                    widget.icon,
-                    color: isSelected ? primaryAccent : (_isHovered ? textColor : textSecColor),
-                    size: 18,
-                  ),
-                  if (!widget.isCollapsed) ...[
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: GoogleFonts.inter(
-                          color: isSelected ? textColor : (_isHovered ? textColor : textSecColor),
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                        ),
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isSelected
-                            ? primaryAccent.withValues(alpha: 0.2)
-                            : EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5),
-                        borderRadius: BorderRadius.circular(5),
-                      ),
-                      child: Text(
-                        widget.badge,
-                        style: GoogleFonts.jetBrainsMono(
-                          color: isSelected ? primaryAccent : EnterpriseTheme.getTextMuted(isDark),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
+              child: widget.isCollapsed
+                  ? Center(
+                      child: Tooltip(
+                        message: widget.title,
+                        child: Icon(
+                          widget.icon,
+                          color: isSelected ? primaryAccent : (_isHovered ? textColor : textSecColor),
+                          size: 18,
                         ),
                       ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        AnimatedContainer(
+                          duration: const Duration(milliseconds: 200),
+                          width: 3.5,
+                          height: isSelected ? 18 : 0,
+                          margin: const EdgeInsets.only(right: 8),
+                          decoration: BoxDecoration(
+                            color: isSelected ? primaryAccent : Colors.transparent,
+                            borderRadius: BorderRadius.circular(2),
+                          ),
+                        ),
+                        Icon(
+                          widget.icon,
+                          color: isSelected ? primaryAccent : (_isHovered ? textColor : textSecColor),
+                          size: 18,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: GoogleFonts.inter(
+                              color: isSelected ? textColor : (_isHovered ? textColor : textSecColor),
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? primaryAccent.withValues(alpha: 0.2)
+                                : EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(5),
+                          ),
+                          child: Text(
+                            widget.badge,
+                            style: GoogleFonts.jetBrainsMono(
+                              color: isSelected ? primaryAccent : EnterpriseTheme.getTextMuted(isDark),
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
-                  ],
-                ],
-              ),
             ),
           ),
         ),
@@ -1035,52 +1045,52 @@ class _PipelineStageNavItemState extends State<_PipelineStageNavItem> {
                       ]
                     : null,
               ),
-              child: Row(
-                mainAxisAlignment: widget.isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-                children: [
-                  // ─── Left Stepper Progress Indicator ──────────
-                  if (!widget.isCollapsed)
-                    _buildStepperIndicator(isSelected, isDark, primaryAccent),
-
-                  if (!widget.isCollapsed) const SizedBox(width: 8),
-
-                  // Icon
-                  Tooltip(
-                    message: widget.isCollapsed ? '${widget.stageIndex}. ${widget.title}' : '',
-                    child: Icon(
-                      widget.icon,
-                      color: isSelected
-                          ? primaryAccent
-                          : (widget.isDone
-                              ? EnterpriseTheme.emerald
-                              : (_isHovered ? textColor : textSecColor)),
-                      size: 17,
-                    ),
-                  ),
-
-                  if (!widget.isCollapsed) ...[
-                    const SizedBox(width: 9),
-
-                    // Stage Title
-                    Expanded(
-                      child: Text(
-                        widget.title,
-                        style: GoogleFonts.inter(
+              child: widget.isCollapsed
+                  ? Center(
+                      child: Tooltip(
+                        message: '${widget.stageIndex}. ${widget.title}',
+                        child: Icon(
+                          widget.icon,
                           color: isSelected
-                              ? textColor
-                              : (_isHovered ? textColor : textSecColor),
-                          fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                              ? primaryAccent
+                              : (widget.isDone
+                                  ? EnterpriseTheme.emerald
+                                  : (_isHovered ? textColor : textSecColor)),
+                          size: 17,
                         ),
-                        overflow: TextOverflow.ellipsis,
                       ),
+                    )
+                  : Row(
+                      mainAxisAlignment: MainAxisAlignment.start,
+                      children: [
+                        _buildStepperIndicator(isSelected, isDark, primaryAccent),
+                        const SizedBox(width: 8),
+                        Icon(
+                          widget.icon,
+                          color: isSelected
+                              ? primaryAccent
+                              : (widget.isDone
+                                  ? EnterpriseTheme.emerald
+                                  : (_isHovered ? textColor : textSecColor)),
+                          size: 17,
+                        ),
+                        const SizedBox(width: 9),
+                        Expanded(
+                          child: Text(
+                            widget.title,
+                            style: GoogleFonts.inter(
+                              color: isSelected
+                                  ? textColor
+                                  : (_isHovered ? textColor : textSecColor),
+                              fontSize: 12,
+                              fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        _buildStatusPill(isSelected, isDark, primaryAccent, textMutedColor),
+                      ],
                     ),
-
-                    // Status Badge Pill
-                    _buildStatusPill(isSelected, isDark, primaryAccent, textMutedColor),
-                  ],
-                ],
-              ),
             ),
           ),
         ),
@@ -1239,7 +1249,6 @@ class _LogoutNavItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final textColor = EnterpriseTheme.getTextSecondary(isDark);
     final hoverBg = EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.3);
     final authController = Get.find<AuthController>();
 
@@ -1255,29 +1264,38 @@ class _LogoutNavItem extends StatelessWidget {
           highlightColor: Colors.transparent,
           borderRadius: BorderRadius.circular(8),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
-            child: Row(
-              children: [
-                Icon(
-                  Icons.logout_rounded,
-                  size: 20,
-                  color: Colors.redAccent.withValues(alpha: 0.8),
-                ),
-                if (!isCollapsed) ...[
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Text(
-                      'Logout',
-                      style: GoogleFonts.inter(
-                        color: Colors.redAccent.withValues(alpha: 0.8),
-                        fontSize: 13,
-                        fontWeight: FontWeight.w500,
-                      ),
-                    ),
-                  ),
-                ],
-              ],
+            padding: EdgeInsets.symmetric(
+              horizontal: isCollapsed ? 0 : 12,
+              vertical: 12,
             ),
+            child: isCollapsed
+                ? Center(
+                    child: Icon(
+                      Icons.logout_rounded,
+                      size: 20,
+                      color: Colors.redAccent.withValues(alpha: 0.8),
+                    ),
+                  )
+                : Row(
+                    children: [
+                      Icon(
+                        Icons.logout_rounded,
+                        size: 20,
+                        color: Colors.redAccent.withValues(alpha: 0.8),
+                      ),
+                      const SizedBox(width: 14),
+                      Expanded(
+                        child: Text(
+                          'Logout',
+                          style: GoogleFonts.inter(
+                            color: Colors.redAccent.withValues(alpha: 0.8),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ),
       ),

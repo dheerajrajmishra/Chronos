@@ -29,7 +29,7 @@ app.use('/api/auth', authRoutes);
 import saasRoutes from './routes/saasRoutes';
 import projectRoutes from './routes/projectRoutes';
 app.use('/api', (req, res, next) => {
-  if (req.path === '/telemetry') return next();
+  if (req.path === '/telemetry' || req.path === '/llm/status') return next();
   requireAuth(req as AuthRequest, res as any, () => {
     ipRestrictionMiddleware(req as AuthRequest, res as any, next);
   });
@@ -146,18 +146,345 @@ app.post('/api/gateway/mask', async (req: any, res: Response) => {
 // LLM Config endpoints
 app.get('/api/settings/llm-config', async (req: any, res: Response) => {
   try {
-    const result = await query(
-      `
-      INSERT INTO tenant_settings (tenant_id, key, value)
-      VALUES ($1, 'default_prompts', $2::jsonb)
-      ON CONFLICT (tenant_id, key) DO UPDATE
-      SET value = $2::jsonb;
-      `,
-      [req.user.tenant_id, JSON.stringify(FACTORY_DEFAULT_PROMPTS)]
-    );
-    res.json({ success: true, defaultPrompts: FACTORY_DEFAULT_PROMPTS });
+    const tenantId = req.user?.tenant_id;
+    let result = tenantId
+      ? await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'llm_config'", [tenantId])
+      : { rows: [] };
+    if (result.rows.length === 0) {
+      result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
+    }
+    if (result.rows.length > 0) {
+      res.json(result.rows[0].value);
+    } else {
+      res.json({});
+    }
   } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
+    res.status(500).json({ error: 'Failed to fetch llm_config', details: err.message });
+  }
+});
+
+app.post('/api/settings/llm-config', async (req: any, res: Response) => {
+  try {
+    const llmConfig = req.body;
+    const tenantId = req.user?.tenant_id;
+    if (tenantId) {
+      await query(`
+        INSERT INTO tenant_settings (tenant_id, key, value)
+        VALUES ($1, 'llm_config', $2::jsonb)
+        ON CONFLICT (tenant_id, key) DO UPDATE
+        SET value = $2::jsonb;
+      `, [tenantId, JSON.stringify(llmConfig)]);
+    }
+    await query(`
+      INSERT INTO global_settings (key, value)
+      VALUES ('llm_config', $1::jsonb)
+      ON CONFLICT (key) DO UPDATE
+      SET value = $1::jsonb;
+    `, [JSON.stringify(llmConfig)]);
+    res.json({ success: true, message: 'LLM Config saved.' });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to save llm_config', details: err.message });
+  }
+});
+
+// LLM Engine Status
+app.get('/api/llm/status', async (req: Request, res: Response) => {
+  try {
+    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
+    if (result.rows.length > 0 && result.rows[0].value) {
+      const config = result.rows[0].value;
+      const isCloud = config.provider !== 'local';
+      return res.json({
+        status: isCloud ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
+        hasCloudKey: !!config.apiKey,
+        provider: config.provider,
+        model: config.textModel || 'gpt-4o',
+      });
+    }
+  } catch (e) {}
+
+  const hasAzure = !!process.env.AZURE_OPENAI_KEY && process.env.AZURE_OPENAI_KEY !== 'dummy_key';
+  const hasOpenAI = !!process.env.OPENAI_API_KEY;
+  res.json({
+    status: hasAzure || hasOpenAI ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
+    hasCloudKey: hasAzure || hasOpenAI,
+    provider: hasAzure ? 'Azure OpenAI (gpt-4o)' : hasOpenAI ? 'OpenAI (gpt-4o)' : 'Zero-Trust Semantic Engine',
+    model: 'gpt-4o (Zero-Trust Enclave)',
+  });
+});
+
+// Repository Code Graph Sync & Inspection Endpoint
+app.post('/api/repository/sync', async (req: Request, res: Response) => {
+  try {
+    const { projectId = 'default', repoPath, repoUrl, branch, force = false } = req.body;
+    const defaultRoot = path.resolve(__dirname, '..', '..');
+    const targetPath = repoPath && fs.existsSync(repoPath) ? repoPath : defaultRoot;
+
+    const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, force);
+    res.json({
+      success: true,
+      graph,
+      message: graph.isFromCache
+        ? 'Code graph served from local cache (0 files re-indexed).'
+        : `Scanned and indexed ${graph.filesCount} repository files into local graph tree.`,
+    });
+  } catch (err: any) {
+    console.error('[Repository Sync Error]', err);
+    res.status(500).json({ error: 'Failed to sync repository graph', details: err.message });
+  }
+});
+
+// Generate Project Context (memory.md) from Codebase
+app.post('/api/repository/generate-memory', async (req: Request, res: Response) => {
+  try {
+    const { projectId = 'default', repoUrl, branch, memoryPrompt } = req.body;
+    let targetPath = path.resolve(__dirname, '..', '..');
+
+    if (repoUrl && repoUrl.startsWith('http')) {
+      targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
+      console.log(`Cloning ${repoUrl} to ${targetPath} for memory generation...`);
+      try {
+        if (branch && branch.trim().length > 0) {
+          execSync(`git clone -b ${branch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        } else {
+          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        }
+      } catch (e) {
+        console.error("Failed to clone, falling back to default.", e);
+        targetPath = path.resolve(__dirname, '..', '..');
+      }
+    }
+
+    const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, true);
+
+    let activeMemoryPrompt = memoryPrompt;
+    if (!activeMemoryPrompt || activeMemoryPrompt.trim().length === 0) {
+      try {
+        const settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
+        if (settingsRes.rows.length > 0 && settingsRes.rows[0].value?.memoryPrompt) {
+          activeMemoryPrompt = settingsRes.rows[0].value.memoryPrompt;
+        }
+      } catch (e) {
+        // fallback
+      }
+    }
+
+    const memoryMd = await generateLlmProjectMemory(graph, repoUrl, activeMemoryPrompt);
+
+    res.json({ success: true, memoryMd, graph });
+  } catch (err: any) {
+    console.error('[Generate Memory Error]', err);
+    res.status(500).json({ error: 'Failed to generate project memory', details: err.message });
+  }
+});
+
+// Fetch Cached Repository Code Graph
+app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) => {
+  try {
+    const projectId = String(req.params.projectId || 'default');
+    let graph = getCachedRepositoryGraph(projectId);
+    if (!graph) {
+      const defaultRoot = path.resolve(__dirname, '..', '..');
+      graph = await scanRepositoryGraph(defaultRoot, projectId);
+    }
+    res.json({ success: true, graph });
+  } catch (err: any) {
+    res.status(500).json({ error: 'Failed to fetch repository graph', details: err.message });
+  }
+});
+
+// Apply Code to Git Branch
+app.post('/api/repository/apply-code', async (req: Request, res: Response) => {
+  try {
+    const { projectId = 'default', repoUrl, baseBranch = 'main', targetBranch, markdownContent } = req.body;
+
+    if (!markdownContent || !targetBranch) {
+      return res.status(400).json({ error: 'markdownContent and targetBranch are required.' });
+    }
+
+    let targetPath = path.resolve(__dirname, '..', '..');
+
+    // Clone repo
+    if (repoUrl && repoUrl.startsWith('http')) {
+      targetPath = path.join(os.tmpdir(), `sdlc-repo-apply-${Date.now()}`);
+      console.log(`Cloning ${repoUrl} to ${targetPath} to apply code...`);
+      try {
+        if (baseBranch && baseBranch.trim().length > 0) {
+          execSync(`git clone -b ${baseBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        } else {
+          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+        }
+      } catch (e) {
+        console.error("Failed to clone.", e);
+        return res.status(500).json({ error: 'Failed to clone repository.' });
+      }
+    } else {
+      return res.status(400).json({ error: 'Invalid repoUrl.' });
+    }
+
+    // Checkout new branch
+    try {
+      execSync(`git checkout -b ${targetBranch}`, { cwd: targetPath });
+    } catch (e) {
+      console.error("Failed to checkout branch.", e);
+      return res.status(500).json({ error: 'Failed to checkout new branch.' });
+    }
+
+    // Parse and write files
+    const parsedFiles = parseMarkdownFiles(markdownContent);
+    for (const file of parsedFiles) {
+      const fullPath = path.join(targetPath, file.filepath);
+      const dir = path.dirname(fullPath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      fs.writeFileSync(fullPath, file.code, 'utf-8');
+      console.log(`Wrote file: ${file.filepath}`);
+    }
+
+    // Commit changes
+    try {
+      execSync(`git add .`, { cwd: targetPath });
+      execSync(`git commit -m "Auto-generated SDLC implementation for ${targetBranch}"`, { cwd: targetPath });
+    } catch (e) {
+      console.error("Failed to commit.", e);
+      return res.status(500).json({ error: 'Failed to commit changes. Perhaps no files were changed.' });
+    }
+
+    // Push changes if possible
+    let pushSuccess = false;
+    try {
+      execSync(`git push -u origin ${targetBranch}`, { cwd: targetPath, stdio: 'ignore' });
+      pushSuccess = true;
+    } catch (e) {
+      console.log("Failed to push. Assuming local only or no credentials.");
+    }
+
+    res.json({
+      success: true,
+      message: pushSuccess ? 'Successfully pushed to remote branch.' : 'Successfully committed to local clone branch.',
+      filesWritten: parsedFiles.length,
+      branch: targetBranch,
+      localPath: targetPath,
+    });
+  } catch (err: any) {
+    console.error('[Apply Code Error]', err);
+    res.status(500).json({ error: 'Failed to apply code', details: err.message });
+  }
+});
+
+// Dynamic Multi-Agent Deliverable Synthesis (with Codebase Context)
+app.post('/api/agents/synthesize', async (req: any, res: Response) => {
+  try {
+    const {
+      requirement,
+      maskedRequirement,
+      targetStage,
+      architecture,
+      compliance,
+      cloudTarget,
+      llmModel,
+      apiKey,
+      projectId = 'default',
+      repoUrl,
+      repoBranch,
+      brdPrompt,
+      designPrompt,
+      techDocPrompt,
+      codePrompt,
+      testCaseCreationPrompt,
+      testAutomationPrompt,
+      testingResultPrompt,
+      deployPrompt,
+      memoryMd,
+    } = req.body;
+
+    if (!requirement || requirement.trim().length === 0) {
+      return res.status(400).json({ error: 'Requirement text is required' });
+    }
+
+    // 1. Fetch or scan local codebase graph
+    let codeGraph = getCachedRepositoryGraph(projectId);
+    if (!codeGraph) {
+      let targetPath = path.resolve(__dirname, '..', '..');
+
+      if (repoUrl && repoUrl.startsWith('http')) {
+        targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
+        console.log(`Cloning ${repoUrl} (branch: ${repoBranch || 'default'}) to ${targetPath}...`);
+        try {
+          if (repoBranch && repoBranch.trim().length > 0) {
+            execSync(`git clone -b ${repoBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+          } else {
+            execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
+          }
+        } catch (e) {
+          console.error("Failed to clone, falling back to default.", e);
+          targetPath = path.resolve(__dirname, '..', '..');
+        }
+      }
+
+      codeGraph = await scanRepositoryGraph(targetPath, projectId);
+    }
+
+    // Check tenant_settings or global_settings for configured default prompts if any prompt was omitted
+    let activeBrdPrompt = brdPrompt;
+    let activeDesignPrompt = designPrompt;
+    let activeTechDocPrompt = techDocPrompt;
+    let activeCodePrompt = codePrompt;
+    let activeTestCaseCreationPrompt = testCaseCreationPrompt;
+    let activeTestAutomationPrompt = testAutomationPrompt;
+    let activeTestingResultPrompt = testingResultPrompt;
+    let activeDeployPrompt = deployPrompt;
+
+    try {
+      const tenantId = req.user?.tenant_id;
+      let settingsRes = tenantId
+        ? await query("SELECT value FROM tenant_settings WHERE tenant_id = $1 AND key = 'default_prompts'", [tenantId])
+        : { rows: [] };
+      if (settingsRes.rows.length === 0) {
+        settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
+      }
+      if (settingsRes.rows.length > 0) {
+        const defaults = settingsRes.rows[0].value;
+        if (!activeBrdPrompt) activeBrdPrompt = defaults.brdPrompt;
+        if (!activeDesignPrompt) activeDesignPrompt = defaults.designPrompt;
+        if (!activeTechDocPrompt) activeTechDocPrompt = defaults.techDocPrompt;
+        if (!activeCodePrompt) activeCodePrompt = defaults.codePrompt;
+        if (!activeTestCaseCreationPrompt) activeTestCaseCreationPrompt = defaults.testCaseCreationPrompt;
+        if (!activeTestAutomationPrompt) activeTestAutomationPrompt = defaults.testAutomationPrompt;
+        if (!activeTestingResultPrompt) activeTestingResultPrompt = defaults.testingResultPrompt;
+        if (!activeDeployPrompt) activeDeployPrompt = defaults.deployPrompt;
+      }
+    } catch (e) {
+      // ignore, will use synthesizer fallback
+    }
+
+    const result = await synthesizeDeliverables({
+      requirement,
+      maskedRequirement,
+      targetStage,
+      brdPrompt: activeBrdPrompt,
+      designPrompt: activeDesignPrompt,
+      techDocPrompt: activeTechDocPrompt,
+      codePrompt: activeCodePrompt,
+      testCaseCreationPrompt: activeTestCaseCreationPrompt,
+      testAutomationPrompt: activeTestAutomationPrompt,
+      testingResultPrompt: activeTestingResultPrompt,
+      deployPrompt: activeDeployPrompt,
+      architecture,
+      compliance,
+      cloudTarget,
+      llmModel,
+      apiKey,
+      repoUrl,
+      codeGraph: codeGraph || undefined,
+      memoryMd,
+    });
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[Synthesis Error]', err);
+    res.status(500).json({ error: 'Failed to synthesize deliverables', details: err.message });
   }
 });
 

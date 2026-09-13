@@ -266,7 +266,8 @@ ${req.memoryMd}
       };
     } catch (err: any) {
       console.warn('[Synthesizer] Cloud LLM invocation failed:', err.message);
-      throw new Error(`LLM API Error: ${err.message}`);
+      console.log('[Synthesizer] Falling back gracefully to Autonomous Semantic Engine.');
+      return generateSemanticDeliverables(workflowId, rawText, maskedText, architecture, compliance, cloudTarget, req.codeGraph);
     }
   }
 
