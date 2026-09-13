@@ -212,6 +212,42 @@ class EnterpriseSDLCController extends GetxController {
     }
   }
 
+  Future<void> updateProject(int id, String name, String description) async {
+    try {
+      final p = await ApiService.updateProject(id, name, description);
+      final index = projectList.indexWhere((proj) => proj.id == id);
+      if (index != -1) {
+        projectList[index] = p;
+      }
+      if (activeProject.value?.id == id) {
+        activeProject.value = p;
+      }
+      logTerminal("Project Updated: ${p.name}", level: "PROJECT");
+    } catch (e) {
+      logTerminal("Error updating project: $e", level: "ERROR");
+    }
+  }
+
+  Future<void> deleteProject(int id) async {
+    try {
+      final success = await ApiService.deleteProject(id);
+      if (success) {
+        projectList.removeWhere((proj) => proj.id == id);
+        if (activeProject.value?.id == id) {
+          activeProject.value = null;
+          activeFeature.value = null;
+          activeWorkflow.value = null;
+          activeProjectFeatures.clear();
+          html.window.localStorage.remove('activeProjectId');
+          html.window.localStorage.remove('activeFeatureId');
+        }
+        logTerminal("Project Deleted: PRJ-$id", level: "PROJECT");
+      }
+    } catch (e) {
+      logTerminal("Error deleting project: $e", level: "ERROR");
+    }
+  }
+
   Future<void> selectProject(Project project) async {
     activeProject.value = project;
     activeFeature.value = null;
@@ -264,15 +300,16 @@ class EnterpriseSDLCController extends GetxController {
     }
   }
 
-  Future<void> deleteFeature(Feature feature) async {
+  Future<void> deleteFeature(int id) async {
     try {
-      await ApiService.deleteFeature(feature.id);
-      activeProjectFeatures.removeWhere((f) => f.id == feature.id);
-      if (activeFeature.value?.id == feature.id) {
+      await ApiService.deleteFeature(id);
+      activeProjectFeatures.removeWhere((feat) => feat.id == id);
+      if (activeFeature.value?.id == id) {
         activeFeature.value = null;
         activeWorkflow.value = null;
+        html.window.localStorage.remove('activeFeatureId');
       }
-      logTerminal("Feature Deleted: ${feature.name}", level: "FEATURE");
+      logTerminal("Feature Deleted: FEAT-$id", level: "FEATURE");
     } catch (e) {
       logTerminal("Error deleting feature: $e", level: "ERROR");
     }
@@ -283,10 +320,6 @@ class EnterpriseSDLCController extends GetxController {
     html.window.localStorage['activeFeatureId'] = feature.id.toString();
     logTerminal("Selected Feature: ${feature.name}", level: "FEATURE");
     await fetchWorkflowForFeature(feature.id);
-    
-    // If we're selecting a feature directly (e.g. from the hub), we should jump to BRD or preserve the state?
-    // Let's just always set to Stage 1 when a feature is manually selected. 
-    // setStage will update localStorage.
     setStage(SDLCStageType.stage1Brd);
   }
 

@@ -13,6 +13,10 @@ import { synthesizeDeliverables, generateLlmProjectMemory } from './synthesizer'
 import { parseMarkdownFiles } from './utils/markdownParser';
 import { scanRepositoryGraph, getCachedRepositoryGraph } from './codeGraph/graphEngine';
 import { initDB, query, FACTORY_DEFAULT_PROMPTS } from './db';
+import authRoutes from './routes/authRoutes';
+import { requireAuth, AuthRequest } from './middleware/auth';
+import { ipRestrictionMiddleware } from './middleware/ipWhitelist';
+
 
 const app = express();
 const PORT = process.env.PORT || 4000;
@@ -20,6 +24,19 @@ const GATEWAY_URL = process.env.GATEWAY_URL || 'http://localhost:8000';
 
 app.use(cors());
 app.use(express.json());
+
+app.use('/api/auth', authRoutes);
+import saasRoutes from './routes/saasRoutes';
+import projectRoutes from './routes/projectRoutes';
+app.use('/api', (req, res, next) => {
+  if (req.path === '/telemetry') return next();
+  requireAuth(req as AuthRequest, res as any, () => {
+    ipRestrictionMiddleware(req as AuthRequest, res as any, next);
+  });
+});
+app.use('/api/saas', saasRoutes);
+app.use('/api', projectRoutes);
+
 
 let temporalClient: Client | null = null;
 
@@ -36,7 +53,7 @@ async function getTemporalClient(): Promise<Client | null> {
 }
 
 // Health & System Telemetry Endpoint
-app.get('/api/telemetry', async (req: Request, res: Response) => {
+app.get('/api/telemetry', async (req: any, res: Response) => {
   res.json({
     status: 'ONLINE',
     temporal: temporalClient ? 'CONNECTED' : 'STANDALONE_MODE',
@@ -48,7 +65,7 @@ app.get('/api/telemetry', async (req: Request, res: Response) => {
 });
 
 // Start Workflow Endpoint
-app.post('/api/workflows/start', async (req: Request, res: Response) => {
+app.post('/api/workflows/start', async (req: any, res: Response) => {
   const { requirement, compliance, architecture, cloudTarget, llmModel } = req.body;
 
   const workflowId = `ZTSDLC-${Date.now()}`;
@@ -81,7 +98,7 @@ app.post('/api/workflows/start', async (req: Request, res: Response) => {
 });
 
 // Signal Human Approval / Rejection Endpoint
-app.post('/api/workflows/:id/signal', async (req: Request, res: Response) => {
+app.post('/api/workflows/:id/signal', async (req: any, res: Response) => {
   const id = req.params.id as string;
   const { approved, comment, userRole } = req.body;
 
@@ -112,7 +129,7 @@ app.post('/api/workflows/:id/signal', async (req: Request, res: Response) => {
 });
 
 // Zero-Trust Gateway Mask Forwarder
-app.post('/api/gateway/mask', async (req: Request, res: Response) => {
+app.post('/api/gateway/mask', async (req: any, res: Response) => {
   try {
     const response = await axios.post(`${GATEWAY_URL}/mask`, req.body);
     res.json(response.data);
@@ -127,555 +144,16 @@ app.post('/api/gateway/mask', async (req: Request, res: Response) => {
 });
 
 // LLM Config endpoints
-app.get('/api/settings/llm-config', async (req: Request, res: Response) => {
+app.get('/api/settings/llm-config', async (req: any, res: Response) => {
   try {
-    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
-    if (result.rows.length > 0) {
-      res.json(result.rows[0].value);
-    } else {
-      res.json({});
-    }
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch llm_config', details: err.message });
-  }
-});
-
-app.post('/api/settings/llm-config', async (req: Request, res: Response) => {
-  try {
-    const llmConfig = req.body;
-    await query(`
-      INSERT INTO global_settings (key, value)
-      VALUES ('llm_config', $1::jsonb)
-      ON CONFLICT (key) DO UPDATE
-      SET value = $1::jsonb;
-    `, [JSON.stringify(llmConfig)]);
-    res.json({ success: true, message: 'LLM Config saved.' });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to save llm_config', details: err.message });
-  }
-});
-
-// LLM Engine Status
-app.get('/api/llm/status', async (req: Request, res: Response) => {
-  try {
-    const result = await query("SELECT value FROM global_settings WHERE key = 'llm_config'");
-    if (result.rows.length > 0 && result.rows[0].value) {
-      const config = result.rows[0].value;
-      const isCloud = config.provider !== 'local';
-      return res.json({
-        status: isCloud ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
-        hasCloudKey: !!config.apiKey,
-        provider: config.provider,
-        model: config.textModel || 'gpt-4o',
-      });
-    }
-  } catch(e) {}
-  
-  const hasAzure = !!process.env.AZURE_OPENAI_KEY && process.env.AZURE_OPENAI_KEY !== 'dummy_key';
-  const hasOpenAI = !!process.env.OPENAI_API_KEY;
-  res.json({
-    status: hasAzure || hasOpenAI ? 'CLOUD_LLM_ENABLED' : 'AUTONOMOUS_LOCAL_ENGINE',
-    hasCloudKey: hasAzure || hasOpenAI,
-    provider: hasAzure ? 'Azure OpenAI (gpt-4o)' : hasOpenAI ? 'OpenAI (gpt-4o)' : 'Zero-Trust Semantic Engine',
-    model: 'gpt-4o (Zero-Trust Enclave)',
-  });
-});
-
-// Repository Code Graph Sync & Inspection Endpoint
-app.post('/api/repository/sync', async (req: Request, res: Response) => {
-  try {
-    const { projectId = 'default', repoPath, repoUrl, branch, force = false } = req.body;
-    const defaultRoot = path.resolve(__dirname, '..', '..');
-    const targetPath = repoPath && fs.existsSync(repoPath) ? repoPath : defaultRoot;
-
-    const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, force);
-    res.json({
-      success: true,
-      graph,
-      message: graph.isFromCache
-        ? 'Code graph served from local cache (0 files re-indexed).'
-        : `Scanned and indexed ${graph.filesCount} repository files into local graph tree.`,
-    });
-  } catch (err: any) {
-    console.error('[Repository Sync Error]', err);
-    res.status(500).json({ error: 'Failed to sync repository graph', details: err.message });
-  }
-});
-
-// Generate Project Context (memory.md) from Codebase
-app.post('/api/repository/generate-memory', async (req: Request, res: Response) => {
-  try {
-    const { projectId = 'default', repoUrl, branch, memoryPrompt } = req.body;
-    let targetPath = path.resolve(__dirname, '..', '..');
-    
-    if (repoUrl && repoUrl.startsWith('http')) {
-      targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
-      console.log(`Cloning ${repoUrl} to ${targetPath} for memory generation...`);
-      try {
-        if (branch && branch.trim().length > 0) {
-          execSync(`git clone -b ${branch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-        } else {
-          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-        }
-      } catch (e) {
-        console.error("Failed to clone, falling back to default.", e);
-        targetPath = path.resolve(__dirname, '..', '..');
-      }
-    }
-    
-    const graph = await scanRepositoryGraph(targetPath, projectId, repoUrl, branch, true);
-    
-    let activeMemoryPrompt = memoryPrompt;
-    if (!activeMemoryPrompt || activeMemoryPrompt.trim().length === 0) {
-      try {
-        const settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
-        if (settingsRes.rows.length > 0 && settingsRes.rows[0].value?.memoryPrompt) {
-          activeMemoryPrompt = settingsRes.rows[0].value.memoryPrompt;
-        }
-      } catch (e) {
-        // fallback
-      }
-    }
-
-    const memoryMd = await generateLlmProjectMemory(graph, repoUrl, activeMemoryPrompt);
-
-    res.json({ success: true, memoryMd, graph });
-  } catch (err: any) {
-    console.error('[Generate Memory Error]', err);
-    res.status(500).json({ error: 'Failed to generate project memory', details: err.message });
-  }
-});
-
-// Fetch Cached Repository Code Graph
-app.get('/api/repository/graph/:projectId', async (req: Request, res: Response) => {
-  try {
-    const projectId = String(req.params.projectId || 'default');
-    let graph = getCachedRepositoryGraph(projectId);
-    if (!graph) {
-      const defaultRoot = path.resolve(__dirname, '..', '..');
-      graph = await scanRepositoryGraph(defaultRoot, projectId);
-    }
-    res.json({ success: true, graph });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Failed to fetch repository graph', details: err.message });
-  }
-});
-
-// Apply Code to Git Branch
-app.post('/api/repository/apply-code', async (req: Request, res: Response) => {
-  try {
-    const { projectId = 'default', repoUrl, baseBranch = 'main', targetBranch, markdownContent } = req.body;
-    
-    if (!markdownContent || !targetBranch) {
-      return res.status(400).json({ error: 'markdownContent and targetBranch are required.' });
-    }
-
-    let targetPath = path.resolve(__dirname, '..', '..');
-    
-    // Clone repo
-    if (repoUrl && repoUrl.startsWith('http')) {
-      targetPath = path.join(os.tmpdir(), `sdlc-repo-apply-${Date.now()}`);
-      console.log(`Cloning ${repoUrl} to ${targetPath} to apply code...`);
-      try {
-        if (baseBranch && baseBranch.trim().length > 0) {
-          execSync(`git clone -b ${baseBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-        } else {
-          execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-        }
-      } catch (e) {
-        console.error("Failed to clone.", e);
-        return res.status(500).json({ error: 'Failed to clone repository.' });
-      }
-    } else {
-      return res.status(400).json({ error: 'Invalid repoUrl.' });
-    }
-
-    // Checkout new branch
-    try {
-      execSync(`git checkout -b ${targetBranch}`, { cwd: targetPath });
-    } catch (e) {
-      console.error("Failed to checkout branch.", e);
-      return res.status(500).json({ error: 'Failed to checkout new branch.' });
-    }
-
-    // Parse and write files
-    const parsedFiles = parseMarkdownFiles(markdownContent);
-    for (const file of parsedFiles) {
-      const fullPath = path.join(targetPath, file.filepath);
-      const dir = path.dirname(fullPath);
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true });
-      }
-      fs.writeFileSync(fullPath, file.code, 'utf-8');
-      console.log(`Wrote file: ${file.filepath}`);
-    }
-
-    // Commit changes
-    try {
-      execSync(`git add .`, { cwd: targetPath });
-      execSync(`git commit -m "Auto-generated SDLC implementation for ${targetBranch}"`, { cwd: targetPath });
-    } catch (e) {
-      console.error("Failed to commit.", e);
-      return res.status(500).json({ error: 'Failed to commit changes. Perhaps no files were changed.' });
-    }
-
-    // Push changes if possible (requires auth in repoUrl)
-    let pushSuccess = false;
-    try {
-      execSync(`git push -u origin ${targetBranch}`, { cwd: targetPath, stdio: 'ignore' });
-      pushSuccess = true;
-    } catch (e) {
-      console.log("Failed to push. Assuming local only or no credentials.");
-    }
-
-    res.json({ 
-      success: true, 
-      message: pushSuccess ? 'Successfully pushed to remote branch.' : 'Successfully committed to local clone branch.',
-      filesWritten: parsedFiles.length,
-      branch: targetBranch,
-      localPath: targetPath
-    });
-
-  } catch (err: any) {
-    console.error('[Apply Code Error]', err);
-    res.status(500).json({ error: 'Failed to apply code', details: err.message });
-  }
-});
-
-// Dynamic Multi-Agent Deliverable Synthesis (with Codebase Context)
-app.post('/api/agents/synthesize', async (req: Request, res: Response) => {
-  try {
-    const { requirement, maskedRequirement, targetStage, architecture, compliance, cloudTarget, llmModel, apiKey, projectId = 'default', repoUrl, repoBranch, brdPrompt, designPrompt, techDocPrompt, codePrompt, testCaseCreationPrompt, testAutomationPrompt, testingResultPrompt, deployPrompt, memoryMd } = req.body;
-
-    if (!requirement || requirement.trim().length === 0) {
-      return res.status(400).json({ error: 'Requirement text is required' });
-    }
-
-    // 1. Fetch or scan local codebase graph
-    let codeGraph = getCachedRepositoryGraph(projectId);
-    if (!codeGraph) {
-      let targetPath = path.resolve(__dirname, '..', '..');
-      
-      if (repoUrl && repoUrl.startsWith('http')) {
-        targetPath = path.join(os.tmpdir(), `sdlc-repo-${Date.now()}`);
-        console.log(`Cloning ${repoUrl} (branch: ${repoBranch || 'default'}) to ${targetPath}...`);
-        try {
-          if (repoBranch && repoBranch.trim().length > 0) {
-            execSync(`git clone -b ${repoBranch.trim()} --single-branch ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-          } else {
-            execSync(`git clone ${repoUrl} ${targetPath}`, { stdio: 'ignore' });
-          }
-        } catch (e) {
-          console.error("Failed to clone, falling back to default.", e);
-          targetPath = path.resolve(__dirname, '..', '..');
-        }
-      }
-      
-      codeGraph = await scanRepositoryGraph(targetPath, projectId);
-    }
-
-    // Check global_settings table for configured default prompts if any prompt was omitted
-    let activeBrdPrompt = brdPrompt;
-    let activeDesignPrompt = designPrompt;
-    let activeTechDocPrompt = techDocPrompt;
-    let activeCodePrompt = codePrompt;
-    let activeTestCaseCreationPrompt = testCaseCreationPrompt;
-    let activeTestAutomationPrompt = testAutomationPrompt;
-    let activeTestingResultPrompt = testingResultPrompt;
-    let activeDeployPrompt = deployPrompt;
-
-    try {
-      const settingsRes = await query("SELECT value FROM global_settings WHERE key = 'default_prompts'");
-      if (settingsRes.rows.length > 0) {
-        const defaults = settingsRes.rows[0].value;
-        if (!activeBrdPrompt) activeBrdPrompt = defaults.brdPrompt;
-        if (!activeDesignPrompt) activeDesignPrompt = defaults.designPrompt;
-        if (!activeTechDocPrompt) activeTechDocPrompt = defaults.techDocPrompt;
-        if (!activeCodePrompt) activeCodePrompt = defaults.codePrompt;
-        if (!activeTestCaseCreationPrompt) activeTestCaseCreationPrompt = defaults.testCaseCreationPrompt;
-        if (!activeTestAutomationPrompt) activeTestAutomationPrompt = defaults.testAutomationPrompt;
-        if (!activeTestingResultPrompt) activeTestingResultPrompt = defaults.testingResultPrompt;
-        if (!activeDeployPrompt) activeDeployPrompt = defaults.deployPrompt;
-      }
-    } catch (e) {
-      // ignore, will use synthesizer fallback
-    }
-
-    const result = await synthesizeDeliverables({
-      requirement,
-      maskedRequirement,
-      targetStage,
-      brdPrompt: activeBrdPrompt,
-      designPrompt: activeDesignPrompt,
-      techDocPrompt: activeTechDocPrompt,
-      codePrompt: activeCodePrompt,
-      testCaseCreationPrompt: activeTestCaseCreationPrompt,
-      testAutomationPrompt: activeTestAutomationPrompt,
-      testingResultPrompt: activeTestingResultPrompt,
-      deployPrompt: activeDeployPrompt,
-      architecture,
-      compliance,
-      cloudTarget,
-      llmModel,
-      apiKey,
-      repoUrl,
-      codeGraph: codeGraph || undefined,
-      memoryMd,
-    });
-
-    res.json(result);
-  } catch (err: any) {
-    console.error('[Synthesis Error]', err);
-    res.status(500).json({ error: 'Failed to synthesize deliverables', details: err.message });
-  }
-});
-
-// Database CRUD Endpoints
-
-// Get all projects
-app.get('/api/projects', async (req: Request, res: Response) => {
-  try {
-    const result = await query('SELECT * FROM projects ORDER BY created_at DESC');
-    res.json(result.rows);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Create project
-app.post('/api/projects', async (req: Request, res: Response) => {
-  try {
-    const { name, description } = req.body;
     const result = await query(
-      'INSERT INTO projects (name, description) VALUES ($1, $2) RETURNING *',
-      [name, description]
-    );
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Get features for a project
-app.get('/api/projects/:id/features', async (req: Request, res: Response) => {
-  try {
-    const projectId = req.params.id;
-    const result = await query('SELECT * FROM features WHERE project_id = $1 ORDER BY created_at DESC', [projectId]);
-    res.json(result.rows);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Create feature
-app.post('/api/projects/:id/features', async (req: Request, res: Response) => {
-  try {
-    const projectId = req.params.id;
-    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md } = req.body;
-    const result = await query(
-      `INSERT INTO features (project_id, name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [projectId, name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md]
-    );
-    const featureId = result.rows[0].id;
-    // Auto-create initial workflow state
-    await query('INSERT INTO workflows (feature_id, current_stage, status) VALUES ($1, 1, $2)', [featureId, 'pending']);
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Update feature
-app.put('/api/features/:id', async (req: Request, res: Response) => {
-  try {
-    const featureId = req.params.id;
-    const { name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, memory_prompt } = req.body;
-    const result = await query(
-      `UPDATE features SET name = $1, code_access = $2, db_access = $3, base_requirement = $4, brd_prompt = $5, design_prompt = $6, code_prompt = $7, test_prompt = $8, memory_md = $9, memory_prompt = COALESCE($10, memory_prompt)
-       WHERE id = $11 RETURNING *`,
-      [name, code_access, db_access, base_requirement, brd_prompt, design_prompt, code_prompt, test_prompt, memory_md, memory_prompt, featureId]
-    );
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Delete feature
-app.delete('/api/features/:id', async (req: Request, res: Response) => {
-  try {
-    const featureId = req.params.id;
-    // Delete associated workflows first to avoid foreign key constraints
-    await query('DELETE FROM workflows WHERE feature_id = $1', [featureId]);
-    await query('DELETE FROM features WHERE id = $1', [featureId]);
-    res.json({ success: true, message: 'Feature deleted successfully' });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Update feature prompts for all stages
-app.put('/api/features/:id/prompts', async (req: Request, res: Response) => {
-  try {
-    const featureId = req.params.id;
-    const {
-      memory_prompt,
-      brd_prompt,
-      design_prompt,
-      tech_doc_prompt,
-      code_prompt,
-      unit_test_prompt,
-      test_prompt,
-      uat_prompt,
-      deploy_prompt,
-      test_case_creation_prompt,
-      test_automation_prompt,
-      testing_result_prompt,
-      stage_prompts,
-    } = req.body;
-
-    const result = await query(
-      `UPDATE features 
-       SET memory_prompt = COALESCE($1, memory_prompt),
-           brd_prompt = COALESCE($2, brd_prompt),
-           design_prompt = COALESCE($3, design_prompt),
-           tech_doc_prompt = COALESCE($4, tech_doc_prompt),
-           code_prompt = COALESCE($5, code_prompt),
-           unit_test_prompt = COALESCE($6, unit_test_prompt),
-           test_prompt = COALESCE($7, test_prompt),
-           uat_prompt = COALESCE($8, uat_prompt),
-           deploy_prompt = COALESCE($9, deploy_prompt),
-           test_case_creation_prompt = COALESCE($10, test_case_creation_prompt),
-           test_automation_prompt = COALESCE($11, test_automation_prompt),
-           testing_result_prompt = COALESCE($12, testing_result_prompt),
-           stage_prompts = COALESCE($13, stage_prompts)
-       WHERE id = $14 RETURNING *`,
-      [
-        memory_prompt,
-        brd_prompt,
-        design_prompt,
-        tech_doc_prompt,
-        code_prompt,
-        unit_test_prompt,
-        test_prompt,
-        uat_prompt,
-        deploy_prompt,
-        test_case_creation_prompt,
-        test_automation_prompt,
-        testing_result_prompt,
-        stage_prompts ? JSON.stringify(stage_prompts) : null,
-        featureId,
-      ]
-    );
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Get workflow for a feature
-app.get('/api/features/:id/workflow', async (req: Request, res: Response) => {
-  try {
-    const featureId = req.params.id;
-    const result = await query('SELECT * FROM workflows WHERE feature_id = $1 LIMIT 1', [featureId]);
-    if (result.rows.length === 0) {
-      return res.status(404).json({ error: 'Workflow not found' });
-    }
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// Update workflow stage
-app.put('/api/features/:id/workflow', async (req: Request, res: Response) => {
-  try {
-    const featureId = req.params.id;
-    const { current_stage, status, stage_data } = req.body;
-    
-    // fetch existing
-    const existing = await query('SELECT * FROM workflows WHERE feature_id = $1', [featureId]);
-    if (existing.rows.length === 0) {
-      return res.status(404).json({ error: 'Workflow not found' });
-    }
-    
-    const currentData = existing.rows[0].stage_data || {};
-    const newData = { ...currentData, ...stage_data };
-    
-    const result = await query(
-      `UPDATE workflows 
-       SET current_stage = COALESCE($1, current_stage), 
-           status = COALESCE($2, status), 
-           stage_data = $3,
-           updated_at = CURRENT_TIMESTAMP
-       WHERE feature_id = $4 RETURNING *`,
-      [current_stage, status, newData, featureId]
-    );
-    res.json(result.rows[0]);
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-// ─── Global Settings & Prompt Configuration Endpoints ────────────────────────
-app.get('/api/settings', async (req: Request, res: Response) => {
-  try {
-    const result = await query('SELECT key, value FROM global_settings');
-    const settingsMap: Record<string, any> = {};
-    for (const row of result.rows) {
-      settingsMap[row.key] = row.value;
-    }
-    
-    // Ensure defaults if not present in DB
-    const theme = settingsMap['theme'] || { mode: 'light' };
-    const defaultPrompts = settingsMap['default_prompts'] || FACTORY_DEFAULT_PROMPTS;
-
-    res.json({
-      theme,
-      defaultPrompts,
-      factoryDefaults: FACTORY_DEFAULT_PROMPTS,
-    });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-app.post('/api/settings', async (req: Request, res: Response) => {
-  try {
-    const { theme, defaultPrompts } = req.body;
-    
-    if (theme) {
-      await query(
-        `INSERT INTO global_settings (key, value, updated_at) 
-         VALUES ('theme', $1::jsonb, CURRENT_TIMESTAMP)
-         ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
-        [JSON.stringify(theme)]
-      );
-    }
-    
-    if (defaultPrompts) {
-      await query(
-        `INSERT INTO global_settings (key, value, updated_at) 
-         VALUES ('default_prompts', $1::jsonb, CURRENT_TIMESTAMP)
-         ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
-        [JSON.stringify(defaultPrompts)]
-      );
-    }
-    
-    res.json({ success: true, message: 'Settings saved successfully' });
-  } catch (err: any) {
-    res.status(500).json({ error: 'Database error', details: err.message });
-  }
-});
-
-app.post('/api/settings/reset-prompts', async (req: Request, res: Response) => {
-  try {
-    await query(
-      `INSERT INTO global_settings (key, value, updated_at) 
-       VALUES ('default_prompts', $1::jsonb, CURRENT_TIMESTAMP)
-       ON CONFLICT (key) DO UPDATE SET value = $1::jsonb, updated_at = CURRENT_TIMESTAMP`,
-      [JSON.stringify(FACTORY_DEFAULT_PROMPTS)]
+      `
+      INSERT INTO tenant_settings (tenant_id, key, value)
+      VALUES ($1, 'default_prompts', $2::jsonb)
+      ON CONFLICT (tenant_id, key) DO UPDATE
+      SET value = $2::jsonb;
+      `,
+      [req.user.tenant_id, JSON.stringify(FACTORY_DEFAULT_PROMPTS)]
     );
     res.json({ success: true, defaultPrompts: FACTORY_DEFAULT_PROMPTS });
   } catch (err: any) {

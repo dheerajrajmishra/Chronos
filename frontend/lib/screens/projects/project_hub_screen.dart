@@ -242,6 +242,7 @@ class ProjectHubScreen extends StatelessWidget {
   }
 
   void _showCreateFeatureDialog(BuildContext context, EnterpriseSDLCController controller, Project activePrj, bool isDark) {
+
     final nameCtrl = TextEditingController();
     final codeRepoCtrl = TextEditingController(text: 'https://github.com/my-org/repo.git');
     final dbUrlCtrl = TextEditingController(text: 'postgres://user:pass@localhost:5432/db');
@@ -421,12 +422,39 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
                     ),
                     child: Icon(Icons.folder_shared_outlined, color: isSelected ? primaryColor : EnterpriseTheme.getTextSecondary(widget.isDark), size: 16),
                   ),
-                  if (isSelected)
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
-                      child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 9, fontWeight: FontWeight.bold)),
-                    )
+                  Row(
+                    children: [
+                      if (isSelected)
+                        Container(
+                          margin: const EdgeInsets.only(right: 8),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(color: primaryColor.withOpacity(0.2), borderRadius: BorderRadius.circular(12)),
+                          child: Text('ACTIVE', style: GoogleFonts.inter(color: primaryColor, fontSize: 9, fontWeight: FontWeight.bold)),
+                        ),
+                      PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, size: 16, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
+                        padding: EdgeInsets.zero,
+                        tooltip: 'Options',
+                        onSelected: (val) {
+                          if (val == 'edit') {
+                            _showEditProjectDialog(context, widget.controller, widget.project, widget.isDark);
+                          } else if (val == 'delete') {
+                            _showDeleteProjectDialog(context, widget.controller, widget.project, widget.isDark);
+                          }
+                        },
+                        itemBuilder: (context) => [
+                          PopupMenuItem(
+                            value: 'edit',
+                            child: Row(children: [Icon(Icons.edit_outlined, size: 18), const SizedBox(width: 8), const Text('Edit')]),
+                          ),
+                          PopupMenuItem(
+                            value: 'delete',
+                            child: Row(children: [Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose), const SizedBox(width: 8), Text('Delete', style: TextStyle(color: EnterpriseTheme.rose))]),
+                          ),
+                        ],
+                      ),
+                    ],
+                  )
                 ],
               ),
               const SizedBox(height: 8),
@@ -455,6 +483,201 @@ class _ModernProjectCardState extends State<_ModernProjectCard> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showEditProjectDialog(BuildContext context, EnterpriseSDLCController controller, Project project, bool isDark) {
+    final nameCtrl = TextEditingController(text: project.name);
+    final descCtrl = TextEditingController(text: project.description);
+    final primaryColor = EnterpriseTheme.getPrimaryAccent(isDark);
+
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 480,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: EnterpriseTheme.getSurface(isDark).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 40)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: primaryColor.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Icon(Icons.edit_outlined, color: primaryColor),
+                      ),
+                      const SizedBox(width: 16),
+                      Text('Edit Workspace',
+                          style: GoogleFonts.outfit(
+                              color: EnterpriseTheme.getTextPrimary(isDark),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 32),
+                  _buildTextField('Project Name', nameCtrl, isDark, Icons.title),
+                  const SizedBox(height: 20),
+                  _buildTextField('Description', descCtrl, isDark, Icons.description, maxLines: 3),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: EnterpriseTheme.getTextSecondary(isDark),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          if (nameCtrl.text.isNotEmpty) {
+                            controller.updateProject(project.id, nameCtrl.text, descCtrl.text);
+                            Navigator.of(context).pop();
+                          }
+                        },
+                        icon: const Icon(Icons.check, size: 18),
+                        label: const Text('Save Changes'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: primaryColor,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showDeleteProjectDialog(BuildContext context, EnterpriseSDLCController controller, Project project, bool isDark) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black.withValues(alpha: 0.6),
+      builder: (context) {
+        return BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Dialog(
+            backgroundColor: Colors.transparent,
+            child: Container(
+              width: 400,
+              padding: const EdgeInsets.all(32),
+              decoration: BoxDecoration(
+                color: EnterpriseTheme.getSurface(isDark).withValues(alpha: 0.95),
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: EnterpriseTheme.rose.withValues(alpha: 0.5)),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.2), blurRadius: 40)],
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                          color: EnterpriseTheme.rose.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(Icons.warning_amber_rounded, color: Color(0xFFE11D48)),
+                      ),
+                      const SizedBox(width: 16),
+                      Text('Delete Workspace',
+                          style: GoogleFonts.outfit(
+                              color: EnterpriseTheme.getTextPrimary(isDark),
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  Text(
+                    'Are you sure you want to delete "${project.name}"? This will permanently remove all associated features and workflows. This action cannot be undone.',
+                    style: GoogleFonts.inter(
+                        color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 14, height: 1.5),
+                  ),
+                  const SizedBox(height: 32),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      TextButton(
+                        onPressed: () => Navigator.of(context).pop(),
+                        style: TextButton.styleFrom(
+                          foregroundColor: EnterpriseTheme.getTextSecondary(isDark),
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                        ),
+                        child: const Text('Cancel'),
+                      ),
+                      const SizedBox(width: 12),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          controller.deleteProject(project.id);
+                          Navigator.of(context).pop();
+                        },
+                        icon: const Icon(Icons.delete_outline, size: 18),
+                        label: const Text('Delete'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFE11D48),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildTextField(String label, TextEditingController ctrl, bool isDark, IconData icon, {int maxLines = 1}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: GoogleFonts.inter(color: EnterpriseTheme.getTextSecondary(isDark), fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextField(
+          controller: ctrl,
+          maxLines: maxLines,
+          style: GoogleFonts.inter(color: EnterpriseTheme.getTextPrimary(isDark), fontSize: 14),
+          decoration: InputDecoration(
+            prefixIcon: Icon(icon, color: EnterpriseTheme.getTextMuted(isDark), size: 18),
+            filled: true,
+            fillColor: EnterpriseTheme.getSubtleBg(isDark),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(isDark))),
+            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: EnterpriseTheme.getCardBorder(isDark))),
+            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: EnterpriseTheme.getPrimaryAccent(isDark), width: 1.5)),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -511,14 +734,27 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                   Expanded(
                     child: Text(widget.feature.name, style: GoogleFonts.outfit(color: EnterpriseTheme.getTextPrimary(widget.isDark), fontSize: 16, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis),
                   ),
-                  IconButton(
-                    icon: Icon(Icons.delete_outline, color: EnterpriseTheme.getTextMuted(widget.isDark), size: 18),
-                    onPressed: () {
-                      _showDeleteConfirmationDialog(context);
-                    },
+                  PopupMenuButton<String>(
+                    icon: Icon(Icons.more_vert, size: 16, color: EnterpriseTheme.getTextSecondary(widget.isDark)),
                     padding: EdgeInsets.zero,
-                    constraints: const BoxConstraints(),
-                    splashRadius: 18,
+                    tooltip: 'Options',
+                    onSelected: (val) {
+                      if (val == 'edit') {
+                        // _showEditFeatureDialog(context); // Optional: add an edit feature dialog here
+                      } else if (val == 'delete') {
+                        _showDeleteConfirmationDialog(context);
+                      }
+                    },
+                    itemBuilder: (context) => [
+                      PopupMenuItem(
+                        value: 'edit',
+                        child: Row(children: [Icon(Icons.edit_outlined, size: 18), const SizedBox(width: 8), const Text('Edit')]),
+                      ),
+                      PopupMenuItem(
+                        value: 'delete',
+                        child: Row(children: [Icon(Icons.delete_outline, size: 18, color: EnterpriseTheme.rose), const SizedBox(width: 8), Text('Delete', style: TextStyle(color: EnterpriseTheme.rose))]),
+                      ),
+                    ],
                   ),
                 ],
               ),
@@ -614,7 +850,7 @@ class _ModernFeatureCardState extends State<_ModernFeatureCard> {
                       const SizedBox(width: 12),
                       ElevatedButton.icon(
                         onPressed: () {
-                          widget.controller.deleteFeature(widget.feature);
+                          widget.controller.deleteFeature(widget.feature.id);
                           Get.back();
                         },
                         icon: const Icon(Icons.delete_forever, size: 18),

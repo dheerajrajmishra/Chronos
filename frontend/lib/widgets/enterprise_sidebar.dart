@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../controllers/enterprise_sdlc_controller.dart';
+import '../controllers/auth_controller.dart';
 import '../models/workflow_model.dart';
 import '../models/sdlc_models.dart';
 import '../theme/enterprise_theme.dart';
@@ -113,6 +114,10 @@ class EnterpriseSidebar extends StatelessWidget {
                       title: 'Settings & Prompts',
                       icon: Icons.tune_rounded,
                       badge: 'CONFIG',
+                      isCollapsed: isCollapsed,
+                      isDark: isDark,
+                    ),
+                    _LogoutNavItem(
                       isCollapsed: isCollapsed,
                       isDark: isDark,
                     ),
@@ -478,15 +483,56 @@ class EnterpriseSidebar extends StatelessWidget {
     Color textSecColor,
     Color borderColor,
   ) {
+    if (isCollapsed) {
+      return Container(
+        height: 60,
+        decoration: BoxDecoration(
+          border: Border(bottom: BorderSide(color: borderColor, width: 1)),
+        ),
+        child: Stack(
+          alignment: Alignment.center,
+          children: [
+            // Centered logo
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                gradient: EnterpriseTheme.brandGradient,
+                borderRadius: BorderRadius.circular(9),
+              ),
+              child: const Center(
+                child: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
+              ),
+            ),
+            // Expand chevron pinned to right edge
+            Positioned(
+              right: 2,
+              bottom: 4,
+              child: GestureDetector(
+                onTap: () => controller.isSidebarCollapsed.toggle(),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    color: EnterpriseTheme.getSubtleBg(isDark),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Icon(Icons.chevron_right_rounded, size: 14, color: textSecColor),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
     return Container(
       height: 60,
-      padding: EdgeInsets.symmetric(horizontal: isCollapsed ? 12 : 16),
+      padding: const EdgeInsets.symmetric(horizontal: 16),
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: borderColor, width: 1)),
       ),
       child: Row(
         children: [
-          // Logo mark
           Container(
             width: 34,
             height: 34,
@@ -498,41 +544,38 @@ class EnterpriseSidebar extends StatelessWidget {
               child: Icon(Icons.shield_outlined, color: Colors.white, size: 18),
             ),
           ),
-          if (!isCollapsed) ...[
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  ShaderMask(
-                    shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
-                    child: Text(
-                      'Chronos',
-                      style: GoogleFonts.inter(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                        fontSize: 17,
-                        letterSpacing: -0.3,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'Zero-Trust SDLC',
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                ShaderMask(
+                  shaderCallback: (bounds) => EnterpriseTheme.brandGradient.createShader(bounds),
+                  child: Text(
+                    'Chronos',
                     style: GoogleFonts.inter(
-                      color: textSecColor.withValues(alpha: 0.7),
-                      fontWeight: FontWeight.w500,
-                      fontSize: 10,
-                      letterSpacing: 0.3,
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 17,
+                      letterSpacing: -0.3,
                     ),
                   ),
-                ],
-              ),
+                ),
+                Text(
+                  'Zero-Trust SDLC',
+                  style: GoogleFonts.inter(
+                    color: textSecColor.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 10,
+                    letterSpacing: 0.3,
+                  ),
+                ),
+              ],
             ),
-          ],
-          const Spacer(),
+          ),
           _hoverIcon(
-            icon: isCollapsed ? Icons.chevron_right_rounded : Icons.chevron_left_rounded,
+            icon: Icons.chevron_left_rounded,
             color: textSecColor,
             onTap: () => controller.isSidebarCollapsed.toggle(),
             isDark: isDark,
@@ -1181,5 +1224,63 @@ class _PipelineStageNavItemState extends State<_PipelineStageNavItem> {
         ),
       );
     }
+  }
+}
+
+class _LogoutNavItem extends StatelessWidget {
+  final bool isCollapsed;
+  final bool isDark;
+
+  const _LogoutNavItem({
+    Key? key,
+    required this.isCollapsed,
+    required this.isDark,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final textColor = EnterpriseTheme.getTextSecondary(isDark);
+    final hoverBg = EnterpriseTheme.getCardBorder(isDark).withValues(alpha: 0.3);
+    final authController = Get.find<AuthController>();
+
+    return Tooltip(
+      message: isCollapsed ? 'Logout' : '',
+      waitDuration: const Duration(milliseconds: 300),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => authController.logout(),
+          hoverColor: hoverBg,
+          splashColor: Colors.redAccent.withValues(alpha: 0.1),
+          highlightColor: Colors.transparent,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.logout_rounded,
+                  size: 20,
+                  color: Colors.redAccent.withValues(alpha: 0.8),
+                ),
+                if (!isCollapsed) ...[
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Text(
+                      'Logout',
+                      style: GoogleFonts.inter(
+                        color: Colors.redAccent.withValues(alpha: 0.8),
+                        fontSize: 13,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

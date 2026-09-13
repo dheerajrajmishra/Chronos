@@ -1,12 +1,24 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:get/get.dart';
 import '../models/sdlc_models.dart';
+import '../controllers/auth_controller.dart';
+
 
 class ApiService {
   static const String baseUrl = 'http://localhost:4000/api';
 
+  static Map<String, String> _getHeaders() {
+    final token = Get.isRegistered<AuthController>() ? Get.find<AuthController>().token.value : '';
+    return {
+      'Content-Type': 'application/json',
+      if (token.isNotEmpty) 'Authorization': 'Bearer $token',
+    };
+  }
+
+
   static Future<Map<String, dynamic>> getLlmConfig() async {
-    final response = await http.get(Uri.parse('$baseUrl/settings/llm-config'));
+    final response = await http.get(Uri.parse('$baseUrl/settings/llm-config'), headers: _getHeaders());
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
@@ -16,14 +28,14 @@ class ApiService {
   static Future<bool> saveLlmConfig(Map<String, dynamic> config) async {
     final response = await http.post(
       Uri.parse('$baseUrl/settings/llm-config'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode(config),
     );
     return response.statusCode == 200;
   }
 
   static Future<List<Project>> getProjects() async {
-    final response = await http.get(Uri.parse('$baseUrl/projects'));
+    final response = await http.get(Uri.parse('$baseUrl/projects'), headers: _getHeaders());
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((json) => Project.fromJson(json)).toList();
@@ -33,7 +45,7 @@ class ApiService {
   static Future<Project> createProject(String name, String description) async {
     final response = await http.post(
       Uri.parse('$baseUrl/projects'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({'name': name, 'description': description}),
     );
     if (response.statusCode == 200) {
@@ -43,8 +55,28 @@ class ApiService {
     throw Exception('Failed to create project');
   }
 
+  static Future<Project> updateProject(int id, String name, String description) async {
+    final response = await http.put(
+      Uri.parse('$baseUrl/projects/$id'),
+      headers: _getHeaders(),
+      body: jsonEncode({'name': name, 'description': description}),
+    );
+    if (response.statusCode == 200) {
+      return Project.fromJson(jsonDecode(response.body));
+    }
+    throw Exception('Failed to update project');
+  }
+
+  static Future<bool> deleteProject(int id) async {
+    final response = await http.delete(
+      Uri.parse('$baseUrl/projects/$id'),
+      headers: _getHeaders(),
+    );
+    return response.statusCode == 200;
+  }
+
   static Future<List<Feature>> getFeatures(int projectId) async {
-    final response = await http.get(Uri.parse('$baseUrl/projects/$projectId/features'));
+    final response = await http.get(Uri.parse('$baseUrl/projects/$projectId/features'), headers: _getHeaders());
     if (response.statusCode == 200) {
       final List data = jsonDecode(response.body);
       return data.map((json) => Feature.fromJson(json)).toList();
@@ -66,7 +98,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/projects/$projectId/features'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         'name': name,
         'code_access': codeAccess,
@@ -99,7 +131,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/features/$featureId'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         'name': name,
         'code_access': codeAccess,
@@ -120,7 +152,7 @@ class ApiService {
   }
 
   static Future<void> deleteFeature(int featureId) async {
-    final response = await http.delete(Uri.parse('$baseUrl/features/$featureId'));
+    final response = await http.delete(Uri.parse('$baseUrl/features/$featureId'), headers: _getHeaders());
     if (response.statusCode != 200) {
       throw Exception('Failed to delete feature');
     }
@@ -141,7 +173,7 @@ class ApiService {
   }) async {
     final response = await http.put(
       Uri.parse('$baseUrl/features/$featureId/prompts'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         if (brdPrompt != null) 'brd_prompt': brdPrompt,
         if (designPrompt != null) 'design_prompt': designPrompt,
@@ -162,7 +194,7 @@ class ApiService {
   }
 
   static Future<WorkflowState> getWorkflowState(int featureId) async {
-    final response = await http.get(Uri.parse('$baseUrl/features/$featureId/workflow'));
+    final response = await http.get(Uri.parse('$baseUrl/features/$featureId/workflow'), headers: _getHeaders());
     if (response.statusCode == 200) {
       return WorkflowState.fromJson(jsonDecode(response.body));
     }
@@ -173,7 +205,7 @@ class ApiService {
       int featureId, int currentStage, String status, Map<String, dynamic> stageData) async {
     final response = await http.put(
       Uri.parse('$baseUrl/features/$featureId/workflow'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         'current_stage': currentStage,
         'status': status,
@@ -189,7 +221,7 @@ class ApiService {
   static Future<Map<String, dynamic>> applyCodeToBranch(Map<String, dynamic> payload) async {
     final response = await http.post(
       Uri.parse('$baseUrl/repository/apply-code'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode(payload),
     );
     if (response.statusCode == 200) {
@@ -201,7 +233,7 @@ class ApiService {
   static Future<Map<String, dynamic>> generateDeliverables(Map<String, dynamic> payload) async {
     final response = await http.post(
       Uri.parse('$baseUrl/agents/synthesize'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode(payload),
     );
     if (response.statusCode == 200) {
@@ -218,7 +250,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/repository/generate-memory'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         'projectId': projectId,
         'repoUrl': repoUrl,
@@ -233,7 +265,7 @@ class ApiService {
   }
 
   static Future<Map<String, dynamic>> getGlobalSettings() async {
-    final response = await http.get(Uri.parse('$baseUrl/settings'));
+    final response = await http.get(Uri.parse('$baseUrl/settings'), headers: _getHeaders());
     if (response.statusCode == 200) {
       return jsonDecode(response.body);
     }
@@ -243,7 +275,7 @@ class ApiService {
   static Future<bool> saveGlobalSettings({Map<String, dynamic>? theme, Map<String, dynamic>? defaultPrompts}) async {
     final response = await http.post(
       Uri.parse('$baseUrl/settings'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
       body: jsonEncode({
         if (theme != null) 'theme': theme,
         if (defaultPrompts != null) 'defaultPrompts': defaultPrompts,
@@ -255,7 +287,7 @@ class ApiService {
   static Future<Map<String, dynamic>> resetDefaultPrompts() async {
     final response = await http.post(
       Uri.parse('$baseUrl/settings/reset-prompts'),
-      headers: {'Content-Type': 'application/json'},
+      headers: _getHeaders(),
     );
     if (response.statusCode == 200) {
       return jsonDecode(response.body);

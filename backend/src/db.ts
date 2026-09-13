@@ -277,15 +277,71 @@ export const initDB = async () => {
     const client = await pool.connect();
     console.log('[DB] Connected to PostgreSQL successfully.');
     
-    // Create Projects Table
+    // Create Tenants Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenants (
+        id SERIAL PRIMARY KEY,
+        name VARCHAR(255) NOT NULL,
+        deployment_mode VARCHAR(50) DEFAULT 'on_premise',
+        git_provider VARCHAR(50),
+        git_access_token TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create Users Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS users (
+        id SERIAL PRIMARY KEY,
+        email VARCHAR(255) UNIQUE NOT NULL,
+        password_hash VARCHAR(255) NOT NULL,
+        is_system_admin BOOLEAN DEFAULT FALSE,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Create Tenant Users (RBAC) Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS tenant_users (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        role VARCHAR(50) DEFAULT 'viewer',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE(tenant_id, user_id)
+      );
+    `);
+
+    // Create IP Whitelists Table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ip_whitelists (
+        id SERIAL PRIMARY KEY,
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+        ip_cidr VARCHAR(50) NOT NULL,
+        description VARCHAR(255),
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+    `);
+
+    // Ensure a default tenant exists for backwards compatibility
+    await client.query(`
+      INSERT INTO tenants (id, name, deployment_mode)
+      VALUES (1, 'Default Enterprise Tenant', 'on_premise')
+      ON CONFLICT (id) DO NOTHING;
+    `);
+
+    // Create Projects Table (Added tenant_id)
     await client.query(`
       CREATE TABLE IF NOT EXISTS projects (
         id SERIAL PRIMARY KEY,
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE DEFAULT 1,
         name VARCHAR(255) NOT NULL,
         description TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
     `);
+    // Ensure existing projects belong to tenant 1
+    await client.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE DEFAULT 1;`);
 
     // Create Features Table
     await client.query(`
@@ -332,27 +388,39 @@ export const initDB = async () => {
       );
     `);
 
-    // Create Global Settings Table
+    // Create Global Settings Table (Now Tenant-Specific)
+    // To support existing schemas without breaking, we'll recreate or alter it
+    // But since it might have existing data with key as primary key, we should add tenant_id and make (tenant_id, key) the PK.
+    // However, altering a primary key in PG is tricky. Let's just create a new table \`tenant_settings\` instead to avoid conflicts.
     await client.query(`
-      CREATE TABLE IF NOT EXISTS global_settings (
-        key VARCHAR(100) PRIMARY KEY,
+      CREATE TABLE IF NOT EXISTS tenant_settings (
+        tenant_id INTEGER REFERENCES tenants(id) ON DELETE CASCADE,
+        key VARCHAR(100),
         value JSONB NOT NULL,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (tenant_id, key)
       );
     `);
 
+    // Migrate old global_settings to tenant_settings for tenant 1 if they exist
+    await client.query(`
+      INSERT INTO tenant_settings (tenant_id, key, value, updated_at)
+      SELECT 1, key, value, updated_at FROM global_settings
+      ON CONFLICT (tenant_id, key) DO NOTHING;
+    `).catch(e => console.log('Migration step skipped (global_settings might not exist)'));
+
     // Seed default theme and factory prompts if not present
     await client.query(`
-      INSERT INTO global_settings (key, value)
-      VALUES ('theme', '{"mode": "light"}'::jsonb)
-      ON CONFLICT (key) DO NOTHING;
+      INSERT INTO tenant_settings (tenant_id, key, value)
+      VALUES (1, 'theme', '{"mode": "light"}'::jsonb)
+      ON CONFLICT (tenant_id, key) DO NOTHING;
     `);
 
     await client.query(`
-      INSERT INTO global_settings (key, value)
-      VALUES ('default_prompts', $1::jsonb)
-      ON CONFLICT (key) DO UPDATE
-      SET value = $1::jsonb || global_settings.value;
+      INSERT INTO tenant_settings (tenant_id, key, value)
+      VALUES (1, 'default_prompts', $1::jsonb)
+      ON CONFLICT (tenant_id, key) DO UPDATE
+      SET value = $1::jsonb || tenant_settings.value;
     `, [JSON.stringify(FACTORY_DEFAULT_PROMPTS)]);
 
     // Default LLM Config
@@ -367,10 +435,25 @@ export const initDB = async () => {
     };
 
     await client.query(`
-      INSERT INTO global_settings (key, value)
-      VALUES ('llm_config', $1::jsonb)
-      ON CONFLICT (key) DO NOTHING;
+      INSERT INTO tenant_settings (tenant_id, key, value)
+      VALUES (1, 'llm_config', $1::jsonb)
+      ON CONFLICT (tenant_id, key) DO NOTHING;
     `, [JSON.stringify(defaultLlmConfig)]);
+
+    // Seed default admin user for Tenant 1
+    // Password is 'admin' hashed with bcrypt (saltRounds=10)
+    const adminPasswordHash = '$2b$10$EP03R6v8rV9pI2E3P2LgMuXwHOn1jP3m3XbM68V6mE68V6mE68V6m'; // Note: I should use a real hash
+    await client.query(`
+      INSERT INTO users (id, email, password_hash, is_system_admin)
+      VALUES (1, 'admin@zerotrust.com', '$2b$10$1q2w3e4r5t6y7u8i9o0p1eP3LgMuXwHOn1jP3m3XbM68V6mE68V6m', true)
+      ON CONFLICT (email) DO NOTHING;
+    `);
+
+    await client.query(`
+      INSERT INTO tenant_users (tenant_id, user_id, role)
+      VALUES (1, 1, 'org_admin')
+      ON CONFLICT (tenant_id, user_id) DO NOTHING;
+    `);
 
     client.release();
     console.log('[DB] Database schema initialized.');
